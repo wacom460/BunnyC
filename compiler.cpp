@@ -7,32 +7,95 @@
 //c transpiler for now
 //no order of operations, sequential ONLY
 
-//can compile only ONE file for simplicity
 //compiler options inside source code, preferably using code
 
 //Example code:
+//note that the tabbing does not matter.
+//one line is one statement
 /*
+~single line comment
+~~multi
+line
+comment~~
+~~
+~~
+~~
+~~
+@space clib
+@imaginary @func
+$malloc u32 size @returns &void~~whats up~~
+$free &void ptr
+$realloc &void ptr u32 size @returns &void
+@@
+
+@space sys
+@public~public sets all future code to public if on its own line like this
+@func
+@@
+
+//------------------
+@use system
+@space game
+
+@build
+	@lib SDL2
+@@
+
+@struct %c8
+	@func
+		$len
+
+	@@
+@@
+
 @struct $Entity
 	%c8 name
-	%f32 x y
+	%f32 x,y
 
-@done
+	@func
+	$setName &c8 name
+		%len = @call name.len
+	@@
+
+	$move f32 x,y 
+		@comment deadzone
+		@if x geq 0
+			
+		@@
+	@@
+@@
+
+@func $Main i32 argCount &&c8 args
+	
+@@ 0
 
 @func $FuncDoThing i32 var1 i64 var2 &&void funcPtr @returns i32
+	
+@@ 0
 
-@done 0
-
-@&c8 $AddTwoStrs &c8 str1 &c8 str2
+@func $AddTwoStrs &c8 str1 &c8 str2 @returns &c8
 	%c8 ret = str1 + str2
-@done %ret
+@@ %ret
 */
 
 #define OBJ_NAME_LEN 64
 
+enum class Pfx {
+	Name = '$',
+	Type = '@',
+	Pointer = '&',
+	Variable = '%',
+};
+
 //multiple uses
-enum class Type {
-	Null,
+enum class Op {
+	Null = 0,
+	False = 0,
+	True = 1,
 	Done,
+	Return,
+	If,
+	Else,
 	//operators
 	Cast,
 	Add,
@@ -64,20 +127,15 @@ enum class Type {
 	i8, i16, i32, i64, //signed
 	f32, d64, //float, double
 
+	CompilerFlags,
+
 	Error,
 	ErrNOT_GOOD,
 
-	Mode,
+	//Mode
 	ModePrefixPass,
+	ModeNamePass,
 	ModeCharPath,
-
-	//keep at bottom
-	Prefix,
-	PfxName = '$',
-	//PfxStruct = '#'
-	PfxType = '@',
-	PfxPointer = '&',
-	PfxVariable = '%'
 };
 
 struct Val {
@@ -98,12 +156,12 @@ struct Val {
 	};
 };
 struct Obj {
-	Type type;
+	Op type;
 	char name[OBJ_NAME_LEN];
 	//union {
-		Type retType;
+		Op retType;
 		Val val;
-		Type opCode;
+		Op opCode;
 	//};
 };
 
@@ -111,35 +169,38 @@ struct State {
 };
 
 struct Path {
-	std::vector<Type> path;
+	Op type;
+	Op path[5];
 };
 
 class Compiler {
-	bool parenthesisOpen, 
-		 bracketOpen = false,
-		 scopeOpen = false;
-	Type type, lastType,
-		 privacy = Type::Public,
-		 prefix, mode = Type::ModePrefixPass,
-		 op = Type::Null, lastOp = Type::Null;
-	Obj obj; // working obj mem, add to objs when done
-
+	Op mode = Op::ModePrefixPass,
+		 op = Op::Null, lastOp = Op::Null;
+	Obj obj = {}; // working obj mem, add to objs when done
+	char ch = '\0';
 	std::vector<Obj> objs;
 public:
-	void ReadChar(char ch)
-	{
-		//prefix pass
-
-		switch ((Type)ch)
+	void Char(char ch){
+		this->ch = ch;
+		switch (ch)
 		{
-			case Type::Null:
-				break;
-			case Type::ErrNOT_GOOD:
-				exit((int)op);
-			case Type::PfxType:
-				
-				break;
+		case '\n':
+
 		}
+		switch ((Op)ch)
+		{
+
+		}
+		switch (mode){
+			case Op::ModePrefixPass: return Prefix();
+			case Op::ModeNamePass: return Name();
+		}
+	}
+	void Prefix(){
+		
+	}
+	void Name(){
+		
 	}
 };
 
