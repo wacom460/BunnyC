@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include <vector>
+#include <string>
+
 //not actually a compiler
 //ascii only, maybe utf8 later...
 //c transpiler for now
@@ -36,10 +40,11 @@ $realloc &void ptr u32 size @returns &void
 @space sys
 @public~public sets all future code to public if on its own line like this
 @func
+
 @@
 
 //------------------
-@use system
+@use sys
 @space game
 
 @build
@@ -98,62 +103,82 @@ $GlobalFunc @returns &c8
 */
 
 #define OBJ_NAME_LEN 64
+#define OP_NAME_LEN 10
 
 enum class Pfx {
 	Name = '$',
-	Type = '@',
+	Op = '@',
+	Dot = '.',
 	Pointer = '&',
 	Variable = '%',
+	String = '\"',
+	Char = '\'',
+	Comment = '~',
 };
 
 //multiple uses
 enum class Op {
-	Null = 0,
-	False = 0,
-	True = 1,
-	Done,
-	Return,
-	If,
-	Else,
-	//operators
-	Cast,
-	Add,
-	Imaginary, //for compiler features
-	Subtract,
-	Multiply,
-	Divide,
-	Equals,
-	NotEquals,
-	LessThan,
-	GreaterThan,
-	LessThanOrEquals,
-	GreaterThanOrEquals,
+	Null,//      null
+	False,//     no
+	True,//      yes
+	
+	Func,//      func
+	Done,//      @
+	Return,//    ret
+
+	Struct,
+	Variable,
+	Comment,
+	Public,
+	Private,
+	Imaginary, //for compiler features (extern)
+	Void,
+
+	Dot,//                 .
+	Add,//                 +
+	Subtract,//            -
+	Multiply,//            *
+	Divide,//              /
+	AddEq,//               +=
+	SubEq,//               -=
+	MultEq,//              *=
+	DivEq,//               /*
+	Equals,//              eq
+	NotEquals,//           neq
+	LessThan,//            lt
+	GreaterThan,//         gt
+	LessThanOrEquals,//    lteq
+	GreaterThanOrEquals,// gteq
+
 	ScopeOpen, ScopeClose,
 	ParenthesisOpen, ParenthesisClose,
 	BracketOpen, BracketClose,
-	DataType,
+	
 	Comma,
 	Name, //func name, var name
 	String,
 	Char,
+
+	If,
+	Else,
 	For,
 	While,
+
 	Block,//block of variables and code
-	Struct,
-	Private, Public, Void,
 	c8, //char
 	u8, u16, u32, u64, //unsigned
 	i8, i16, i32, i64, //signed
 	f32, d64, //float, double
+	Pointer,
 
 	CompilerFlags,
 
 	Error,
 	ErrNOT_GOOD,
 
-	//Mode
+	//compiler modes
 	ModePrefixPass,
-	ModeNamePass,
+	ModeNamePass, //name of op
 	ModeComment,
 	ModeMultiLineComment,
 	ModeString
@@ -186,13 +211,69 @@ struct Obj {
 	//};
 };
 
-struct State {
+struct OpNamePair {
+	char name[OP_NAME_LEN];
+	Op op;
 };
 
-struct Path {
-	Op type;
-	Op path[5];
+OpNamePair opNames[] = {
+	{"null", Op::Null},
+	{"no", Op::False},
+	{"yes", Op::True},
+	{"func", Op::Func},
+	{"~", Op::Comment},
+	{"%", Op::Variable},
+	{"@", Op::Done},
+	{"ret", Op::Return},
+	{"if", Op::If},
+	{"else", Op::Else},
+	//{"cast", Op::Cast},
+	{"+", Op::Add},
+	{"-", Op::Subtract},
+	{"*", Op::Multiply},
+	{"/", Op::Divide},
+	{"=", Op::Equals},
+	{"!+", Op::NotEquals},
+	{"<", Op::LessThan},
+	{">", Op::GreaterThan},
+	{"<=", Op::LessThanOrEquals},
+	{">=", Op::GreaterThanOrEquals},
+	{"{", Op::ScopeOpen},
+	{"}", Op::ScopeClose},
+	{"(", Op::ParenthesisOpen},
+	{")", Op::ParenthesisClose},
+	{"[", Op::BracketOpen},
+	{"]", Op::BracketClose},
+	{",", Op::Comma},
+	{"$", Op::Name},
+	{"for", Op::For},
+	{"loop", Op::While},
+	{"", Op::Block},
+	{"struct", Op::Struct},
+	{"private", Op::Private},
+	{"public", Op::Public},
+	{"void", Op::Void},
+	{"c8", Op::c8},
+	{"u8", Op::u8},
+	{"u16", Op::u16},
+	{"u32", Op::u32},
+	{"u64", Op::u64},
+	{"i8", Op::i8},
+	{"i16", Op::i16},
+	{"i32", Op::i32},
+	{"i64", Op::i64},
+	{"f32", Op::f32},
+	{"d64", Op::d64},
+	{"&", Op::Pointer},
+
 };
+
+Op GetOpFromName(char* name){
+	for (auto& op : opNames)
+		if (strcmp(op.name, name) == 0)
+			return op.op;
+	return Op::Error;
+}
 
 class Compiler {
 	Op mode = Op::ModePrefixPass,
@@ -205,12 +286,15 @@ public:
 		this->ch = ch;
 		switch (ch)
 		{
-		case '\n':
-
+		//case '\n':
+		default:break;
 		}
-		switch ((Op)ch)
+		switch ((Pfx)ch)
 		{
-
+			case Pfx::Op: mode = Op::ModeNamePass; break;
+			case Pfx::Name: mode = Op::ModeNamePass; break;
+			case Pfx::Pointer: mode = Op::ModeNamePass; break;
+			case Pfx::Variable: mode = Op::ModeNamePass; break;
 		}
 		switch (mode){
 			case Op::ModePrefixPass: return Prefix();
@@ -228,15 +312,13 @@ public:
 int main(int argc, char** argv) {
 	//declar sys libs here using Compiler::ReadChar
 	FILE* f;
-	if (!fopen_s(&f, argv[1], "r"))
-	{
+	if (!fopen_s(&f, argv[1], "r")){
 		Compiler c;
-		//c.ReadChar()
+		while(!feof(f)) c.Char(fgetc(f));
 		fclose(f);
 		return 0;
 	}
-	else
-	{
+	else{
 		printf("Error\n");
 	}
 	return 1;
