@@ -118,10 +118,13 @@ enum class Pfx {
 
 //multiple uses
 enum class Op {
-	Null,//      null
+	Null,//      nul
 	False,//     no
 	True,//      yes
 	
+	Use,//       use
+	Build,//     build
+	Space,//     space
 	Func,//      func
 	Done,//      @
 	Return,//    ret
@@ -184,31 +187,31 @@ enum class Op {
 	ModeString
 };
 
-struct Val {
-	union {
-		unsigned char u8;
-		unsigned short u16;
-		unsigned int u32;
-		unsigned long long u64;
-		char i8;
-		char ch;
-		short i16;
-		int i32;
-		long long i64;
-		float f32;
-		double d64;
-		void* ptr;
-		char* str;
-	};
-};
+typedef union Val {
+	Op op;
+	unsigned char u8;
+	unsigned short u16;
+	unsigned int u32;
+	unsigned long long u64;
+	char i8;
+	char ch;
+	short i16;
+	int i32;
+	long long i64;
+	float f32;
+	double d64;
+	void* ptr;
+	char* str;
+} Val;
+
 struct Obj {
-	Op type;
-	char name[OBJ_NAME_LEN];
-	//union {
-		Op retType;
-		Val val;
-		Op opCode;
-	//};
+	Op type = Op::Null;
+	union {
+		char* name;
+		Op op;
+		Val val = {};
+	};
+	std::vector<Obj>* children = nullptr;
 };
 
 struct OpNamePair {
