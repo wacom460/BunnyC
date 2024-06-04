@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
-#include <string>
 //not actually a compiler
 //ascii only, maybe utf8 later...
 //c transpiler for now
@@ -14,14 +13,20 @@
 //one line is one statement
 /*
 ~single line comment
+
 ~~multi
 line
 comment~~
+
 ~~
+hi
+~~multi 
+line comment
+inception~~
+hi
 ~~
-~~
-~~
-@space clib
+
+@space clib ~C Library binding
 @imaginary @func
 $malloc u32 size @returns &void~~whats up~~
 $free &void ptr
@@ -41,35 +46,49 @@ $realloc &void ptr u32 size @returns &void
 	@lib SDL2
 @@
 
-@struct %c8
+@space @global @func
+$GlobalFunc @returns &c8
+@@ "Hello World"
+@@
+
+@space %c8
 	@func
 		$len
 
 	@@
 @@
 
-@struct $Entity
-	%c8 name
-	%f32 x,y
+@struct~define multiple structs
+	$Entity
+		%c8 name
+		%f32 x,y
 
-	@func
-	$setName &c8 name
-		%len = @call name.len
-	@@
+		@func
+		$setName &c8 name
+			%len = @call name.len
+		@@
 
-	$move f32 x,y 
-		@comment deadzone
-		@if x geq 0
+		$move f32 x,y 
+			@comment deadzone
+			@if x geq 0
 			
+			@@
 		@@
 	@@
+
+	@extends Entity
+	$Actor
+
+	@@
+	@@
+
 @@
 
-@func $Main i32 argCount &&c8 args
-	
+@func $Main i32 argCount &c8[] args @ret i32
+	@if argCount neq 0 @ret 1
 @@ 0
 
-@func $FuncDoThing i32 var1 i64 var2 &&void funcPtr @returns i32
+@func $FuncDoThing i32 var1 i64 var2 &&void funcPtr @ret i32
 	
 @@ 0
 
@@ -135,7 +154,9 @@ enum class Op {
 	//Mode
 	ModePrefixPass,
 	ModeNamePass,
-	ModeCharPath,
+	ModeComment,
+	ModeMultiLineComment,
+	ModeString
 };
 
 struct Val {

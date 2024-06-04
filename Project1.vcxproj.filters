@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="compiler.cpp">
+    <ClCompile Include="imbored.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
