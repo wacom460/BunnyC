@@ -96,7 +96,6 @@ enum class Op {
 	//compiler modes
 	ModePrefixPass,
 	ModeStrPass,
-	ModeStrPayload,
 	ModeComment,
 	ModeMultiLineComment,
 	ModeString
@@ -134,7 +133,7 @@ struct Obj {
 	}
 	Op op;
 	Val val = {};
-	std::vector<Obj>* children = nullptr;
+	/*std::vector<Obj>* children = nullptr;*/
 };
 
 struct OpNamePair {
@@ -230,8 +229,8 @@ class Compiler {
 	Op strPayload = Op::Null;
 	bool procOnNewL = true;
 	char ch = '\0';
-	std::stack<Op> opStack, modeStack, objStack;
-	std::stack<Obj> funcStack; //functions, more later maybe
+	std::stack<Op> opStack, modeStack;
+	std::stack<Obj> funcStack, objStack; //functions, more later maybe
 	std::string str;
 	bool strAllowSpace = false;
 
@@ -329,6 +328,7 @@ public:
 			switch (obj.type) {
 			case Op::FuncPre1:
 				obj.type = Op::FuncPre2;
+				expectNextPfx = Op::Name;
 				break;
 			}
 			break;
