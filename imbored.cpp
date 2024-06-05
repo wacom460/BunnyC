@@ -30,6 +30,7 @@ enum class Op {
 	FuncPre2, //have name and args
 	FuncArg,
 	FuncArgsEnd,
+	FuncComplete,
 	LineEnd,
 	Op,
 	Value,//     =
@@ -37,7 +38,7 @@ enum class Op {
 	Return,//    ret
 	NoChange,
 	Struct,
-	Variable,
+	VarType,
 	Comment,
 	Public,
 	Private,
@@ -90,6 +91,7 @@ enum class Op {
 	Error,
 	ErrNOT_GOOD,
 	ErrUnexpectedNextPfx,
+	ErrExpectedVariablePfx,
 
 	//compiler modes
 	ModePrefixPass,
@@ -156,7 +158,8 @@ OpNamePair opNames[] = {
 	{"yes", Op::True},
 	{"func", Op::Func},
 	{"~", Op::Comment},
-	{"%", Op::Variable},
+	{"%", Op::VarType},
+	{"=", Op::Value},
 	{"@", Op::Done},
 	{"ret", Op::Return},
 	{"if", Op::If},
@@ -213,7 +216,7 @@ static Op fromPfxCh(char ch) {
 	case '@': return Op::Op;
 	case '~': return Op::Comment;
 	case '$': return Op::Name;
-	case '%': return Op::Variable;
+	case '%': return Op::VarType;
 	case '&': return Op::Pointer;
 	case '\"': return Op::String;
 	case '\'': return Op::Char;
@@ -260,6 +263,9 @@ public:
 		case Op::ErrUnexpectedNextPfx:
 			printf("Unexpected next prefix. Expected OP %d", (int)expectNextPfx);
 			break;
+		case Op::ErrExpectedVariablePfx:
+			printf("Expected a variable type to be next.");
+			break;
 		default:
 			printf("Unknown error");
 		}		
@@ -285,7 +291,7 @@ public:
 			&& pfx != expectNextPfx)
 				Err(Op::ErrUnexpectedNextPfx, "");
 		switch (pfx) {
-		case Op::Variable:
+		case Op::VarType:
 			if (expectNextPfx == pfx) {
 
 			}
@@ -326,13 +332,18 @@ public:
 		printf("Str: %s\n", cs);
 		switch (pfx)
 		{
+		case Op::Value:
+
+			break;
+		case Op::VarType:
+			break;
 		case Op::Name:
-			switch (obj.op){
+			switch (obj.type){
 			case Op::Func:
-				obj.op = Op::FuncPre1;
-			case Op::Variable:
+				obj.type = Op::FuncPre1;
+				expectNextPfx = Op::VarType;
+			case Op::VarType:
 				obj.setName(cs);
-				//pop();
 				break;
 			}
 			break;
@@ -344,19 +355,15 @@ public:
 				switch (obj.type) {
 				case Op::Func:
 					break;
-				case Op::Variable:
-					break;
 				}
 				break;
 			case Op::Func:
 				obj.type = nameOp;
-				obj.op = nameOp;
 				expectNextPfx = Op::Name;
-				//pop();
 				break;
 			case Op::Null:
-				obj.type = Op::Variable;
-				obj.op = nameOp;
+				obj.type = Op::VarType;
+				obj.val.op = nameOp;
 				//pop();
 				break;
 			case Op::Public:
