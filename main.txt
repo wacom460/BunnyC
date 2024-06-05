@@ -1,5 +1,5 @@
 @func $Main %i32 $argc %&&c8 $argv @ret %i32
 %i32 $a
-@set $a =0
-@add $a =2
+$a =0
+$a =2
 @@ =0

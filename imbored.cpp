@@ -29,7 +29,8 @@ enum class Op {
 	__FuncBuildingStart__,
 	FuncHasName, //have name
 	FuncArgsVarNeedsName,
-	FuncArg,
+	FuncArgNameless,
+	FuncArgComplete,
 	FuncArgsEnd,
 	__FuncBuildingEnd__,
 	FuncComplete,
@@ -122,16 +123,21 @@ typedef union Val {
 	char* str;
 } Val;
 
+void owStr(char** str, const char* with) {
+	if (*str) free(*str);
+	*str = _strdup(with);
+}
+
 struct Obj {
 	Op type = Op::Null;
 	Op privacy = Op::Public;
 	char* name = nullptr;
+	char* str = nullptr;
 	void setName(const char* name) {
-		if (this->name) {
-			free(this->name);
-			this->name = nullptr;
-		}
-		this->name = _strdup(name);
+		owStr(&this->name, name);
+	}
+	void setStr(const char* Str) {
+		owStr(&this->str, str);
 	}
 	Op op;
 	Val val = {};
@@ -244,8 +250,14 @@ public:
 	Compiler()
 	{
 		modeStack.push(Op::ModePrefixPass);
-		objStack.push({});
-		//pushNextPfx(Op::Null);
+		pushObj({});
+	}
+	Obj& pushObj(Obj obj) {
+		objStack.push(obj);
+		return objStack.top();
+	}
+	void popObj() {
+		objStack.pop();
 	}
 	void push(Op mode, bool strAllowSpace = false){
 		this->strAllowSpace = strAllowSpace;
@@ -347,16 +359,23 @@ public:
 		case Op::VarType:
 			switch (obj.type) {
 			case Op::FuncHasName:
-				obj.type = Op::FuncArgsVarNeedsName;
+				obj = pushObj({});
+				obj.type = Op::FuncArgComplete;
 				setAllowedNextPfxs({Op::Name});
 				break;
 			}
 			break;
 		case Op::Name:
+			//just dont use fallthru here...
 			switch (obj.type){
 			case Op::Func:
 				obj.type = Op::FuncHasName;
 				setAllowedNextPfxs({Op::VarType});
+				obj.setName(cs);
+				break;
+			case Op::FuncArgNameless:
+
+				break;
 			case Op::VarType:
 				obj.setName(cs);
 				break;
