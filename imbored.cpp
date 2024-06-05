@@ -14,7 +14,7 @@
 //compiler options inside source code, preferably using code
 
 #define OBJ_NAME_LEN 64
-#define OP_NAME_LEN 10
+#define OP_NAME_LEN 32
 
 //multiple uses
 enum class Op {
@@ -26,10 +26,12 @@ enum class Op {
 	Build,//     build
 	Space,//     space
 	Func,//      func
-	FuncPre1, //have name
-	FuncPre2, //have name and args
+	__FuncBuildingStart__,
+	FuncHasName, //have name
+	FuncArgsVarNeedsName,
 	FuncArg,
 	FuncArgsEnd,
+	__FuncBuildingEnd__,
 	FuncComplete,
 	LineEnd,
 	Op,
@@ -42,7 +44,7 @@ enum class Op {
 	Comment,
 	Public,
 	Private,
-	Imaginary, //for compiler features (extern)
+	Imaginary, //satisfied at link time (extern)
 	Void,
 
 	Set,//                 set
@@ -196,11 +198,13 @@ OpNamePair opNames[] = {
 	{"f32", Op::f32},
 	{"d64", Op::d64},
 	{"&", Op::Pointer},
+	{"ErrUnexpectedNextPfx", Op::ErrUnexpectedNextPfx},
 };
 
 const char* GetOpName(Op op) {
 	for (auto& opN : opNames)
 		if (op == opN.op) return opN.name;
+	return "OP NOT FOUND";
 }
 
 Op GetOpFromName(const char* name){
@@ -219,18 +223,20 @@ static Op fromPfxCh(char ch) {
 	case '\"': return Op::String;
 	case '\'': return Op::Char;
 	case '=': return Op::Value;
+	case '\n': return Op::LineEnd;
 	}
 	return Op::Unknown;
 }
 
 class Compiler {
-	Op expectNextPfx = Op::Null;
+	//Op expectNextPfx = Op::Null;
 	Op pfx = Op::Null;
 	Op strPayload = Op::Null;
 	bool procOnNewL = true;
 	char ch = '\0';
 	std::stack<Op> opStack, modeStack;
 	std::stack<Obj> funcStack, objStack; //functions, more later maybe
+	std::vector<Op> allowedNextPfxs;
 	std::string str;
 	bool strAllowSpace = false;
 
@@ -239,6 +245,7 @@ public:
 	{
 		modeStack.push(Op::ModePrefixPass);
 		objStack.push({});
+		//pushNextPfx(Op::Null);
 	}
 	void push(Op mode, bool strAllowSpace = false){
 		this->strAllowSpace = strAllowSpace;
@@ -253,11 +260,22 @@ public:
 	void popFunc() {
 		funcStack.pop();
 	}
+	void setAllowedNextPfxs(std::vector<Op> allowedNextPfxs) {
+		this->allowedNextPfxs = allowedNextPfxs;
+	}
+	bool isPfxExpected(Op pfx) {
+		for (auto& p : allowedNextPfxs) 
+			if (p == pfx) return true;
+		return false;
+	}
 	//NO NEWLINES AT END OF STR
 	void ExplainErr(Op code) {
+		//auto& expectNextPfx = nextPfxStack.top();
 		switch (code) {
 		case Op::ErrUnexpectedNextPfx:
-			printf("Unexpected next prefix. Expected OP %d", (int)expectNextPfx);
+			printf("Unexpected next prefix. Allowed:");
+			for (auto& p : allowedNextPfxs)
+				printf("%s,", GetOpName(p));
 			break;
 		case Op::ErrExpectedVariablePfx:
 			printf("Expected a variable type to be next.");
@@ -267,7 +285,7 @@ public:
 		}		
 	}
 	void Err(Op code, const char* msg) {
-		printf("%s OP: %d Error: ", msg, (int)code);
+		printf("Compiler died: \"%s\" OP: \"%s\"(%d) Error: ", msg, GetOpName(code), (int)code);
 		ExplainErr(code);
 		printf("\n");
 		exit(-1);
@@ -281,11 +299,12 @@ public:
 	}
 	void Prefix(){
 		auto& obj = objStack.top();
+		//auto& expectNextPfx = nextPfxStack.top();
 		pfx = fromPfxCh(ch);
 		
 		if (pfx != Op::Unknown 
-			&& expectNextPfx != Op::Null 
-			&& pfx != expectNextPfx) 
+			&& !allowedNextPfxs.empty()
+			&& !isPfxExpected(pfx))
 			Err(Op::ErrUnexpectedNextPfx, "");
 
 		switch (pfx) {
@@ -316,6 +335,7 @@ public:
 	}
 	void StrPayload(){
 		auto& obj = objStack.top();
+		//auto& expectNextPfx = nextPfxStack.top();
 		auto cs = str.c_str();
 		Op nameOp = GetOpFromName(cs);
 		printf("Str: %s\n", cs);
@@ -326,17 +346,17 @@ public:
 			break;
 		case Op::VarType:
 			switch (obj.type) {
-			case Op::FuncPre1:
-				obj.type = Op::FuncPre2;
-				expectNextPfx = Op::Name;
+			case Op::FuncHasName:
+				obj.type = Op::FuncArgsVarNeedsName;
+				setAllowedNextPfxs({Op::Name});
 				break;
 			}
 			break;
 		case Op::Name:
 			switch (obj.type){
 			case Op::Func:
-				obj.type = Op::FuncPre1;
-				expectNextPfx = Op::VarType;
+				obj.type = Op::FuncHasName;
+				setAllowedNextPfxs({Op::VarType});
 			case Op::VarType:
 				obj.setName(cs);
 				break;
@@ -353,7 +373,7 @@ public:
 				break;
 			case Op::Func:
 				obj.type = nameOp;
-				expectNextPfx = Op::Name;
+				setAllowedNextPfxs({Op::Name});
 				break;
 			case Op::Null:
 				obj.type = Op::VarType;
