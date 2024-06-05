@@ -205,6 +205,11 @@ OpNamePair opNames[] = {
 	{"d64", Op::d64},
 	{"&", Op::Pointer},
 	{"ErrUnexpectedNextPfx", Op::ErrUnexpectedNextPfx},
+	{"ModePrefixPass", Op::ModePrefixPass},
+	{"ModeStrPass", Op::ModeStrPass},
+	{"ModeComment", Op::ModeComment},
+	{"ModeMultiLineComment", Op::ModeMultiLineComment},
+	{"ModeString", Op::ModeString}
 };
 
 const char* GetOpName(Op op) {
@@ -249,7 +254,7 @@ class Compiler {
 public:
 	Compiler()
 	{
-		modeStack.push(Op::ModePrefixPass);
+		push(Op::ModePrefixPass);
 		pushObj({});
 	}
 	Obj& pushObj(Obj obj) {
@@ -262,9 +267,11 @@ public:
 	void push(Op mode, bool strAllowSpace = false){
 		this->strAllowSpace = strAllowSpace;
 		modeStack.push(mode);
+		printf("push: to %s\n", GetOpName(modeStack.top()));
 	}
 	void pop() {
 		modeStack.pop();
+		printf("pop: to %s\n", GetOpName(modeStack.top()));
 	}
 	void pushFunc(Obj obj) {
 		funcStack.push(obj);
@@ -318,7 +325,7 @@ public:
 			&& !allowedNextPfxs.empty()
 			&& !isPfxExpected(pfx))
 			Err(Op::ErrUnexpectedNextPfx, "");
-
+		printf("Got pfx %s\n", GetOpName(pfx));
 		switch (pfx) {
 		case Op::VarType:
 		case Op::Op:
@@ -374,7 +381,10 @@ public:
 				obj.setName(cs);
 				break;
 			case Op::FuncArgNameless:
-
+				obj.type = Op::FuncArgComplete;
+				setAllowedNextPfxs({ Op::VarType });
+				obj.setName(cs);
+				popObj();
 				break;
 			case Op::VarType:
 				obj.setName(cs);
@@ -405,6 +415,7 @@ public:
 			}
 		}
 		str.clear();
+		printf("Str payload complete\n");
 		pop();
 	}
 };
