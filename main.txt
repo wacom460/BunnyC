@@ -1,0 +1,5 @@
+@use $sys
+@func $Main %i32 $argc %&&c8 $argv @ret %i32
+%i32 $a=0
+$a+=2
+@@ 0

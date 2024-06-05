@@ -7,7 +7,7 @@
 
 //not actually a compiler
 //ascii only, maybe utf8 later...
-//c transpiler for now
+//transpile to C
 //no order of operations, sequential ONLY
 
 //compiler options inside source code, preferably using code
@@ -106,6 +106,7 @@ $GlobalFunc @returns &c8
 #define OP_NAME_LEN 10
 
 enum class Pfx {
+	Null = 0,
 	Name = '$',
 	Op = '@',
 	Dot = '.',
@@ -126,6 +127,11 @@ enum class Op {
 	Build,//     build
 	Space,//     space
 	Func,//      func
+	FuncPre1, //have name
+	FuncPre2, //have name and args
+	FuncArg,
+	FuncArgsEnd,
+	LineEnd,
 	Done,//      @
 	Return,//    ret
 
@@ -137,6 +143,7 @@ enum class Op {
 	Imaginary, //for compiler features (extern)
 	Void,
 
+	Colon,//               :
 	Dot,//                 .
 	Add,//                 +
 	Subtract,//            -
@@ -175,19 +182,23 @@ enum class Op {
 	Pointer,
 
 	CompilerFlags,
+	
 
 	Error,
 	ErrNOT_GOOD,
 
 	//compiler modes
 	ModePrefixPass,
-	ModeNamePass, //name of op
+	ModeStrPass,
+	ModeStrPayload,
 	ModeComment,
 	ModeMultiLineComment,
 	ModeString
 };
 
 typedef union Val {
+	void (*vrFunc)(void*);
+	int (*irFunc)(void*);
 	Op op;
 	unsigned char u8;
 	unsigned short u16;
@@ -206,17 +217,41 @@ typedef union Val {
 
 struct Obj {
 	Op type = Op::Null;
-	union {
-		char* name;
-		Op op;
-		Val val = {};
-	};
+	char* name = nullptr;
+	Op op;
+	Val val = {};
 	std::vector<Obj>* children = nullptr;
 };
 
 struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
+};
+
+struct Path
+{
+	Op op;
+	int len;
+	int (*func)(std::vector<Op>*);
+	Op paths[10];
+};
+
+Obj HandleFunc(std::vector<Op>* ops) {
+	for(auto& op : *ops) {
+		switch (op) {
+		case Op::FuncArg:
+		case Op::FuncArgsEnd:
+			break;
+		}
+	}
+}
+
+Path path[] = {
+	{Op::Func, 2, NULL, {Op::FuncArg, Op::FuncArgsEnd}},
+	{Op::Func, 3, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
+	{Op::Func, 4, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
+	{Op::Func, 5, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
+	{Op::Func, 6, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
 };
 
 OpNamePair opNames[] = {
@@ -271,7 +306,7 @@ OpNamePair opNames[] = {
 
 };
 
-Op GetOpFromName(char* name){
+Op GetOpFromName(const char* name){
 	for (auto& op : opNames)
 		if (strcmp(op.name, name) == 0)
 			return op.op;
@@ -279,43 +314,97 @@ Op GetOpFromName(char* name){
 }
 
 class Compiler {
-	Op mode = Op::ModePrefixPass,
-		 op = Op::Null, lastOp = Op::Null;
+	Op mode = Op::ModePrefixPass, lastMode = Op::ModePrefixPass,
+		op = Op::Null, lastOp = Op::Null;
+		Pfx strPayload = Pfx::Null;
+		bool procOnNewL = true;
 	Obj obj = {}; // working obj mem, add to objs when done
 	char ch = '\0';
 	std::vector<Obj> objs;
+	std::vector<Op> opStack;
+	std::string str;
+	bool strAllowSpace = false;
 public:
+	void set(Op mode, bool strAllowSpace = false){
+		this->lastMode = this->mode;
+		this->mode = mode;
+		this->strAllowSpace = strAllowSpace;
+	}
 	void Char(char ch){
 		this->ch = ch;
-		switch (ch)
-		{
-		//case '\n':
-		default:break;
-		}
-		switch ((Pfx)ch)
-		{
-			case Pfx::Op: mode = Op::ModeNamePass; break;
-			case Pfx::Name: mode = Op::ModeNamePass; break;
-			case Pfx::Pointer: mode = Op::ModeNamePass; break;
-			case Pfx::Variable: mode = Op::ModeNamePass; break;
-		}
 		switch (mode){
 			case Op::ModePrefixPass: return Prefix();
-			case Op::ModeNamePass: return Name();
+			case Op::ModeStrPass: return Str();
+			case Op::ModeStrPayload: return StrPayload();
 		}
 	}
 	void Prefix(){
-		
+		auto pfx = (Pfx)ch;
+		switch (pfx) {
+		case Pfx::Variable:
+			
+		case Pfx::Op:
+		case Pfx::Name:
+			strPayload = pfx;
+			set(Op::ModeStrPass);
+			break;
+		case Pfx::Comment:
+
+			break;
+		}
 	}
-	void Name(){
-		
+	void Str(){
+		switch (ch) {
+		case '\t':
+		case '\r':
+		case '\0':
+			return;
+		case '\n':
+		case ' ':
+			if (strAllowSpace) break;
+			else {
+				StrPayload();
+				return;
+			}
+		}
+		str.append(1, ch);
+	}
+	void StrPayload(){
+		switch (strPayload)
+		{
+		case Pfx::Op:
+		case Pfx::Variable:
+		case Pfx::Name:
+			Op nameOp = GetOpFromName(str.c_str());
+			switch (nameOp)
+			{
+			case Op::Name:
+				if (obj.name)
+				{
+					free(obj.name);
+					obj.name = nullptr;
+				}
+				obj.name = strdup(str.c_str());
+				break;
+			case Op::Func:
+				obj.op = nameOp;
+				objs.push_back(obj);
+				break;
+			default:
+				break;
+			}
+				break;
+		}
+		str.clear();
+		mode = Op::ModePrefixPass;
 	}
 };
 
 int main(int argc, char** argv) {
 	//declar sys libs here using Compiler::ReadChar
 	FILE* f;
-	if (!fopen_s(&f, argv[1], "r")){
+	const char* fname = /*argv[1]*/"main.txt";
+	if (!fopen_s(&f, fname, "r")){
 		Compiler c;
 		while(!feof(f)) c.Char(fgetc(f));
 		fclose(f);
