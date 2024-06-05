@@ -142,14 +142,6 @@ struct OpNamePair {
 	Op op;
 };
 
-struct Path
-{
-	Op op;
-	int len;
-	int (*func)(std::vector<Op>*);
-	Op paths[10];
-};
-
 OpNamePair opNames[] = {
 	{"null", Op::Null},
 	{"no", Op::False},
@@ -207,6 +199,11 @@ OpNamePair opNames[] = {
 	{"&", Op::Pointer},
 };
 
+const char* GetOpName(Op op) {
+	for (auto& opN : opNames)
+		if (op == opN.op) return opN.name;
+}
+
 Op GetOpFromName(const char* name){
 	for (auto& op : opNames)
 		if (!strcmp(op.name, name)) return op.op;
@@ -233,9 +230,7 @@ class Compiler {
 	Op strPayload = Op::Null;
 	bool procOnNewL = true;
 	char ch = '\0';
-	std::stack<Op> opStack;
-	std::stack<Op> modeStack;
-	std::stack<Obj> objStack;
+	std::stack<Op> opStack, modeStack, objStack;
 	std::stack<Obj> funcStack; //functions, more later maybe
 	std::string str;
 	bool strAllowSpace = false;
@@ -288,24 +283,16 @@ public:
 	void Prefix(){
 		auto& obj = objStack.top();
 		pfx = fromPfxCh(ch);
+		
 		if (pfx != Op::Unknown 
 			&& expectNextPfx != Op::Null 
-			&& pfx != expectNextPfx)
-				Err(Op::ErrUnexpectedNextPfx, "");
+			&& pfx != expectNextPfx) 
+			Err(Op::ErrUnexpectedNextPfx, "");
+
 		switch (pfx) {
 		case Op::VarType:
-			if (expectNextPfx == pfx) {
-
-			}
 		case Op::Op:
 		case Op::Name:
-			/*if (expectNextPfx == pfx) {
-				switch (obj.op) {
-				case Op::Func:
-
-					break;
-				}
-			}*/
 			push(Op::ModeStrPass);
 			break;
 		case Op::Comment:
@@ -331,6 +318,7 @@ public:
 	void StrPayload(){
 		auto& obj = objStack.top();
 		auto cs = str.c_str();
+		Op nameOp = GetOpFromName(cs);
 		printf("Str: %s\n", cs);
 		switch (pfx)
 		{
@@ -338,6 +326,11 @@ public:
 
 			break;
 		case Op::VarType:
+			switch (obj.type) {
+			case Op::FuncPre1:
+				obj.type = Op::FuncPre2;
+				break;
+			}
 			break;
 		case Op::Name:
 			switch (obj.type){
@@ -350,7 +343,6 @@ public:
 			}
 			break;
 		case Op::Op:
-			Op nameOp = GetOpFromName(cs);
 			switch (nameOp)
 			{
 			case Op::Done:
@@ -366,7 +358,6 @@ public:
 			case Op::Null:
 				obj.type = Op::VarType;
 				obj.val.op = nameOp;
-				//pop();
 				break;
 			case Op::Public:
 			case Op::Private:
