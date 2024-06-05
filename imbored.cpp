@@ -164,7 +164,9 @@ OpNamePair opNames[] = {
 	{"ret", Op::Return},
 	{"if", Op::If},
 	{"else", Op::Else},
-
+	{"use", Op::Use},
+	{"build", Op::Build},
+	{"space", Op::Space},
 	//{"cast", Op::Cast},
 	{"+", Op::Add},
 	{"-", Op::Subtract},
