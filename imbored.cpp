@@ -13,110 +13,8 @@
 
 //compiler options inside source code, preferably using code
 
-//Example code:
-//note that the tabbing does not matter.
-//one line is one statement
-/*
-~single line comment
-
-~~multi
-line
-comment~~
-
-~~
-hi
-~~multi 
-line comment
-inception~~
-hi
-~~
-
-@space clib ~C Library binding
-@imaginary @func
-$malloc u32 size @returns &void~~whats up~~
-$free &void ptr
-$realloc &void ptr u32 size @returns &void
-@@
-
-@space sys
-@public~public sets all future code to public if on its own line like this
-@func
-
-@@
-
-//------------------
-@use sys
-@space game
-
-@build
-	@lib SDL2
-@@
-
-@space @global @func
-$GlobalFunc @returns &c8
-@@ "Hello World"
-@@
-
-@space %c8
-	@func
-		$len
-
-	@@
-@@
-
-@struct~define multiple structs
-	$Entity
-		%c8 name
-		%f32 x,y
-
-		@func
-		$setName &c8 name
-			%len = @call name.len
-		@@
-
-		$move f32 x,y 
-			@comment deadzone
-			@if x geq 0
-			
-			@@
-		@@
-	@@
-
-	@extends Entity
-	$Actor
-
-	@@
-	@@
-
-@@
-
-@func $Main i32 argCount &c8[] args @ret i32
-	@if argCount neq 0 @ret 1
-@@ 0
-
-@func $FuncDoThing i32 var1 i64 var2 &&void funcPtr @ret i32
-	
-@@ 0
-
-@func $AddTwoStrs &c8 str1 &c8 str2 @returns &c8
-	%c8 ret = str1 + str2
-@@ %ret
-*/
-
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 10
-
-//enum class Pfx {
-//	Null = 0,
-//	Name = '$',
-//	Op = '@',
-//	Dot = '.',
-//	Pointer = '&',
-//	Variable = '%',
-//	String = '\"',
-//	Char = '\'',
-//	Comment = '~',
-//};
 
 //multiple uses
 enum class Op {
@@ -246,26 +144,6 @@ struct Path
 	Op paths[10];
 };
 
-//Obj HandleFunc(std::vector<Op>* ops) {
-//	Obj ret;
-//	for(auto& op : *ops) {
-//		switch (op) {
-//		case Op::FuncArg:
-//		case Op::FuncArgsEnd:
-//			break;
-//		}
-//	}
-//	return ret;
-//}
-//
-//Path path[] = {
-//	{Op::Func, 2, NULL, {Op::FuncArg, Op::FuncArgsEnd}},
-//	{Op::Func, 3, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
-//	{Op::Func, 4, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
-//	{Op::Func, 5, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
-//	{Op::Func, 6, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
-//};
-
 OpNamePair opNames[] = {
 	{"null", Op::Null},
 	{"no", Op::False},
@@ -320,8 +198,7 @@ OpNamePair opNames[] = {
 
 Op GetOpFromName(const char* name){
 	for (auto& op : opNames)
-		if (strcmp(op.name, name) == 0)
-			return op.op;
+		if (!strcmp(op.name, name)) return op.op;
 	return Op::Error;
 }
 
@@ -378,13 +255,6 @@ public:
 		case Op::Variable:
 		case Op::Op:
 		case Op::Name:
-			if (pfx == expectNextPfx){
-				switch (obj.op) {
-				case Op::Func:
-
-					break;
-				}
-			}
 			push(Op::ModeStrPass);
 			break;
 		case Op::Comment:
