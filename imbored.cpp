@@ -320,7 +320,7 @@ public:
 				obj.op = Op::FuncPre1;
 			case Op::Variable:
 				obj.setName(cs);
-				pop();
+				//pop();
 				break;
 			}
 			break;
@@ -334,12 +334,12 @@ public:
 					obj.type = nameOp;
 					obj.op = nameOp;
 					expectNextPfx = Op::Name;
-					pop();
+					//pop();
 					break;
 				case Op::Null:
 					obj.type = Op::Variable;
 					obj.op = nameOp;
-					pop();
+					//pop();
 					break;
 				case Op::Public:
 				case Op::Private:
@@ -348,9 +348,9 @@ public:
 				}
 				break;
 			}
-			str.clear();
-			pop();
 		}
+		str.clear();
+		pop();
 	}
 };
 
