@@ -119,6 +119,7 @@ typedef union Val {
 
 struct Obj {
 	Op type = Op::Null;
+	Op privacy = Op::Public;
 	char* name = nullptr;
 	void setName(const char* name) {
 		if (this->name) {
@@ -242,8 +243,19 @@ public:
 	void pop() {
 		modeStack.pop();
 	}
+	//NO NEWLINES AT END OF STR
+	void ExplainErr(Op code) {
+		switch (code) {
+		case Op::ErrUnexpectedNextPfx:
+			printf("Unexpected next prefix. Expected OP %d", (int)expectNextPfx);
+			break;
+		}
+		printf("Unknown error");
+	}
 	void Err(Op code, const char* msg) {
-		printf("OP: %d Error: %s\n", (int)code, msg);
+		printf("%s OP: %d Error: ", msg, (int)code);
+		ExplainErr(code);
+		printf("\n");
 		exit(-1);
 	}
 	void Char(char ch){
@@ -255,11 +267,11 @@ public:
 	}
 	void Prefix(){
 		auto& obj = objStack.top();
-		auto pfx = fromPfxCh(ch);
-		if (pfx != Op::Unknown && expectNextPfx != Op::Null && pfx != expectNextPfx)
-		{
-			Err(Op::ErrUnexpectedNextPfx, "Unexpected next pfx");
-		}
+		pfx = fromPfxCh(ch);
+		if (pfx != Op::Unknown 
+			&& expectNextPfx != Op::Null 
+			&& pfx != expectNextPfx)
+				Err(Op::ErrUnexpectedNextPfx, "");
 		switch (pfx) {
 		case Op::Variable:
 			if (expectNextPfx == pfx) {
@@ -267,13 +279,13 @@ public:
 			}
 		case Op::Op:
 		case Op::Name:
-			if (expectNextPfx == pfx) {
+			/*if (expectNextPfx == pfx) {
 				switch (obj.op) {
 				case Op::Func:
 
 					break;
 				}
-			}
+			}*/
 			push(Op::ModeStrPass);
 			break;
 		case Op::Comment:
@@ -298,23 +310,40 @@ public:
 	}
 	void StrPayload(){
 		auto& obj = objStack.top();
-		switch (obj.op)
+		auto cs = str.c_str();
+		printf("Str: %s\n", cs);
+		switch (pfx)
 		{
-		case Op::Func:
-			obj.setName(str.c_str());
-			obj.op = Op::FuncPre1;
-			break;
-		case Op::Variable:
 		case Op::Name:
-			Op nameOp = GetOpFromName(str.c_str());
+			switch (obj.op){
+			case Op::Func:
+				obj.op = Op::FuncPre1;
+			case Op::Variable:
+				obj.setName(cs);
+				pop();
+				break;
+			}
+			break;
+		case Op::Op:
+			Op nameOp = GetOpFromName(cs);
 			switch (nameOp)
 			{
 				switch (nameOp)
 				{
 				case Op::Func:
+					obj.type = nameOp;
 					obj.op = nameOp;
 					expectNextPfx = Op::Name;
 					pop();
+					break;
+				case Op::Null:
+					obj.type = Op::Variable;
+					obj.op = nameOp;
+					pop();
+					break;
+				case Op::Public:
+				case Op::Private:
+					obj.privacy=nameOp;
 					break;
 				}
 				break;
