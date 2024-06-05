@@ -325,6 +325,19 @@ Op GetOpFromName(const char* name){
 	return Op::Error;
 }
 
+static Op fromPfxCh(char ch) {
+	switch (ch) {
+	case '@': return Op::Op;
+	case '~': return Op::Comment;
+	case '$': return Op::Name;
+	case '%': return Op::Variable;
+	case '&': return Op::Pointer;
+	case '\"': return Op::String;
+	case '\'': return Op::Char;
+	default: return Op::Unknown;
+	}
+}
+
 class Compiler {
 	Op expectNextPfx = Op::Null;
 	Op pfx = Op::Null;
@@ -341,6 +354,7 @@ public:
 	Compiler()
 	{
 		modeStack.push(Op::ModePrefixPass);
+		objStack.push({});
 	}
 
 	void push(Op mode, bool strAllowSpace = false){
@@ -357,21 +371,9 @@ public:
 			case Op::ModeStrPass: return Str();
 		}
 	}
-	static Op getPfx(char ch) {
-		switch (ch) {
-		case '@': return Op::Op;
-		case '~': return Op::Comment;
-		case '$': return Op::Name;
-		case '%': return Op::Variable;
-		case '&': return Op::Pointer;
-		case '\"': return Op::String;
-		case '\'': return Op::Char;
-		default: return Op::Unknown;
-		}
-	}
 	void Prefix(){
 		auto& obj = objStack.top();
-		auto pfx = getPfx(ch);
+		auto pfx = fromPfxCh(ch);
 		switch (pfx) {
 		case Op::Variable:
 		case Op::Op:
