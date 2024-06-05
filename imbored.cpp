@@ -213,8 +213,8 @@ static Op fromPfxCh(char ch) {
 	case '&': return Op::Pointer;
 	case '\"': return Op::String;
 	case '\'': return Op::Char;
-	default: return Op::Unknown;
 	}
+	return Op::Unknown;
 }
 
 class Compiler {
@@ -249,8 +249,9 @@ public:
 		case Op::ErrUnexpectedNextPfx:
 			printf("Unexpected next prefix. Expected OP %d", (int)expectNextPfx);
 			break;
-		}
-		printf("Unknown error");
+		default:
+			printf("Unknown error");
+		}		
 	}
 	void Err(Op code, const char* msg) {
 		printf("%s OP: %d Error: ", msg, (int)code);
@@ -328,24 +329,20 @@ public:
 			Op nameOp = GetOpFromName(cs);
 			switch (nameOp)
 			{
-				switch (nameOp)
-				{
-				case Op::Func:
-					obj.type = nameOp;
-					obj.op = nameOp;
-					expectNextPfx = Op::Name;
-					//pop();
-					break;
-				case Op::Null:
-					obj.type = Op::Variable;
-					obj.op = nameOp;
-					//pop();
-					break;
-				case Op::Public:
-				case Op::Private:
-					obj.privacy=nameOp;
-					break;
-				}
+			case Op::Func:
+				obj.type = nameOp;
+				obj.op = nameOp;
+				expectNextPfx = Op::Name;
+				//pop();
+				break;
+			case Op::Null:
+				obj.type = Op::Variable;
+				obj.op = nameOp;
+				//pop();
+				break;
+			case Op::Public:
+			case Op::Private:
+				obj.privacy = nameOp;
 				break;
 			}
 		}
