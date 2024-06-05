@@ -32,6 +32,7 @@ enum class Op {
 	FuncArgsEnd,
 	LineEnd,
 	Op,
+	Value,//     =
 	Done,//      @
 	Return,//    ret
 	NoChange,
@@ -44,6 +45,7 @@ enum class Op {
 	Void,
 
 	Set,//                 set
+	SetAdd,//			   add
 	Colon,//               :
 	Dot,//                 .
 	Add,//                 +
@@ -150,6 +152,7 @@ OpNamePair opNames[] = {
 	{"null", Op::Null},
 	{"no", Op::False},
 	{"set", Op::Set},
+	{"add", Op::SetAdd},
 	{"yes", Op::True},
 	{"func", Op::Func},
 	{"~", Op::Comment},
@@ -158,6 +161,7 @@ OpNamePair opNames[] = {
 	{"ret", Op::Return},
 	{"if", Op::If},
 	{"else", Op::Else},
+
 	//{"cast", Op::Cast},
 	{"+", Op::Add},
 	{"-", Op::Subtract},
@@ -213,6 +217,7 @@ static Op fromPfxCh(char ch) {
 	case '&': return Op::Pointer;
 	case '\"': return Op::String;
 	case '\'': return Op::Char;
+	case '=': return Op::Value;
 	}
 	return Op::Unknown;
 }
@@ -226,6 +231,7 @@ class Compiler {
 	std::stack<Op> opStack;
 	std::stack<Op> modeStack;
 	std::stack<Obj> objStack;
+	std::stack<Obj> funcStack; //functions, more later maybe
 	std::string str;
 	bool strAllowSpace = false;
 
@@ -235,13 +241,18 @@ public:
 		modeStack.push(Op::ModePrefixPass);
 		objStack.push({});
 	}
-
 	void push(Op mode, bool strAllowSpace = false){
 		this->strAllowSpace = strAllowSpace;
 		modeStack.push(mode);
 	}
 	void pop() {
 		modeStack.pop();
+	}
+	void pushFunc(Obj obj) {
+		funcStack.push(obj);
+	}
+	void popFunc() {
+		funcStack.pop();
 	}
 	//NO NEWLINES AT END OF STR
 	void ExplainErr(Op code) {
@@ -329,6 +340,14 @@ public:
 			Op nameOp = GetOpFromName(cs);
 			switch (nameOp)
 			{
+			case Op::Done:
+				switch (obj.type) {
+				case Op::Func:
+					break;
+				case Op::Variable:
+					break;
+				}
+				break;
 			case Op::Func:
 				obj.type = nameOp;
 				obj.op = nameOp;
