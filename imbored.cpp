@@ -106,17 +106,17 @@ $GlobalFunc @returns &c8
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 10
 
-enum class Pfx {
-	Null = 0,
-	Name = '$',
-	Op = '@',
-	Dot = '.',
-	Pointer = '&',
-	Variable = '%',
-	String = '\"',
-	Char = '\'',
-	Comment = '~',
-};
+//enum class Pfx {
+//	Null = 0,
+//	Name = '$',
+//	Op = '@',
+//	Dot = '.',
+//	Pointer = '&',
+//	Variable = '%',
+//	String = '\"',
+//	Char = '\'',
+//	Comment = '~',
+//};
 
 //multiple uses
 enum class Op {
@@ -133,6 +133,7 @@ enum class Op {
 	FuncArg,
 	FuncArgsEnd,
 	LineEnd,
+	Op,
 	Done,//      @
 	Return,//    ret
 	NoChange,
@@ -325,15 +326,14 @@ Op GetOpFromName(const char* name){
 }
 
 class Compiler {
-	Pfx expectNextPfx = Pfx::Null;
+	Op expectNextPfx = Op::Null;
+	Op pfx = Op::Null;
 	Op strPayload = Op::Null;
 	bool procOnNewL = true;
-	Obj obj = {}; // working obj mem, add to objs when done
 	char ch = '\0';
-	std::vector<Obj> objs;
-	std::vector<Op> validNextOps;
 	std::stack<Op> opStack;
 	std::stack<Op> modeStack;
+	std::stack<Obj> objStack;
 	std::string str;
 	bool strAllowSpace = false;
 
@@ -357,19 +357,25 @@ public:
 			case Op::ModeStrPass: return Str();
 		}
 	}
+	static Op getPfx(char ch) {
+		switch (ch) {
+		case '@': return Op::Op;
+		case '~': return Op::Comment;
+		case '$': return Op::Name;
+		case '%': return Op::Variable;
+		case '&': return Op::Pointer;
+		case '\"': return Op::String;
+		case '\'': return Op::Char;
+		default: return Op::Unknown;
+		}
+	}
 	void Prefix(){
-		/*switch (expectNextPfx) {
-		case Pfx::Null: break;
-		case Pfx::Name:
-			break;
-		case Pfx::Op:
-			break;
-		}*/
-		auto pfx = (Pfx)ch;
+		auto& obj = objStack.top();
+		auto pfx = getPfx(ch);
 		switch (pfx) {
-		case Pfx::Variable:
-		case Pfx::Op:
-		case Pfx::Name:
+		case Op::Variable:
+		case Op::Op:
+		case Op::Name:
 			if (pfx == expectNextPfx){
 				switch (obj.op) {
 				case Op::Func:
@@ -379,7 +385,7 @@ public:
 			}
 			push(Op::ModeStrPass);
 			break;
-		case Pfx::Comment:
+		case Op::Comment:
 			break;
 		}
 	}
@@ -400,14 +406,12 @@ public:
 		str.append(1, ch);
 	}
 	void StrPayload(){
+		auto& obj = objStack.top();
 		switch (obj.op)
 		{
 		case Op::Func:
 			obj.setName(str.c_str());
 			obj.op = Op::FuncPre1;
-			validNextOps.clear();
-			validNextOps.push_back(Op::FuncArg);
-			validNextOps.push_back(Op::FuncArgsEnd);
 			break;
 		case Op::Variable:
 		case Op::Name:
@@ -418,7 +422,7 @@ public:
 				{
 				case Op::Func:
 					obj.op = nameOp;
-					expectNextPfx = Pfx::Name;
+					expectNextPfx = Op::Name;
 					pop();
 					break;
 				}
