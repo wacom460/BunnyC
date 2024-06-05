@@ -87,6 +87,7 @@ enum class Op {
 
 	Error,
 	ErrNOT_GOOD,
+	ErrUnexpectedNextPfx,
 
 	//compiler modes
 	ModePrefixPass,
@@ -241,6 +242,10 @@ public:
 	void pop() {
 		modeStack.pop();
 	}
+	void Err(Op code, const char* msg) {
+		printf("OP: %d Error: %s\n", (int)code, msg);
+		exit(-1);
+	}
 	void Char(char ch){
 		this->ch = ch;
 		switch (modeStack.top()){
@@ -251,10 +256,24 @@ public:
 	void Prefix(){
 		auto& obj = objStack.top();
 		auto pfx = fromPfxCh(ch);
+		if (pfx != Op::Unknown && expectNextPfx != Op::Null && pfx != expectNextPfx)
+		{
+			Err(Op::ErrUnexpectedNextPfx, "Unexpected next pfx");
+		}
 		switch (pfx) {
 		case Op::Variable:
+			if (expectNextPfx == pfx) {
+
+			}
 		case Op::Op:
 		case Op::Name:
+			if (expectNextPfx == pfx) {
+				switch (obj.op) {
+				case Op::Func:
+
+					break;
+				}
+			}
 			push(Op::ModeStrPass);
 			break;
 		case Op::Comment:
