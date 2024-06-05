@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <vector>
+#include <stack>
 #include <string>
 
 //not actually a compiler
@@ -134,7 +135,7 @@ enum class Op {
 	LineEnd,
 	Done,//      @
 	Return,//    ret
-
+	NoChange,
 	Struct,
 	Variable,
 	Comment,
@@ -283,10 +284,10 @@ OpNamePair opNames[] = {
 	{"/", Op::Divide},
 	{"is", Op::Equals},
 	{"neq", Op::NotEquals},
-	{"<", Op::LessThan},
-	{">", Op::GreaterThan},
-	{"<=", Op::LessThanOrEquals},
-	{">=", Op::GreaterThanOrEquals},
+	{"lt", Op::LessThan},
+	{"gt", Op::GreaterThan},
+	{"lteq", Op::LessThanOrEquals},
+	{"gteq", Op::GreaterThanOrEquals},
 	{"{", Op::ScopeOpen},
 	{"}", Op::ScopeClose},
 	{"(", Op::ParenthesisOpen},
@@ -324,57 +325,61 @@ Op GetOpFromName(const char* name){
 }
 
 class Compiler {
-	Op mode = Op::ModePrefixPass, lastMode = Op::ModePrefixPass,
-		op = Op::Null, lastOp = Op::Null;
-	std::vector<Op> validNextOps;
 	Pfx expectNextPfx = Pfx::Null;
-		Op strPayload = Op::Null;
-		bool procOnNewL = true;
+	Op strPayload = Op::Null;
+	bool procOnNewL = true;
 	Obj obj = {}; // working obj mem, add to objs when done
 	char ch = '\0';
 	std::vector<Obj> objs;
-	std::vector<Op> opStack;
+	std::vector<Op> validNextOps;
+	std::stack<Op> opStack;
+	std::stack<Op> modeStack;
 	std::string str;
 	bool strAllowSpace = false;
+
 public:
-	void set(Op mode, bool strAllowSpace = false){
-		this->lastMode = this->mode;
-		this->mode = mode;
+	Compiler()
+	{
+		modeStack.push(Op::ModePrefixPass);
+	}
+
+	void push(Op mode, bool strAllowSpace = false){
 		this->strAllowSpace = strAllowSpace;
+		modeStack.push(mode);
+	}
+	void pop() {
+		modeStack.pop();
 	}
 	void Char(char ch){
 		this->ch = ch;
-		switch (mode){
+		switch (modeStack.top()){
 			case Op::ModePrefixPass: return Prefix();
 			case Op::ModeStrPass: return Str();
-			case Op::ModeStrPayload: return StrPayload();
 		}
 	}
 	void Prefix(){
-		switch (expectNextPfx) {
-		case Pfx::Null:
-			break;
+		/*switch (expectNextPfx) {
+		case Pfx::Null: break;
 		case Pfx::Name:
-			switch (obj.op)
-			{
-			case Op::Func:
-				break;
-			}
 			break;
 		case Pfx::Op:
 			break;
-		}
+		}*/
 		auto pfx = (Pfx)ch;
 		switch (pfx) {
 		case Pfx::Variable:
-			
 		case Pfx::Op:
 		case Pfx::Name:
-			//strPayload = obj.op;
-			set(Op::ModeStrPass);
+			if (pfx == expectNextPfx){
+				switch (obj.op) {
+				case Op::Func:
+
+					break;
+				}
+			}
+			push(Op::ModeStrPass);
 			break;
 		case Pfx::Comment:
-
 			break;
 		}
 	}
@@ -397,40 +402,31 @@ public:
 	void StrPayload(){
 		switch (obj.op)
 		{
+		case Op::Func:
+			obj.setName(str.c_str());
+			obj.op = Op::FuncPre1;
+			validNextOps.clear();
+			validNextOps.push_back(Op::FuncArg);
+			validNextOps.push_back(Op::FuncArgsEnd);
+			break;
 		case Op::Variable:
 		case Op::Name:
-			switch (obj.op)
-			{
-				case Op::Func:
-					obj.setName(str.c_str());
-					obj.op = Op::FuncPre1;
-					validNextOps.clear();
-					validNextOps.push_back(Op::FuncArg);
-					validNextOps.push_back(Op::FuncArgsEnd);
-					break;
-			}
 			Op nameOp = GetOpFromName(str.c_str());
 			switch (nameOp)
 			{
-			/*case Op::Name:
-				if (obj.name)
+				switch (nameOp)
 				{
-					free(obj.name);
-					obj.name = nullptr;
+				case Op::Func:
+					obj.op = nameOp;
+					expectNextPfx = Pfx::Name;
+					pop();
+					break;
 				}
-				obj.name = strdup(str.c_str());
-				break;*/
-			case Op::Func:
-				obj.op = nameOp;
-				expectNextPfx = Pfx::Name;
-				mode = Op::ModePrefixPass;
 				break;
 			}
-			//objs.push_back(obj);
-			break;
+			str.clear();
+			pop();
 		}
-		str.clear();
-		mode = Op::ModePrefixPass;
 	}
 };
 
