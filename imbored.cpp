@@ -122,7 +122,7 @@ enum class Op {
 	Null,//      nul
 	False,//     no
 	True,//      yes
-	
+	Unknown,// ?????
 	Use,//       use
 	Build,//     build
 	Space,//     space
@@ -143,6 +143,7 @@ enum class Op {
 	Imaginary, //for compiler features (extern)
 	Void,
 
+	Set,//                 set
 	Colon,//               :
 	Dot,//                 .
 	Add,//                 +
@@ -218,6 +219,13 @@ typedef union Val {
 struct Obj {
 	Op type = Op::Null;
 	char* name = nullptr;
+	void setName(const char* name) {
+		if (this->name) {
+			free(this->name);
+			this->name = nullptr;
+		}
+		this->name = _strdup(name);
+	}
 	Op op;
 	Val val = {};
 	std::vector<Obj>* children = nullptr;
@@ -236,27 +244,30 @@ struct Path
 	Op paths[10];
 };
 
-Obj HandleFunc(std::vector<Op>* ops) {
-	for(auto& op : *ops) {
-		switch (op) {
-		case Op::FuncArg:
-		case Op::FuncArgsEnd:
-			break;
-		}
-	}
-}
-
-Path path[] = {
-	{Op::Func, 2, NULL, {Op::FuncArg, Op::FuncArgsEnd}},
-	{Op::Func, 3, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
-	{Op::Func, 4, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
-	{Op::Func, 5, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
-	{Op::Func, 6, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
-};
+//Obj HandleFunc(std::vector<Op>* ops) {
+//	Obj ret;
+//	for(auto& op : *ops) {
+//		switch (op) {
+//		case Op::FuncArg:
+//		case Op::FuncArgsEnd:
+//			break;
+//		}
+//	}
+//	return ret;
+//}
+//
+//Path path[] = {
+//	{Op::Func, 2, NULL, {Op::FuncArg, Op::FuncArgsEnd}},
+//	{Op::Func, 3, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
+//	{Op::Func, 4, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
+//	{Op::Func, 5, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
+//	{Op::Func, 6, NULL, {Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArg, Op::FuncArgsEnd}},
+//};
 
 OpNamePair opNames[] = {
 	{"null", Op::Null},
 	{"no", Op::False},
+	{"set", Op::Set},
 	{"yes", Op::True},
 	{"func", Op::Func},
 	{"~", Op::Comment},
@@ -270,8 +281,8 @@ OpNamePair opNames[] = {
 	{"-", Op::Subtract},
 	{"*", Op::Multiply},
 	{"/", Op::Divide},
-	{"=", Op::Equals},
-	{"!+", Op::NotEquals},
+	{"is", Op::Equals},
+	{"neq", Op::NotEquals},
 	{"<", Op::LessThan},
 	{">", Op::GreaterThan},
 	{"<=", Op::LessThanOrEquals},
@@ -286,7 +297,7 @@ OpNamePair opNames[] = {
 	{"$", Op::Name},
 	{"for", Op::For},
 	{"loop", Op::While},
-	{"", Op::Block},
+	{"block", Op::Block}, //maybe use for templates
 	{"struct", Op::Struct},
 	{"private", Op::Private},
 	{"public", Op::Public},
@@ -303,7 +314,6 @@ OpNamePair opNames[] = {
 	{"f32", Op::f32},
 	{"d64", Op::d64},
 	{"&", Op::Pointer},
-
 };
 
 Op GetOpFromName(const char* name){
@@ -316,7 +326,9 @@ Op GetOpFromName(const char* name){
 class Compiler {
 	Op mode = Op::ModePrefixPass, lastMode = Op::ModePrefixPass,
 		op = Op::Null, lastOp = Op::Null;
-		Pfx strPayload = Pfx::Null;
+	std::vector<Op> validNextOps;
+	Pfx expectNextPfx = Pfx::Null;
+		Op strPayload = Op::Null;
 		bool procOnNewL = true;
 	Obj obj = {}; // working obj mem, add to objs when done
 	char ch = '\0';
@@ -339,13 +351,26 @@ public:
 		}
 	}
 	void Prefix(){
+		switch (expectNextPfx) {
+		case Pfx::Null:
+			break;
+		case Pfx::Name:
+			switch (obj.op)
+			{
+			case Op::Func:
+				break;
+			}
+			break;
+		case Pfx::Op:
+			break;
+		}
 		auto pfx = (Pfx)ch;
 		switch (pfx) {
 		case Pfx::Variable:
 			
 		case Pfx::Op:
 		case Pfx::Name:
-			strPayload = pfx;
+			//strPayload = obj.op;
 			set(Op::ModeStrPass);
 			break;
 		case Pfx::Comment:
@@ -370,30 +395,39 @@ public:
 		str.append(1, ch);
 	}
 	void StrPayload(){
-		switch (strPayload)
+		switch (obj.op)
 		{
-		case Pfx::Op:
-		case Pfx::Variable:
-		case Pfx::Name:
+		case Op::Variable:
+		case Op::Name:
+			switch (obj.op)
+			{
+				case Op::Func:
+					obj.setName(str.c_str());
+					obj.op = Op::FuncPre1;
+					validNextOps.clear();
+					validNextOps.push_back(Op::FuncArg);
+					validNextOps.push_back(Op::FuncArgsEnd);
+					break;
+			}
 			Op nameOp = GetOpFromName(str.c_str());
 			switch (nameOp)
 			{
-			case Op::Name:
+			/*case Op::Name:
 				if (obj.name)
 				{
 					free(obj.name);
 					obj.name = nullptr;
 				}
 				obj.name = strdup(str.c_str());
-				break;
+				break;*/
 			case Op::Func:
 				obj.op = nameOp;
-				objs.push_back(obj);
-				break;
-			default:
+				expectNextPfx = Pfx::Name;
+				mode = Op::ModePrefixPass;
 				break;
 			}
-				break;
+			//objs.push_back(obj);
+			break;
 		}
 		str.clear();
 		mode = Op::ModePrefixPass;
