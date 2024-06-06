@@ -53,13 +53,15 @@ enum class Op {
 	i8, i16, i32, i64, //signed
 	f32, d64, //float, double
 
-	Pointer,DoublePointer,CompilerFlags,
+	Pointer,DoublePointer,TripplePointer,CompilerFlags,
 
 	Error,
 	ErrNOT_GOOD,
 	ErrUnexpectedNextPfx,
 	ErrExpectedVariablePfx,
 	ErrNoTask,
+	ErrUnexpectedOp,
+	ErrQuadriplePointersNOT_ALLOWED,
 
 	//compiler modes
 	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
@@ -128,7 +130,9 @@ OpNamePair opNames[] = {
 	{"i64", Op::i64},
 	{"f32", Op::f32},
 	{"d64", Op::d64},
-	{"&", Op::Pointer},
+	{"pointer", Op::Pointer},
+	{"double pointer", Op::DoublePointer},
+	{"tripple pointer", Op::TripplePointer},
 	{"ErrUnexpectedNextPfx", Op::ErrUnexpectedNextPfx},
 	{"ModePrefixPass", Op::ModePrefixPass},
 	{"ModeStrPass", Op::ModeStrPass},
@@ -167,6 +171,7 @@ OpNamePair cEquivelents[] = {
 	{"char", Op::i8},
 	{"*", Op::Pointer},
 	{"**", Op::DoublePointer},
+	{"***", Op::TripplePointer},
 	{", ", Op::CommaSpace},
 	{"(", Op::ParenthesisOpen},
 	{")", Op::ParenthesisClose},
@@ -266,8 +271,9 @@ public:
 };
 class Compiler {
 	Op pfx = Op::Null;
+	Op pointer = Op::NotSet;
 	char ch = '\0';
-	std::stack<bool> opAllowedStack;
+	std::stack<bool> opAllowedStack, strReadPtrsStack;
 	std::stack<Op> modeStack, taskStack;
 	std::stack<Obj> objStack;
 	std::vector<Op> allowedNextPfxs;
@@ -279,6 +285,7 @@ class Compiler {
 public:
 	Compiler(){
 		opAllowedStack.push(true);
+		strReadPtrsStack.push(false);
 		push(Op::ModePrefixPass);
 		pushObj({});
 	}
@@ -349,6 +356,12 @@ public:
 	//NO NEWLINES AT END OF STR
 	void ExplainErr(Op code) {
 		switch (code) {
+		case Op::ErrQuadriplePointersNOT_ALLOWED:
+			printf("Why?");
+			break;
+		case Op::ErrUnexpectedOp:
+			printf("Unexpected OP");
+			break;
 		case Op::ErrNoTask:
 			printf("No working task to call done (@@) for");
 			break;
@@ -366,7 +379,7 @@ public:
 		printf("\nOBJ MEM:");
 		objStack.top().print();
 	}
-	void Err(Op code, const char* msg) {
+	void Err(Op code, const char* msg="") {
 		printf("ERR:%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, line, column, GetOpName(code), (int)code);
 		ExplainErr(code);
 		printf("\n");
@@ -402,14 +415,18 @@ public:
 	{
 		assert(!taskStack.empty());
 		switch (taskStack.top()) {
-		case Op::Func:
+		case Op::Func: {
 			std::string cFuncModsTypeName, cFuncArgs;
 			for (int i = 0; i < workingObjs.size(); ++i) {
 				auto& o = workingObjs[i];
 				switch (o.getType()) {
-				case Op::FuncArgComplete://multiple allowed
+				case Op::FuncArgComplete: {//multiple allowed
+					auto at = o.arg.argType;
+					assert(at != Op::Null);
 					cFuncArgs += GetCEqu(o.arg.argType);
+					if(i < workingObjs.size()-1) cFuncArgs += ", ";
 					break;
+				}
 				case Op::CompletedFunction://should only happen once
 					cFuncModsTypeName += GetCEqu(o.func.retType);
 					cFuncModsTypeName += GetCEqu(o.func.retTypeMod);
@@ -420,7 +437,9 @@ public:
 					break;
 				}
 			}
+			printf("Done");
 			break;
+		}
 		}
 		Done:
 		taskStack.pop();
@@ -435,8 +454,9 @@ public:
 			Err(Op::ErrUnexpectedNextPfx, "");
 		printf("Got pfx %s(\'%c\')\n", GetPfxName(pfx), ch);
 		switch (pfx) {
-		case Op::Value:
 		case Op::VarType:
+			strReadPtrsStack.push(true);
+		case Op::Value:
 		case Op::Op:
 		case Op::Name:
 			push(Op::ModeStrPass);
@@ -447,17 +467,35 @@ public:
 	}
 	void Str(){
 		switch (ch) {
-		case '\n':
+		case '\n': {
 			setAllowedNextPfxs({});
 			return StrPayload();
+		}
 		case '\t':
 			return;
-		case ' ':
+		case ' ': {
 			if (strAllowSpace) break;
 			else return StrPayload();
-		case '&':
-			if (pfx == Op::VarType) {
+		}
+		case '&': {
+			if (strReadPtrsStack.top()) {
+				switch (pointer) {
+				case Op::NotSet:
+					pointer = Op::Pointer;
+					break;
+				case Op::Pointer:
+					pointer = Op::DoublePointer;
+					break;
+				case Op::DoublePointer:
+					pointer = Op::TripplePointer;
+					break;
+				case Op::TripplePointer:
+					Err(Op::ErrQuadriplePointersNOT_ALLOWED);
+					break;
+				}
+				return;
 			}
+		}
 		}
 		str.append(1, ch);
 	}
@@ -507,7 +545,7 @@ public:
 				opAllowedStack.pop();
 				setAllowedNextPfxs({});
 				objStack.top().func.retType = nameOp;
-				objStack.top().func.retTypeMod = Op::NotSet;
+				objStack.top().func.retTypeMod = pointer;
 				objStack.top().setType(Op::FuncSignatureComplete);
 				popObj(true);
 				break;
@@ -515,6 +553,8 @@ public:
 			case Op::FuncHasName:
 				pushObj({});
 				objStack.top().setType(Op::FuncArgNameless);
+				objStack.top().arg.argType = nameOp;
+				objStack.top().func.retTypeMod = pointer;
 				setAllowedNextPfxs({Op::Name});
 				break;
 			}
@@ -566,6 +606,9 @@ public:
 					objStack.top().setType(Op::FuncNeedsRetValType);
 					setAllowedNextPfxs({ Op::VarType });
 					break;
+				default:
+					Err(Op::ErrUnexpectedOp);
+					break;
 				}
 				break;
 			}
@@ -583,6 +626,11 @@ public:
 		str.clear();
 		printf("Str payload complete\n");
 		pop();
+		if(strReadPtrsStack.size() > 1)
+		{
+			if (strReadPtrsStack.top()) pointer = Op::NotSet;
+			strReadPtrsStack.pop();
+		}
 	}
 };
 int main(int argc, char** argv) {
