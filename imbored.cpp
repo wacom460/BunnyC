@@ -248,9 +248,9 @@ class Compiler {
 	char ch = '\0';
 	std::stack<bool> opAllowedStack;
 	std::stack<Op> modeStack, taskStack;
-	std::stack<Obj> objStack, workingStack;
+	std::stack<Obj> workingStack;
+	std::vector<Obj> objStack;
 	std::vector<Op> allowedNextPfxs;
-	//std::vector<Obj> workingObjs;
 	std::string str;
 	bool strAllowSpace = false;
 	unsigned int line = 0;
@@ -270,37 +270,37 @@ public:
 #if IB_DEBUG_EXTRA1
 		if (!objStack.empty()) {
 			printf("Obj bef push:");
-			objStack.top().print();
+			objStack.back().print();
 		}
 #endif
-		objStack.push(obj);
+		objStack.push_back(obj);
 #if IB_DEBUG_EXTRA1
 		printf("Obj aft push:");
-		objStack.top().print();
+		objStack.back().print();
 #endif
-		return objStack.top();
+		return objStack.back();
 	}
 	Obj& popObj(/*bool pushToWorking*/) {
 		/*if (pushToWorking)
 		{
 			printf("pushed to working: ");
-			objStack.top().print();
-			workingObjs.push_back(objStack.top());
+			objStack.back().print();
+			workingObjs.push_back(objStack.back());
 		}*/
 #if IB_DEBUG_EXTRA1
 		printf("Obj before pop:");
-		objStack.top().print();
+		objStack.back().print();
 #endif
-		objStack.pop();
+		objStack.pop_back();
 		if (objStack.empty()) {
 			printf("objstack EMPTY. adding empty obj\n");
 			pushObj({});
 		}
 #if IB_DEBUG_EXTRA1
 		printf("Obj after pop:");
-		objStack.top().print();
+		objStack.back().print();
 #endif
-		return objStack.top();
+		return objStack.back();
 	}
 	void push(Op mode, bool strAllowSpace = false){
 		this->strAllowSpace = strAllowSpace;
@@ -342,7 +342,7 @@ public:
 			printf("Unknown error");
 		}
 		printf("\nOBJ MEM:");
-		objStack.top().print();
+		objStack.back().print();
 	}
 	void Err(Op code, const char* msg) {
 		printf("ERR:%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, line, column, GetOpName(code), (int)code);
@@ -377,7 +377,7 @@ public:
 		}
 	}
 	void Prefix(){
-		auto& obj = objStack.top();
+		auto& obj = objStack.back();
 		pfx = fromPfxCh(ch);
 		if (pfx != Op::Unknown 
 			&& !allowedNextPfxs.empty()
@@ -420,50 +420,50 @@ public:
 		switch (pfx)
 		{
 		case Op::Value:
-			switch (objStack.top().getType()) {
+			switch (objStack.back().getType()) {
 			case Op::FuncNeedReturnValue:
 				printf("Finishing func got ret value\n");
-				objStack.top().func.returnValue=strVal;
-				objStack.top().setType(Op::CompletedFunction);
+				objStack.back().func.returnValue=strVal;
+				objStack.back().setType(Op::CompletedFunction);
 				break;
 			}
 			break;
 		case Op::VarType:
-			switch (objStack.top().getType()) {
+			switch (objStack.back().getType()) {
 			case Op::NotSet:
-				objStack.top().setType(Op::VarNeedName);
+				objStack.back().setType(Op::VarNeedName);
 				break;
 			case Op::FuncNeedsRetValType: {
 				opAllowedStack.pop();
 				setAllowedNextPfxs({});
-				objStack.top().func.retType = nameOp;
-				objStack.top().setType(Op::FuncSignatureComplete);
+				objStack.back().func.retType = nameOp;
+				objStack.back().setType(Op::FuncSignatureComplete);
 				//popObj(true);
 				break;
 			}
 			case Op::FuncHasName:
 				pushObj({});
-				objStack.top().setType(Op::FuncArgNameless);
+				objStack.back().setType(Op::FuncArgNameless);
 				setAllowedNextPfxs({Op::Name});
 				break;
 			}
 			break;
 		case Op::Name://just dont use fallthru here...
-			switch (objStack.top().getType()){
+			switch (objStack.back().getType()){
 			case Op::Func:
-				objStack.top().setType(Op::FuncHasName);
+				objStack.back().setType(Op::FuncHasName);
 				setAllowedNextPfxs({Op::VarType, Op::LineEnd });
-				objStack.top().setName(cs);
+				objStack.back().setName(cs);
 				break;
 			case Op::FuncArgNameless:
-				objStack.top().setType(Op::FuncArgComplete);
+				objStack.back().setType(Op::FuncArgComplete);
 				setAllowedNextPfxs({ Op::VarType, Op::LineEnd });
-				objStack.top().setName(cs);
+				objStack.back().setName(cs);
 				//popObj(true);
 				break;
 			case Op::VarNeedName:
-				objStack.top().setName(cs);
-				objStack.top().setType(Op::VarComplete);
+				objStack.back().setName(cs);
+				objStack.back().setType(Op::VarComplete);
 				//popObj(true);
 				break;
 			}
@@ -489,24 +489,24 @@ public:
 				taskStack.pop();
 				break;
 			case Op::Return: {
-				auto t = objStack.top().getType();
+				auto t = objStack.back().getType();
 				switch (t) {
 				case Op::FuncHasName:
 					opAllowedStack.push(false);
-					objStack.top().setType(Op::FuncNeedsRetValType);
+					objStack.back().setType(Op::FuncNeedsRetValType);
 					setAllowedNextPfxs({ Op::VarType });
 					break;
 				}
 				break;
 			}
 			case Op::Func:
-				objStack.top().setType(nameOp);
+				objStack.back().setType(nameOp);
 				setAllowedNextPfxs({Op::Name});
 				taskStack.push(nameOp);
 				break;
 			case Op::Public:
 			case Op::Private:
-				objStack.top().privacy = nameOp;
+				objStack.back().privacy = nameOp;
 				break;
 			}
 		}
