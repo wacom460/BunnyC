@@ -27,6 +27,7 @@ enum class Op {
 	Func,//      func
 	__FuncBuildingStart__,
 	FuncHasName, //have name
+	FuncNeedsRetValType,
 	FuncArgsVarNeedsName,
 	FuncArgNameless,
 	FuncArgComplete,
@@ -87,6 +88,7 @@ enum class Op {
 	i8, i16, i32, i64, //signed
 	f32, d64, //float, double
 	Pointer,
+	DoublePointer,
 	CompilerFlags,
 
 	Error,
@@ -145,8 +147,8 @@ OpNamePair opNames[] = {
 	{"loop", Op::While},
 	{"block", Op::Block}, //maybe use for templates
 	{"struct", Op::Struct},
-	{"private", Op::Private},
-	{"public", Op::Public},
+	{"priv", Op::Private},
+	{"pub", Op::Public},
 	{"void", Op::Void},
 	{"c8", Op::c8},
 	{"u8", Op::u8},
@@ -170,6 +172,7 @@ OpNamePair opNames[] = {
 	{"NotSet", Op::NotSet},
 	{"StackFloorObj", Op::StackFloorObj},
 	{"Return", Op::Return},
+	{"FuncArgComplete",Op::FuncArgComplete}
 };
 OpNamePair pfxNames[] = {
 	{"Op (@)", Op::Op},
@@ -233,6 +236,7 @@ void owStr(char** str, const char* with) {
 }
 struct Obj {
 	Op type = Op::NotSet;
+	Op modifier = Op::NotSet;
 	Op privacy = Op::NotSet;
 	char* name = nullptr;
 	char* str = nullptr;
@@ -251,7 +255,9 @@ class Compiler {
 	Op pfx = Op::Null;
 	Op strPayload = Op::Null;
 	bool procOnNewL = true;
+	//bool opPfxAllowed = true;
 	char ch = '\0';
+	std::stack<bool> opAllowedStack;
 	std::stack<Op> modeStack;
 	std::stack<Obj> objStack;
 	std::vector<Op> allowedNextPfxs;
@@ -260,6 +266,7 @@ class Compiler {
 	bool strAllowSpace = false;
 public:
 	Compiler(){
+		opAllowedStack.push(true);
 		push(Op::ModePrefixPass);
 		auto&obj=pushObj({});
 		obj.type = Op::StackFloorObj;
@@ -299,6 +306,7 @@ public:
 		printf("\n");
 	}
 	bool isPfxExpected(Op pfx) {
+		if (pfx == Op::Op) return opAllowedStack.top();
 		for (auto& p : allowedNextPfxs) if (p == pfx) return true;
 		return false;
 	}
@@ -307,7 +315,7 @@ public:
 		//auto& expectNextPfx = nextPfxStack.top();
 		switch (code) {
 		case Op::ErrUnexpectedNextPfx:
-			printf("Unexpected next prefix. Allowed:");
+			printf("Unexpected next prefix %s. Allowed:", GetPfxName(pfx));
 			for (auto& p : allowedNextPfxs)
 				printf("%s,", GetPfxName(p));
 			break;
@@ -340,6 +348,9 @@ public:
 			Err(Op::ErrUnexpectedNextPfx, "");
 		printf("Got pfx %s\n", GetPfxName(pfx));
 		switch (pfx) {
+		case Op::LineEnd:
+			setAllowedNextPfxs({});
+			break;
 		case Op::VarType:
 		case Op::Op:
 		case Op::Name:
@@ -351,20 +362,20 @@ public:
 	}
 	void Str(){
 		switch (ch) {
-		case '&':
-			if (pfx == Op::VarType) {
-				//printf("ptr");
-			}
+		case '\n':
 		case '\t':
 		case '\r':
 		case '\0':
 			return;
-		case '\n':
 		case ' ':
 			if (strAllowSpace) break;
 			else {
 				StrPayload();
 				return;
+			}
+		case '&':
+			if (pfx == Op::VarType) {
+				//printf("ptr");
 			}
 		}
 		str.append(1, ch);
@@ -380,6 +391,11 @@ public:
 			break;
 		case Op::VarType:
 			switch (objStack.top().type) {
+			case Op::FuncNeedsRetValType: {
+				opAllowedStack.pop();
+				setAllowedNextPfxs({ Op::LineEnd });
+				break;
+			}
 			case Op::FuncHasName:
 				pushObj({});
 				objStack.top().type = Op::FuncArgNameless;
@@ -391,12 +407,12 @@ public:
 			switch (objStack.top().type){
 			case Op::Func:
 				objStack.top().type = Op::FuncHasName;
-				setAllowedNextPfxs({Op::VarType, Op::LineEnd, Op::Return });
+				setAllowedNextPfxs({Op::VarType, Op::LineEnd });
 				objStack.top().setName(cs);
 				break;
 			case Op::FuncArgNameless:
 				objStack.top().type = Op::FuncArgComplete;
-				setAllowedNextPfxs({ Op::VarType, Op::LineEnd, Op::Return });
+				setAllowedNextPfxs({ Op::VarType, Op::LineEnd });
 				objStack.top().setName(cs);
 				popObj(true);
 				break;
@@ -404,16 +420,14 @@ public:
 				objStack.top().setName(cs);
 				break;
 			}
-			switch (objStack.top().type)
-			{
+			switch (objStack.top().type){
 			case Op::FuncArgComplete:
 				
 				break;
 			}
 			break;
-		case Op::Op:
-			switch (nameOp)
-			{
+		case Op::Op: 
+			switch (nameOp) {
 			case Op::LineEnd:
 				printf("LINEEND\n");
 				break;
@@ -423,8 +437,17 @@ public:
 					break;
 				}
 				break;
-			case Op::Return:
+			case Op::Return: {
+				auto& t = objStack.top().type;
+				switch (t) {
+				case Op::FuncHasName:
+					opAllowedStack.push(false);
+					objStack.top().type = Op::FuncNeedsRetValType;
+					setAllowedNextPfxs({ Op::VarType });
+					break;
+				}
 				break;
+			}
 			case Op::Func:
 				objStack.top().type = nameOp;
 				setAllowedNextPfxs({Op::Name});
