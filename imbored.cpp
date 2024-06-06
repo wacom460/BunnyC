@@ -58,6 +58,7 @@ enum class Op {
 	ErrNOT_GOOD,
 	ErrUnexpectedNextPfx,
 	ErrExpectedVariablePfx,
+	ErrNoTask,
 
 	//compiler modes
 	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
@@ -142,6 +143,8 @@ OpNamePair opNames[] = {
 	{"FuncArgComplete",Op::FuncArgComplete},
 	{"FuncNeedsRetValType",Op::FuncNeedsRetValType},
 	{"FuncNameAndArgsAndRetComplete", Op::FuncNameAndArgsAndRetComplete},
+	{"VarNeedName", Op::VarNeedName},
+	{"VarComplete", Op::VarComplete},
 };
 OpNamePair pfxNames[] = {
 	{"Op (@)", Op::Op},
@@ -240,7 +243,7 @@ class Compiler {
 	Op pfx = Op::Null;
 	char ch = '\0';
 	std::stack<bool> opAllowedStack;
-	std::stack<Op> modeStack;
+	std::stack<Op> modeStack, taskStack;
 	std::stack<Obj> objStack;
 	std::vector<Op> allowedNextPfxs;
 	std::vector<Obj> workingObjs;
@@ -318,6 +321,9 @@ public:
 	void ExplainErr(Op code) {
 		//auto& expectNextPfx = nextPfxStack.top();
 		switch (code) {
+		case Op::ErrNoTask:
+			printf("No working task to call done (@@) for");
+			break;
 		case Op::ErrUnexpectedNextPfx:
 			printf("Unexpected next prefix %s. Allowed:", GetPfxName(pfx));
 			for (auto& p : allowedNextPfxs)
@@ -439,8 +445,10 @@ public:
 				objStack.top().setName(cs);
 				popObj(true);
 				break;
-			/*case Op::VarType:
-				objStack.top().setName(cs);*/
+			case Op::VarNeedName:
+				objStack.top().setName(cs);
+				objStack.top().setType(Op::VarComplete);
+				popObj(true);
 				break;
 			}
 			switch (objStack.top().getType()){
@@ -455,10 +463,14 @@ public:
 				printf("LINEEND\n");
 				break;
 			case Op::Done:
-				switch (objStack.top().getType()) {
+				if (taskStack.empty()) Err(Op::ErrNoTask, "");
+				switch (taskStack.top()) {
 				case Op::Func:
+					printf("Done with function\n");
+
 					break;
 				}
+				taskStack.pop();
 				break;
 			case Op::Return: {
 				auto t = objStack.top().getType();
@@ -474,6 +486,7 @@ public:
 			case Op::Func:
 				objStack.top().setType(nameOp);
 				setAllowedNextPfxs({Op::Name});
+				taskStack.push(nameOp);
 				break;
 			/*case Op::Null:
 				objStack.top().setType(Op::VarType);
