@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
  #include <vector>
  #include <stack>
  #include <string>
@@ -27,10 +28,10 @@ enum class Op {
 	//FuncArgsEnd,
 	FuncNeedVarsAndCode,
 	__FuncBuildingEnd__,
-	FuncComplete,
+	FuncNameAndArgsAndRetComplete,
 
 	LineEnd,Op,Value,Done,Return,NoChange,Struct,VarType,
-	Comment,Public,Private,Imaginary,Void,StackFloorObj,
+	Comment,Public,Private,Imaginary,Void,/*StackFloorObj,*/
 	Set,SetAdd,Colon,Dot,Add,Subtract,Multiply,Divide,
 	AddEq,SubEq,MultEq,DivEq,Equals,NotEquals,LessThan,
 	GreaterThan,LessThanOrEquals,GreaterThanOrEquals,
@@ -123,9 +124,10 @@ OpNamePair opNames[] = {
 	{"ModeString", Op::ModeString},
 	{"FuncHasName", Op::FuncHasName},
 	{"NotSet", Op::NotSet},
-	{"StackFloorObj", Op::StackFloorObj},
+	//{"StackFloorObj", Op::StackFloorObj},
 	{"Return", Op::Return},
-	{"FuncArgComplete",Op::FuncArgComplete}
+	{"FuncArgComplete",Op::FuncArgComplete},
+	{"FuncNeedsRetValType",Op::FuncNeedsRetValType},
 };
 OpNamePair pfxNames[] = {
 	{"Op (@)", Op::Op},
@@ -199,7 +201,10 @@ struct Obj {
 	Op privacy = Op::NotSet;
 	char* name = nullptr;
 	char* str = nullptr;
-	Op op;
+	union {
+		Op op;
+		Op argType;
+	};
 	Val val = {};
 	/*std::vector<Obj>* children = nullptr;*/	
 	void setName(const char* name) { owStr(&this->name, name); }
@@ -230,8 +235,7 @@ public:
 	Compiler(){
 		opAllowedStack.push(true);
 		push(Op::ModePrefixPass);
-		auto&obj=pushObj({});
-		obj.type = Op::StackFloorObj;
+		pushObj({});
 	}
 	Obj& pushObj(Obj obj) {
 		if (!objStack.empty()) {
@@ -247,7 +251,9 @@ public:
 		if (pushToWorking) workingObjs.push_back(objStack.top());
 		printf("Obj before pop:");
 		objStack.top().print();
+		//assert(objStack.top().type != Op::StackFloorObj);
 		objStack.pop();
+		if (objStack.empty()) pushObj({});
 		printf("Obj after pop:");
 		objStack.top().print();
 		return objStack.top();
@@ -269,7 +275,8 @@ public:
 		printf("\n");
 	}
 	bool isPfxExpected(Op pfx) {
-		if (pfx == Op::Any)return true;
+		//if (pfx == Op::Any)return true;
+		if (allowedNextPfxs.empty()) return true;
 		if (pfx == Op::Op) return opAllowedStack.top();
 		for (auto& p : allowedNextPfxs) if (p == pfx) return true;
 		return false;
@@ -288,7 +295,9 @@ public:
 			break;
 		default:
 			printf("Unknown error");
-		}		
+		}
+		printf("\nOBJ MEM:");
+		objStack.top().print();
 	}
 	void Err(Op code, const char* msg) {
 		printf("Compiler died: \"%s\" At %u:%u OP: \"%s\"(%d) Error: ", msg, line, column, GetOpName(code), (int)code);
@@ -307,10 +316,10 @@ public:
 			case '\n': {
 				nl = true;
 				//printf("got newl\n");
-				if (m != Op::ModePrefixPass)
+				/*if (m != Op::ModePrefixPass)
 				{
 					m = pop();
-				}
+				}*/
 				break;
 			}
 		}
@@ -337,7 +346,7 @@ public:
 		printf("Got pfx %s\n", GetPfxName(pfx));
 		switch (pfx) {
 		case Op::LineEnd:
-			setAllowedNextPfxs({Op::Any});
+			setAllowedNextPfxs({});
 			break;
 		case Op::VarType:
 		case Op::Op:
@@ -378,6 +387,8 @@ public:
 			case Op::FuncNeedsRetValType: {
 				opAllowedStack.pop();
 				setAllowedNextPfxs({ Op::LineEnd });//Op::Op is implicit allowing @ret next
+				objStack.top().type = Op::FuncNameAndArgsAndRetComplete;
+				popObj(true);
 				break;
 			}
 			case Op::FuncHasName:
