@@ -200,6 +200,9 @@ Op GetOpFromName(const char* name) {
 	return Op::Error;
 }
 static Op fromPfxCh(char ch) {
+	if (ch == '\n') {
+		printf("hi\n");
+	}
 	switch (ch) {
 	case '@': return Op::Op;
 	case '~': return Op::Comment;
@@ -265,6 +268,7 @@ class Compiler {
 	std::vector<Obj> workingObjs;
 	std::string str;
 	bool strAllowSpace = false;
+	//bool returnChar = false;
 public:
 	Compiler(){
 		opAllowedStack.push(true);
@@ -336,6 +340,9 @@ public:
 	}
 	void Char(char ch){
 		this->ch = ch;
+		switch (this->ch) {
+			case '\0': return;
+		}
 		switch (modeStack.top()){
 			case Op::ModePrefixPass: return Prefix();
 			case Op::ModeStrPass: return Str();
@@ -364,10 +371,7 @@ public:
 	}
 	void Str(){
 		switch (ch) {
-		case '\n':
 		case '\t':
-		case '\r':
-		case '\0':
 			return;
 		case ' ':
 			if (strAllowSpace) break;
@@ -389,13 +393,12 @@ public:
 		switch (pfx)
 		{
 		case Op::Value:
-
 			break;
 		case Op::VarType:
 			switch (objStack.top().type) {
 			case Op::FuncNeedsRetValType: {
 				opAllowedStack.pop();
-				setAllowedNextPfxs({ Op::LineEnd });
+				setAllowedNextPfxs({ Op::LineEnd });//Op::Op is implicit allowing @ret next
 				break;
 			}
 			case Op::FuncHasName:
