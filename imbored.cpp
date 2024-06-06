@@ -30,6 +30,11 @@ enum class Op {
 	__FuncBuildingEnd__,
 	FuncNameAndArgsAndRetComplete,
 
+	__VariableBuildingStart__,
+	VarNeedName,//have var type need name
+	VarComplete, //have type and name
+	__VariableBuildingEnd__,
+
 	LineEnd,Op,Value,Done,Return,NoChange,Struct,VarType,
 	Comment,Public,Private,Imaginary,Void,/*StackFloorObj,*/
 	Set,SetAdd,Colon,Dot,Add,Subtract,Multiply,Divide,
@@ -55,7 +60,15 @@ enum class Op {
 
 	//compiler modes
 	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
-	ModeString
+	ModeString,
+
+
+
+	__DO_NOT_INSERT_AFTER_THIS__,
+	__DO__NOT__DO__IT__,
+	__CustomOpsStart__,
+	__CustomTypesStart__ = __DO__NOT__DO__IT__ + 100,
+	__CustomTypesEnd__ = __CustomTypesStart__ - 1
 };
 struct OpNamePair {
 	char name[OP_NAME_LEN];
@@ -300,7 +313,7 @@ public:
 		objStack.top().print();
 	}
 	void Err(Op code, const char* msg) {
-		printf("Compiler died: \"%s\" At %u:%u OP: \"%s\"(%d) Error: ", msg, line, column, GetOpName(code), (int)code);
+		printf("ERR: \"%s\" At %u:%u OP: \"%s\"(%d) Error: ", msg, line, column, GetOpName(code), (int)code);
 		ExplainErr(code);
 		printf("\n");
 		exit(-1);
@@ -384,6 +397,9 @@ public:
 			break;
 		case Op::VarType:
 			switch (objStack.top().type) {
+			case Op::NotSet: 
+				objStack.top().type = Op::VarNeedName;
+				break;
 			case Op::FuncNeedsRetValType: {
 				opAllowedStack.pop();
 				setAllowedNextPfxs({ Op::LineEnd });//Op::Op is implicit allowing @ret next
