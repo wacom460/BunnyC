@@ -248,9 +248,9 @@ class Compiler {
 	char ch = '\0';
 	std::stack<bool> opAllowedStack;
 	std::stack<Op> modeStack, taskStack;
-	std::stack<Obj> objStack;
+	std::stack<Obj> objStack, workingStack;
 	std::vector<Op> allowedNextPfxs;
-	std::vector<Obj> workingObjs;
+	//std::vector<Obj> workingObjs;
 	std::string str;
 	bool strAllowSpace = false;
 	unsigned int line = 0;
@@ -260,6 +260,11 @@ public:
 		opAllowedStack.push(true);
 		push(Op::ModePrefixPass);
 		pushObj({});
+	}
+	~Compiler() {
+		if (!str.empty()) {
+			StrPayload();
+		}
 	}
 	Obj& pushObj(Obj obj) {
 #if IB_DEBUG_EXTRA1
@@ -275,13 +280,13 @@ public:
 #endif
 		return objStack.top();
 	}
-	Obj& popObj(bool pushToWorking) {
-		if (pushToWorking)
+	Obj& popObj(/*bool pushToWorking*/) {
+		/*if (pushToWorking)
 		{
 			printf("pushed to working: ");
 			objStack.top().print();
 			workingObjs.push_back(objStack.top());
-		}
+		}*/
 #if IB_DEBUG_EXTRA1
 		printf("Obj before pop:");
 		objStack.top().print();
@@ -433,7 +438,7 @@ public:
 				setAllowedNextPfxs({});
 				objStack.top().func.retType = nameOp;
 				objStack.top().setType(Op::FuncSignatureComplete);
-				popObj(true);
+				//popObj(true);
 				break;
 			}
 			case Op::FuncHasName:
@@ -454,12 +459,12 @@ public:
 				objStack.top().setType(Op::FuncArgComplete);
 				setAllowedNextPfxs({ Op::VarType, Op::LineEnd });
 				objStack.top().setName(cs);
-				popObj(true);
+				//popObj(true);
 				break;
 			case Op::VarNeedName:
 				objStack.top().setName(cs);
 				objStack.top().setType(Op::VarComplete);
-				popObj(true);
+				//popObj(true);
 				break;
 			}
 			break;
@@ -470,7 +475,7 @@ public:
 				switch (taskStack.top()) {
 				case Op::Func:
 					printf("Finishing function\n");
-					for (auto& obj : workingObjs) {
+					for (auto& obj : objStack) {
 						//TODO: could cache func obj later but idk how
 						if (obj.getType() == Op::FuncSignatureComplete) {
 							if (obj.func.retType != Op::Void) {
