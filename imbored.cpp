@@ -30,6 +30,7 @@ enum class Op {
 	FuncNeedVarsAndCode,
 	__FuncBuildingEnd__,
 	FuncNameAndArgsAndRetComplete,
+	NeedReturnValue,
 
 	__VariableBuildingStart__,
 	VarNeedName,//have var type need name
@@ -145,6 +146,8 @@ OpNamePair opNames[] = {
 	{"FuncNameAndArgsAndRetComplete", Op::FuncNameAndArgsAndRetComplete},
 	{"VarNeedName", Op::VarNeedName},
 	{"VarComplete", Op::VarComplete},
+	{"ErrNoTask", Op::ErrNoTask},
+	{"ErrExpectedVariablePfx",Op::ErrExpectedVariablePfx}
 };
 OpNamePair pfxNames[] = {
 	{"Op (@)", Op::Op},
@@ -223,12 +226,13 @@ public:
 		this->type = type;
 	}
 	Op modifier = Op::NotSet;
-	Op privacy = Op::NotSet;
+	Op privacy = Op::NoChange;
 	char* name = nullptr;
 	char* str = nullptr;
 	union {
 		Op op;
 		Op argType;
+		Op retType;
 	};
 	Val val = {};
 	void setName(const char* name) { owStr(&this->name, name); }
@@ -247,6 +251,7 @@ class Compiler {
 	std::stack<Obj> objStack;
 	std::vector<Op> allowedNextPfxs;
 	std::vector<Obj> workingObjs;
+	//int workingCompleteFuncIdx=-1;
 	std::string str;
 	bool strAllowSpace = false;
 	unsigned int line = 0;
@@ -339,7 +344,7 @@ public:
 		objStack.top().print();
 	}
 	void Err(Op code, const char* msg) {
-		printf("ERR: \"%s\" At %u:%u OP: \"%s\"(%d) Error: ", msg, line, column, GetOpName(code), (int)code);
+		printf("ERR:%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, line, column, GetOpName(code), (int)code);
 		ExplainErr(code);
 		printf("\n");
 		exit(-1);
@@ -466,8 +471,15 @@ public:
 				if (taskStack.empty()) Err(Op::ErrNoTask, "");
 				switch (taskStack.top()) {
 				case Op::Func:
-					printf("Done with function\n");
-
+					printf("Finishing function\n");
+					for (auto& obj : workingObjs) {
+						//TODO: could cache func obj later but idk how
+						if (obj.getType() == Op::FuncNameAndArgsAndRetComplete) {
+							if (obj.retType != Op::Void) {
+								setAllowedNextPfxs({Op::LineEnd, Op::Value});
+							} else setAllowedNextPfxs({ Op::LineEnd });
+						}
+					}
 					break;
 				}
 				taskStack.pop();
