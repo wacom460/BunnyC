@@ -24,6 +24,7 @@ enum class Op {
 	Func,
 	__FuncBuildingStart__,
 	FuncHasName, //have name
+	FuncNeedName,
 	FuncNeedsRetValType,FuncArgsVarNeedsName,FuncArgNameless,
 	FuncArgComplete,
 	FuncNeedVarsAndCode,
@@ -397,6 +398,23 @@ public:
 			case '\0': return;
 			case '\n': {
 				nl = true;
+				if (!taskStack.empty()) {
+					switch (taskStack.top()) {
+					case Op::FuncNeedReturnValue: {
+						break;
+					}
+					case Op::FuncHasName:{
+						objStack.top().setType(Op::FuncSignatureComplete);
+						taskStack.top() = Op::Func;
+						popObj(true);
+						break;
+					}
+					case Op::Func:
+						objStack.top().setType(Op::CompletedFunction);
+						PopAndDoTask();
+						break;
+					}
+				}
 				break;
 			}
 		}
@@ -417,6 +435,7 @@ public:
 	{
 		assert(!taskStack.empty());
 		switch (taskStack.top()) {
+		//case Op::FuncHasName:
 		case Op::Func: {
 			std::string cFuncModsTypeName, cFuncArgs;
 			for (int i = 0; i < workingObjs.size(); ++i) {
@@ -512,18 +531,6 @@ public:
 		printf("Str: %s\n", cs);
 		switch (pfx)
 		{
-		case Op::LineEnd:
-			if (!taskStack.empty()) {
-				switch (taskStack.top()) {
-				case Op::Func:
-					auto &func = objStack.top();
-					assert(func.getType() == Op::FuncNeedReturnValue);
-					objStack.top().setType(Op::CompletedFunction);
-					PopAndDoTask();
-					break;
-				}
-			}
-			break;
 		case Op::Value:
 			if (!taskStack.empty()) {
 				switch (taskStack.top()) {
@@ -533,7 +540,6 @@ public:
 							printf("Finishing func got ret value\n");
 							obj.func.returnValue = strVal;
 							obj.setType(Op::CompletedFunction);
-							//assert(taskStack.top() == Op::Func);
 							PopAndDoTask();
 						}
 					}
@@ -568,6 +574,7 @@ public:
 			switch (objStack.top().getType()){
 			case Op::Func:
 				objStack.top().setType(Op::FuncHasName);
+				taskStack.top() = Op::FuncHasName;
 				setAllowedNextPfxs({Op::VarType, Op::LineEnd });
 				objStack.top().setName(cs);
 				break;
@@ -619,8 +626,10 @@ public:
 			}
 			case Op::Func:
 				objStack.top().setType(nameOp);
-				setAllowedNextPfxs({Op::Name});
-				taskStack.push(nameOp);
+				objStack.top().func.retType = Op::Void;
+				objStack.top().func.retTypeMod = Op::NotSet;
+				setAllowedNextPfxs({Op::Name, Op::LineEnd});
+				taskStack.push(Op::FuncNeedName);
 				break;
 			case Op::Public:
 			case Op::Private:
