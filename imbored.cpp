@@ -1,16 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <vector>
-#include <stack>
-#include <string>
+ #include <vector>
+ #include <stack>
+ #include <string>
 
 //not actually a compiler
 //ascii only, maybe utf8 later...
 //transpile to C
 //no order of operations, sequential ONLY
-
 //compiler options inside source code, preferably using code
 
 #define OBJ_NAME_LEN 64
@@ -32,7 +30,8 @@ enum class Op {
 	FuncArgsVarNeedsName,
 	FuncArgNameless,
 	FuncArgComplete,
-	FuncArgsEnd,
+	//FuncArgsEnd,
+	FuncNeedVarsAndCode,
 	__FuncBuildingEnd__,
 	FuncComplete,
 	LineEnd,
@@ -48,7 +47,7 @@ enum class Op {
 	Private,
 	Imaginary, //satisfied at link time (extern)
 	Void,
-
+	StackFloorObj,
 	Set,//                 set
 	SetAdd,//			   add
 	Colon,//               :
@@ -88,9 +87,7 @@ enum class Op {
 	i8, i16, i32, i64, //signed
 	f32, d64, //float, double
 	Pointer,
-
 	CompilerFlags,
-	
 
 	Error,
 	ErrNOT_GOOD,
@@ -104,12 +101,10 @@ enum class Op {
 	ModeMultiLineComment,
 	ModeString
 };
-
 struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
 };
-
 OpNamePair opNames[] = {
 	{"null", Op::Null},
 	{"no", Op::False},
@@ -170,7 +165,11 @@ OpNamePair opNames[] = {
 	{"ModeStrPass", Op::ModeStrPass},
 	{"ModeComment", Op::ModeComment},
 	{"ModeMultiLineComment", Op::ModeMultiLineComment},
-	{"ModeString", Op::ModeString}
+	{"ModeString", Op::ModeString},
+	{"FuncHasName", Op::FuncHasName},
+	{"NotSet", Op::NotSet},
+	{"StackFloorObj", Op::StackFloorObj},
+	{"Return", Op::Return},
 };
 OpNamePair pfxNames[] = {
 	{"Op (@)", Op::Op},
@@ -178,6 +177,8 @@ OpNamePair pfxNames[] = {
 	{"Name($)", Op::Name},
 	{"VarType (%)", Op::VarType},
 	{"Pointer (&)", Op::Pointer},
+	{"LineEnd", Op::LineEnd},
+	{"Return", Op::Return},
 };
 const char* GetOpName(Op op) {
 	for (auto& opN : opNames)
@@ -189,13 +190,11 @@ const char* GetPfxName(Op op) {
 		if (op == opN.op) return opN.name;
 	return "PFX NOT FOUND";
 }
-
 Op GetOpFromName(const char* name) {
 	for (auto& op : opNames)
 		if (!strcmp(op.name, name)) return op.op;
 	return Op::Error;
 }
-
 static Op fromPfxCh(char ch) {
 	switch (ch) {
 	case '@': return Op::Op;
@@ -210,7 +209,6 @@ static Op fromPfxCh(char ch) {
 	}
 	return Op::Unknown;
 }
-
 typedef union Val {
 	void (*vrFunc)(void*);
 	int (*irFunc)(void*);
@@ -218,23 +216,21 @@ typedef union Val {
 	unsigned char u8;
 	unsigned short u16;
 	unsigned int u32;
-	unsigned long long u64;
+	unsigned __int64 u64;
 	char i8;
 	char ch;
 	short i16;
 	int i32;
-	long long i64;
+	__int64 i64;
 	float f32;
 	double d64;
 	void* ptr;
 	char* str;
 } Val;
-
 void owStr(char** str, const char* with) {
 	if (*str) free(*str);
 	*str = _strdup(with);
 }
-
 struct Obj {
 	Op type = Op::NotSet;
 	Op privacy = Op::NotSet;
@@ -242,44 +238,49 @@ struct Obj {
 	char* str = nullptr;
 	Op op;
 	Val val = {};
-	/*std::vector<Obj>* children = nullptr;*/
-	
-	void setName(const char* name) {
-		owStr(&this->name, name);
-	}
-	void setStr(const char* Str) {
-		owStr(&this->str, str);
-	}
+	/*std::vector<Obj>* children = nullptr;*/	
+	void setName(const char* name) { owStr(&this->name, name); }
+	void setStr(const char* Str) { owStr(&this->str, str); }
 	void print() {
-		printf("OBJ[Type: %s(%d), Name: %s, Str: %s\nOP: %s(%d)\nVal as i64:%I64u]\n",
-			GetOpName(type), (int)type, name, str, GetOpName(op), (int)op, val);
+		unsigned __int64 u64 = val.u64;
+		printf("OBJ[Type: %s(%d), Name: %s, Str: %s OP: %s(%d) Val as i64:%I64u]\n",
+			GetOpName(type), (int)type, name, str, GetOpName(op), (int)op, u64);
 	}
 };
-
 class Compiler {
-	//Op expectNextPfx = Op::Null;
 	Op pfx = Op::Null;
 	Op strPayload = Op::Null;
 	bool procOnNewL = true;
 	char ch = '\0';
-	std::stack<Op> opStack, modeStack;
-	std::stack<Obj> funcStack, objStack; //functions, more later maybe
+	std::stack<Op> modeStack;
+	std::stack<Obj> objStack;
 	std::vector<Op> allowedNextPfxs;
+	std::vector<Obj> workingObjs;
 	std::string str;
 	bool strAllowSpace = false;
-
 public:
-	Compiler()
-	{
+	Compiler(){
 		push(Op::ModePrefixPass);
-		pushObj({});
+		auto&obj=pushObj({});
+		obj.type = Op::StackFloorObj;
 	}
 	Obj& pushObj(Obj obj) {
+		if (!objStack.empty()) {
+			printf("Obj bef push:");
+			objStack.top().print();
+		}
 		objStack.push(obj);
+		printf("Obj aft push:");
+		objStack.top().print();
 		return objStack.top();
 	}
-	Obj& popObj() {
+	Obj& popObj(bool pushToWorking) {
+		if (pushToWorking) workingObjs.push_back(objStack.top());
+		printf("Obj before pop:");
+		objStack.top().print();
 		objStack.pop();
+		printf("Obj after pop:");
+		objStack.top().print();
 		return objStack.top();
 	}
 	void push(Op mode, bool strAllowSpace = false){
@@ -291,21 +292,14 @@ public:
 		modeStack.pop();
 		printf("pop: to %s\n", GetOpName(modeStack.top()));
 	}
-	void pushFunc(Obj obj) {
-		funcStack.push(obj);
-	}
-	void popFunc() {
-		funcStack.pop();
-	}
 	void setAllowedNextPfxs(std::vector<Op> allowedNextPfxs) {
 		this->allowedNextPfxs = allowedNextPfxs;
 		printf("set allowed next pfxs to: ");
-		for (auto& p : this->allowedNextPfxs) printf("%s", GetPfxName(p));
+		for (auto& p : this->allowedNextPfxs) printf("%s,", GetPfxName(p));
 		printf("\n");
 	}
 	bool isPfxExpected(Op pfx) {
-		for (auto& p : allowedNextPfxs) 
-			if (p == pfx) return true;
+		for (auto& p : allowedNextPfxs) if (p == pfx) return true;
 		return false;
 	}
 	//NO NEWLINES AT END OF STR
@@ -339,9 +333,7 @@ public:
 	}
 	void Prefix(){
 		auto& obj = objStack.top();
-		//auto& expectNextPfx = nextPfxStack.top();
-		pfx = fromPfxCh(ch);
-		
+		pfx = fromPfxCh(ch);		
 		if (pfx != Op::Unknown 
 			&& !allowedNextPfxs.empty()
 			&& !isPfxExpected(pfx))
@@ -359,6 +351,10 @@ public:
 	}
 	void Str(){
 		switch (ch) {
+		case '&':
+			if (pfx == Op::VarType) {
+				//printf("ptr");
+			}
 		case '\t':
 		case '\r':
 		case '\0':
@@ -374,8 +370,6 @@ public:
 		str.append(1, ch);
 	}
 	void StrPayload(){
-		auto& obj = objStack.top();
-		//auto& expectNextPfx = nextPfxStack.top();
 		auto cs = str.c_str();
 		Op nameOp = GetOpFromName(cs);
 		printf("Str: %s\n", cs);
@@ -385,33 +379,32 @@ public:
 
 			break;
 		case Op::VarType:
-			switch (obj.type) {
+			switch (objStack.top().type) {
 			case Op::FuncHasName:
-				obj = pushObj({});
-				obj.type = Op::FuncArgNameless;
+				pushObj({});
+				objStack.top().type = Op::FuncArgNameless;
 				setAllowedNextPfxs({Op::Name});
 				break;
 			}
 			break;
-		case Op::Name:
-			//just dont use fallthru here...
-			switch (obj.type){
+		case Op::Name://just dont use fallthru here...
+			switch (objStack.top().type){
 			case Op::Func:
-				obj.type = Op::FuncHasName;
-				setAllowedNextPfxs({Op::VarType, Op::LineEnd});
-				obj.setName(cs);
+				objStack.top().type = Op::FuncHasName;
+				setAllowedNextPfxs({Op::VarType, Op::LineEnd, Op::Return });
+				objStack.top().setName(cs);
 				break;
 			case Op::FuncArgNameless:
-				obj.type = Op::FuncArgComplete;
-				setAllowedNextPfxs({ Op::VarType });
-				obj.setName(cs);
-				obj = popObj();
+				objStack.top().type = Op::FuncArgComplete;
+				setAllowedNextPfxs({ Op::VarType, Op::LineEnd, Op::Return });
+				objStack.top().setName(cs);
+				popObj(true);
 				break;
 			case Op::VarType:
-				obj.setName(cs);
+				objStack.top().setName(cs);
 				break;
 			}
-			switch (obj.type)
+			switch (objStack.top().type)
 			{
 			case Op::FuncArgComplete:
 				
@@ -421,23 +414,28 @@ public:
 		case Op::Op:
 			switch (nameOp)
 			{
+			case Op::LineEnd:
+				printf("LINEEND\n");
+				break;
 			case Op::Done:
-				switch (obj.type) {
+				switch (objStack.top().type) {
 				case Op::Func:
 					break;
 				}
 				break;
+			case Op::Return:
+				break;
 			case Op::Func:
-				obj.type = nameOp;
+				objStack.top().type = nameOp;
 				setAllowedNextPfxs({Op::Name});
 				break;
 			case Op::Null:
-				obj.type = Op::VarType;
-				obj.val.op = nameOp;
+				objStack.top().type = Op::VarType;
+				objStack.top().val.op = nameOp;
 				break;
 			case Op::Public:
 			case Op::Private:
-				obj.privacy = nameOp;
+				objStack.top().privacy = nameOp;
 				break;
 			}
 		}
@@ -446,7 +444,6 @@ public:
 		pop();
 	}
 };
-
 int main(int argc, char** argv) {
 	//declar sys libs here using Compiler::ReadChar
 	FILE* f;
