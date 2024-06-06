@@ -48,23 +48,13 @@ enum class Op {
 	BracketOpen, BracketClose,
 
 	Comma,CommaSpace,Name,String,Char,If,Else,For,While,Block,
-
-	c8, //char
-	u8, u16, u32, u64, //unsigned
-	i8, i16, i32, i64, //signed
-	f32, d64, //float, double
-
+	c8,	u8, u16, u32, u64, i8, i16, i32, i64,f32, d64,
 	Pointer,DoublePointer,TripplePointer,CompilerFlags,
 
-	Error,
-	ErrNOT_GOOD,
-	ErrUnexpectedNextPfx,
-	ErrExpectedVariablePfx,
-	ErrNoTask,
-	ErrUnexpectedOp,
+	Error, ErrNOT_GOOD, ErrUnexpectedNextPfx,
+	ErrExpectedVariablePfx, ErrNoTask,ErrUnexpectedOp,
 	ErrQuadriplePointersNOT_ALLOWED,
 
-	//compiler modes
 	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
 	ModeString,
 
