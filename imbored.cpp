@@ -169,6 +169,7 @@ OpNamePair cEquivelents[] = {
 	{"int", Op::i32},
 	{"short", Op::i16},
 	{"char", Op::i8},
+	{"char", Op::c8},
 	{"*", Op::Pointer},
 	{"**", Op::DoublePointer},
 	{"***", Op::TripplePointer},
@@ -241,7 +242,8 @@ struct FuncObj {
 	Op retTypeMod = Op::NotSet;
 };
 struct ArgObj {
-	Op argType = Op::Null;
+	Op type = Op::Null;
+	Op mod = Op::NotSet;
 };
 struct Obj {
 private:
@@ -421,10 +423,13 @@ public:
 				auto& o = workingObjs[i];
 				switch (o.getType()) {
 				case Op::FuncArgComplete: {//multiple allowed
-					auto at = o.arg.argType;
+					auto at = o.arg.type;
 					assert(at != Op::Null);
-					cFuncArgs += GetCEqu(o.arg.argType);
-					if(i < workingObjs.size()-1) cFuncArgs += ", ";
+					if(!cFuncArgs.empty())cFuncArgs += ", ";
+					cFuncArgs += GetCEqu(o.arg.type);
+					cFuncArgs += GetCEqu(o.arg.mod);
+					cFuncArgs += " ";
+					cFuncArgs += std::string(o.name);			
 					break;
 				}
 				case Op::CompletedFunction://should only happen once
@@ -553,8 +558,8 @@ public:
 			case Op::FuncHasName:
 				pushObj({});
 				objStack.top().setType(Op::FuncArgNameless);
-				objStack.top().arg.argType = nameOp;
-				objStack.top().func.retTypeMod = pointer;
+				objStack.top().arg.type= nameOp;
+				objStack.top().arg.mod = pointer;
 				setAllowedNextPfxs({Op::Name});
 				break;
 			}
