@@ -46,7 +46,7 @@ enum class Op {
 	ParenthesisOpen, ParenthesisClose,
 	BracketOpen, BracketClose,
 
-	Comma,Name,String,Char,If,Else,For,While,Block,
+	Comma,CommaSpace,Name,String,Char,If,Else,For,While,Block,
 
 	c8, //char
 	u8, u16, u32, u64, //unsigned
@@ -159,6 +159,26 @@ OpNamePair pfxNames[] = {
 	{"LineEnd (\\n)", Op::LineEnd},
 	{"Return (@ret)", Op::Return},
 };
+OpNamePair cEquivelents[] = {
+	{"void", Op::Void},
+	{"return", Op::Return},
+	{"int", Op::i32},
+	{"short", Op::i16},
+	{"char", Op::i8},
+	{"*", Op::Pointer},
+	{"**", Op::DoublePointer},
+	{", ", Op::CommaSpace},
+	{"(", Op::ParenthesisOpen},
+	{")", Op::ParenthesisClose},
+	{"{", Op::ScopeOpen},
+	{"}", Op::ScopeClose},
+	{"", Op::NotSet},
+};
+const char* GetCEqu(Op op) {
+	for (auto& opN : cEquivelents)
+		if (op == opN.op) return opN.name;
+	return "?";
+}
 const char* GetOpName(Op op) {
 	for (auto& opN : opNames)
 		if (op == opN.op) return opN.name;
@@ -213,6 +233,7 @@ void owStr(char** str, const char* with) {
 struct FuncObj {
 	Val returnValue = {};
 	Op retType = Op::NotSet;
+	Op retTypeMod = Op::NotSet;
 };
 struct ArgObj {
 	Op argType = Op::Null;
@@ -377,6 +398,34 @@ public:
 			line++;
 		}
 	}
+	void PopAndDoTask()
+	{
+		assert(!taskStack.empty());
+		switch (taskStack.top()) {
+		case Op::Func:
+			std::string cFuncModsTypeName, cFuncArgs;
+			for (int i = 0; i < workingObjs.size(); ++i) {
+				auto& o = workingObjs[i];
+				switch (o.getType()) {
+				case Op::FuncArgComplete://multiple allowed
+					cFuncArgs += GetCEqu(o.arg.argType);
+					break;
+				case Op::CompletedFunction://should only happen once
+					cFuncModsTypeName += GetCEqu(o.func.retType);
+					cFuncModsTypeName += GetCEqu(o.func.retTypeMod);
+					cFuncModsTypeName += " ";
+					cFuncModsTypeName += std::string(o.name);
+					cFuncModsTypeName += "(";
+					printf("AAA");
+					break;
+				}
+			}
+			break;
+		}
+		Done:
+		taskStack.pop();
+		workingObjs.clear();
+	}
 	void Prefix(){
 		auto& obj = objStack.top();
 		pfx = fromPfxCh(ch);
@@ -426,25 +475,28 @@ public:
 				case Op::Func:
 					auto &func = objStack.top();
 					assert(func.getType() == Op::FuncNeedReturnValue);
-					taskStack.pop();
+					objStack.top().setType(Op::CompletedFunction);
+					PopAndDoTask();
 					break;
 				}
 			}
 			break;
 		case Op::Value:
-			for (auto& obj : workingObjs) {
-				Obj funcObj = {};
-				//TODO: could cache func obj later but idk how
-				if (obj.getType() == Op::FuncNeedReturnValue) {
-					funcObj = obj;
-					printf("Finishing func got ret value\n");
-					objStack.top().func.returnValue = strVal;
-					funcObj.setType(Op::CompletedFunction);
-					assert(taskStack.top() == Op::Func);
-					taskStack.pop();
-					workingObjs.clear();
+			if (!taskStack.empty()) {
+				switch (taskStack.top()) {
+				case Op::Func:
+					for (auto& obj : workingObjs) {
+						if (obj.getType() == Op::FuncNeedReturnValue) {
+							printf("Finishing func got ret value\n");
+							obj.func.returnValue = strVal;
+							obj.setType(Op::CompletedFunction);
+							//assert(taskStack.top() == Op::Func);
+							PopAndDoTask();
+						}
+					}
+					break;
 				}
-			}
+			}			
 			break;
 		case Op::VarType:
 			switch (objStack.top().getType()) {
@@ -455,6 +507,7 @@ public:
 				opAllowedStack.pop();
 				setAllowedNextPfxs({});
 				objStack.top().func.retType = nameOp;
+				objStack.top().func.retTypeMod = Op::NotSet;
 				objStack.top().setType(Op::FuncSignatureComplete);
 				popObj(true);
 				break;
