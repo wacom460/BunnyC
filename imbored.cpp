@@ -10,87 +10,42 @@
 //transpile to C
 //no order of operations, sequential ONLY
 //compiler options inside source code, preferably using code
+//in number order breakpoints, if hit in the wrong order or missing then failure
 
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 32
 
 //multiple uses
 enum class Op {
-	Null,//      nul
-	False,//     no
-	True,//      yes
-	Unknown,// ?????
-	NotSet,
-	Any,
-	Use,//       use
-	Build,//     build
-	Space,//     space
-	Func,//      func
+	Null,False,True,Unknown,NotSet,Any,Use,Build,Space,
+
+	Func,
 	__FuncBuildingStart__,
 	FuncHasName, //have name
-	FuncNeedsRetValType,
-	FuncArgsVarNeedsName,
-	FuncArgNameless,
+	FuncNeedsRetValType,FuncArgsVarNeedsName,FuncArgNameless,
 	FuncArgComplete,
 	//FuncArgsEnd,
 	FuncNeedVarsAndCode,
 	__FuncBuildingEnd__,
 	FuncComplete,
-	LineEnd,
-	Op,
-	Value,//     =
-	Done,//      @
-	Return,//    ret
-	NoChange,
-	Struct,
-	VarType,
-	Comment,
-	Public,
-	Private,
-	Imaginary, //satisfied at link time (extern)
-	Void,
-	StackFloorObj,
-	Set,//                 set
-	SetAdd,//			   add
-	Colon,//               :
-	Dot,//                 .
-	Add,//                 +
-	Subtract,//            -
-	Multiply,//            *
-	Divide,//              /
-	AddEq,//               +=
-	SubEq,//               -=
-	MultEq,//              *=
-	DivEq,//               /*
-	Equals,//              eq
-	NotEquals,//           neq
-	LessThan,//            lt
-	GreaterThan,//         gt
-	LessThanOrEquals,//    lteq
-	GreaterThanOrEquals,// gteq
 
+	LineEnd,Op,Value,Done,Return,NoChange,Struct,VarType,
+	Comment,Public,Private,Imaginary,Void,StackFloorObj,
+	Set,SetAdd,Colon,Dot,Add,Subtract,Multiply,Divide,
+	AddEq,SubEq,MultEq,DivEq,Equals,NotEquals,LessThan,
+	GreaterThan,LessThanOrEquals,GreaterThanOrEquals,
 	ScopeOpen, ScopeClose,
 	ParenthesisOpen, ParenthesisClose,
 	BracketOpen, BracketClose,
-	
-	Comma,
-	Name, //func name, var name
-	String,
-	Char,
 
-	If,
-	Else,
-	For,
-	While,
+	Comma,Name,String,Char,If,Else,For,While,Block,
 
-	Block,//block of variables and code
 	c8, //char
 	u8, u16, u32, u64, //unsigned
 	i8, i16, i32, i64, //signed
 	f32, d64, //float, double
-	Pointer,
-	DoublePointer,
-	CompilerFlags,
+
+	Pointer,DoublePointer,CompilerFlags,
 
 	Error,
 	ErrNOT_GOOD,
@@ -98,10 +53,7 @@ enum class Op {
 	ErrExpectedVariablePfx,
 
 	//compiler modes
-	ModePrefixPass,
-	ModeStrPass,
-	ModeComment,
-	ModeMultiLineComment,
+	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
 	ModeString
 };
 struct OpNamePair {
@@ -200,10 +152,14 @@ Op GetOpFromName(const char* name) {
 	return Op::Error;
 }
 static Op fromPfxCh(char ch) {
-	if (ch == '\n') {
+	/*if (ch == '\n') {
 		printf("hi\n");
-	}
+	}*/
 	switch (ch) {
+	case '\n': {
+		printf("hi\n");
+		return Op::LineEnd;
+	}
 	case '@': return Op::Op;
 	case '~': return Op::Comment;
 	case '$': return Op::Name;
@@ -212,7 +168,6 @@ static Op fromPfxCh(char ch) {
 	case '\"': return Op::String;
 	case '\'': return Op::Char;
 	case '=': return Op::Value;
-	case '\n': return Op::LineEnd;
 	}
 	return Op::Unknown;
 }
@@ -269,6 +224,8 @@ class Compiler {
 	std::string str;
 	bool strAllowSpace = false;
 	//bool returnChar = false;
+	unsigned int line = 0;
+	unsigned int column = 0;
 public:
 	Compiler(){
 		opAllowedStack.push(true);
@@ -300,9 +257,10 @@ public:
 		modeStack.push(mode);
 		printf("push: to %s\n", GetOpName(modeStack.top()));
 	}
-	void pop() {
+	Op pop() {
 		modeStack.pop();
 		printf("pop: to %s\n", GetOpName(modeStack.top()));
+		return modeStack.top();
 	}
 	void setAllowedNextPfxs(std::vector<Op> allowedNextPfxs) {
 		this->allowedNextPfxs = allowedNextPfxs;
@@ -333,19 +291,40 @@ public:
 		}		
 	}
 	void Err(Op code, const char* msg) {
-		printf("Compiler died: \"%s\" OP: \"%s\"(%d) Error: ", msg, GetOpName(code), (int)code);
+		printf("Compiler died: \"%s\" At %u:%u OP: \"%s\"(%d) Error: ", msg, line, column, GetOpName(code), (int)code);
 		ExplainErr(code);
 		printf("\n");
 		exit(-1);
 	}
 	void Char(char ch){
+		column++;
 		this->ch = ch;
+		//printf("-> %c\n", this->ch);
+		auto m = modeStack.top();
+		bool nl = false;
 		switch (this->ch) {
 			case '\0': return;
+			case '\n': {
+				nl = true;
+				//printf("got newl\n");
+				if (m != Op::ModePrefixPass)
+				{
+					m = pop();
+				}
+				break;
+			}
 		}
-		switch (modeStack.top()){
-			case Op::ModePrefixPass: return Prefix();
-			case Op::ModeStrPass: return Str();
+		switch (m){
+			case Op::ModePrefixPass:
+				Prefix();
+				break;
+			case Op::ModeStrPass:
+				Str();
+				break;
+		}
+		if (nl) {
+			column = 0;
+			line++;
 		}
 	}
 	void Prefix(){
@@ -478,7 +457,12 @@ int main(int argc, char** argv) {
 	const char* fname = /*argv[1]*/"main.txt";
 	if (!fopen_s(&f, fname, "r")){
 		Compiler c;
-		while(!feof(f)) c.Char(fgetc(f));
+		while (!feof(f)) {
+			//c.Char(fgetc(f));
+			char ch;
+			fread(&ch, 1, 1, f);
+			c.Char(ch);
+		}
 		fclose(f);
 		return 0;
 	}
