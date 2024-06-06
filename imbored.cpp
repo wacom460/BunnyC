@@ -15,6 +15,7 @@
 
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 32
+#define IB_DEBUG_EXTRA1 1
 
 //multiple uses
 enum class Op {
@@ -137,10 +138,10 @@ OpNamePair opNames[] = {
 	{"ModeString", Op::ModeString},
 	{"FuncHasName", Op::FuncHasName},
 	{"NotSet", Op::NotSet},
-	//{"StackFloorObj", Op::StackFloorObj},
 	{"Return", Op::Return},
 	{"FuncArgComplete",Op::FuncArgComplete},
 	{"FuncNeedsRetValType",Op::FuncNeedsRetValType},
+	{"FuncNameAndArgsAndRetComplete", Op::FuncNameAndArgsAndRetComplete},
 };
 OpNamePair pfxNames[] = {
 	{"Op (@)", Op::Op},
@@ -154,12 +155,12 @@ OpNamePair pfxNames[] = {
 const char* GetOpName(Op op) {
 	for (auto& opN : opNames)
 		if (op == opN.op) return opN.name;
-	return "OP NOT FOUND";
+	return "?";
 }
 const char* GetPfxName(Op op) {
 	for (auto& opN : pfxNames)
 		if (op == opN.op) return opN.name;
-	return "PFX NOT FOUND";
+	return "?";
 }
 Op GetOpFromName(const char* name) {
 	for (auto& op : opNames)
@@ -209,7 +210,15 @@ void owStr(char** str, const char* with) {
 	*str = _strdup(with);
 }
 struct Obj {
+private:
 	Op type = Op::NotSet;
+public:
+	const Op getType() { return type; }
+	void setType(Op type) {
+		//assert(!(this->type == Op::NotSet && type == Op::FuncNameAndArgsAndRetComplete));
+		printf("set obj type: %s(%d) -> %s(%d)\n", GetOpName(this->type), (int)this->type, GetOpName(type), (int)type);
+		this->type = type;
+	}
 	Op modifier = Op::NotSet;
 	Op privacy = Op::NotSet;
 	char* name = nullptr;
@@ -219,7 +228,6 @@ struct Obj {
 		Op argType;
 	};
 	Val val = {};
-	/*std::vector<Obj>* children = nullptr;*/	
 	void setName(const char* name) { owStr(&this->name, name); }
 	void setStr(const char* Str) { owStr(&this->str, str); }
 	void print() {
@@ -230,9 +238,6 @@ struct Obj {
 };
 class Compiler {
 	Op pfx = Op::Null;
-	Op strPayload = Op::Null;
-	bool procOnNewL = true;
-	//bool opPfxAllowed = true;
 	char ch = '\0';
 	std::stack<bool> opAllowedStack;
 	std::stack<Op> modeStack;
@@ -241,7 +246,6 @@ class Compiler {
 	std::vector<Obj> workingObjs;
 	std::string str;
 	bool strAllowSpace = false;
-	//bool returnChar = false;
 	unsigned int line = 0;
 	unsigned int column = 0;
 public:
@@ -251,24 +255,40 @@ public:
 		pushObj({});
 	}
 	Obj& pushObj(Obj obj) {
+#if IB_DEBUG_EXTRA1
 		if (!objStack.empty()) {
 			printf("Obj bef push:");
 			objStack.top().print();
 		}
+#endif
 		objStack.push(obj);
+#if IB_DEBUG_EXTRA1
 		printf("Obj aft push:");
 		objStack.top().print();
+#endif
 		return objStack.top();
 	}
 	Obj& popObj(bool pushToWorking) {
-		if (pushToWorking) workingObjs.push_back(objStack.top());
+		if (pushToWorking)
+		{
+			printf("pushed to working: ");
+			objStack.top().print();
+			workingObjs.push_back(objStack.top());
+		}
+#if IB_DEBUG_EXTRA1
 		printf("Obj before pop:");
 		objStack.top().print();
+#endif
 		//assert(objStack.top().type != Op::StackFloorObj);
 		objStack.pop();
-		if (objStack.empty()) pushObj({});
+		if (objStack.empty()) {
+			printf("objstack EMPTY. adding empty obj\n");
+			pushObj({});
+		}
+#if IB_DEBUG_EXTRA1
 		printf("Obj after pop:");
 		objStack.top().print();
+#endif
 		return objStack.top();
 	}
 	void push(Op mode, bool strAllowSpace = false){
@@ -321,18 +341,13 @@ public:
 	void Char(char ch){
 		column++;
 		this->ch = ch;
-		//printf("-> %c\n", this->ch);
+		printf("-> %c\n", this->ch);
 		auto m = modeStack.top();
 		bool nl = false;
 		switch (this->ch) {
 			case '\0': return;
 			case '\n': {
 				nl = true;
-				//printf("got newl\n");
-				/*if (m != Op::ModePrefixPass)
-				{
-					m = pop();
-				}*/
 				break;
 			}
 		}
@@ -351,16 +366,13 @@ public:
 	}
 	void Prefix(){
 		auto& obj = objStack.top();
-		pfx = fromPfxCh(ch);		
+		pfx = fromPfxCh(ch);
 		if (pfx != Op::Unknown 
 			&& !allowedNextPfxs.empty()
 			&& !isPfxExpected(pfx))
 			Err(Op::ErrUnexpectedNextPfx, "");
-		printf("Got pfx %s\n", GetPfxName(pfx));
+		printf("Got pfx %s(\'%c\')\n", GetPfxName(pfx), ch);
 		switch (pfx) {
-		case Op::LineEnd:
-			setAllowedNextPfxs({});
-			break;
 		case Op::VarType:
 		case Op::Op:
 		case Op::Name:
@@ -372,14 +384,14 @@ public:
 	}
 	void Str(){
 		switch (ch) {
+		case '\n':
+			setAllowedNextPfxs({});
+			return StrPayload();
 		case '\t':
 			return;
 		case ' ':
 			if (strAllowSpace) break;
-			else {
-				StrPayload();
-				return;
-			}
+			else return StrPayload();
 		case '&':
 			if (pfx == Op::VarType) {
 				//printf("ptr");
@@ -396,42 +408,42 @@ public:
 		case Op::Value:
 			break;
 		case Op::VarType:
-			switch (objStack.top().type) {
-			case Op::NotSet: 
-				objStack.top().type = Op::VarNeedName;
+			switch (objStack.top().getType()) {
+			case Op::NotSet:
+				objStack.top().setType(Op::VarNeedName);
 				break;
 			case Op::FuncNeedsRetValType: {
 				opAllowedStack.pop();
-				setAllowedNextPfxs({ Op::LineEnd });//Op::Op is implicit allowing @ret next
-				objStack.top().type = Op::FuncNameAndArgsAndRetComplete;
+				setAllowedNextPfxs({});
+				objStack.top().setType(Op::FuncNameAndArgsAndRetComplete);
 				popObj(true);
 				break;
 			}
 			case Op::FuncHasName:
 				pushObj({});
-				objStack.top().type = Op::FuncArgNameless;
+				objStack.top().setType(Op::FuncArgNameless);
 				setAllowedNextPfxs({Op::Name});
 				break;
 			}
 			break;
 		case Op::Name://just dont use fallthru here...
-			switch (objStack.top().type){
+			switch (objStack.top().getType()){
 			case Op::Func:
-				objStack.top().type = Op::FuncHasName;
+				objStack.top().setType(Op::FuncHasName);
 				setAllowedNextPfxs({Op::VarType, Op::LineEnd });
 				objStack.top().setName(cs);
 				break;
 			case Op::FuncArgNameless:
-				objStack.top().type = Op::FuncArgComplete;
+				objStack.top().setType(Op::FuncArgComplete);
 				setAllowedNextPfxs({ Op::VarType, Op::LineEnd });
 				objStack.top().setName(cs);
 				popObj(true);
 				break;
-			case Op::VarType:
-				objStack.top().setName(cs);
+			/*case Op::VarType:
+				objStack.top().setName(cs);*/
 				break;
 			}
-			switch (objStack.top().type){
+			switch (objStack.top().getType()){
 			case Op::FuncArgComplete:
 				
 				break;
@@ -443,30 +455,30 @@ public:
 				printf("LINEEND\n");
 				break;
 			case Op::Done:
-				switch (objStack.top().type) {
+				switch (objStack.top().getType()) {
 				case Op::Func:
 					break;
 				}
 				break;
 			case Op::Return: {
-				auto& t = objStack.top().type;
+				auto t = objStack.top().getType();
 				switch (t) {
 				case Op::FuncHasName:
 					opAllowedStack.push(false);
-					objStack.top().type = Op::FuncNeedsRetValType;
+					objStack.top().setType(Op::FuncNeedsRetValType);
 					setAllowedNextPfxs({ Op::VarType });
 					break;
 				}
 				break;
 			}
 			case Op::Func:
-				objStack.top().type = nameOp;
+				objStack.top().setType(nameOp);
 				setAllowedNextPfxs({Op::Name});
 				break;
-			case Op::Null:
-				objStack.top().type = Op::VarType;
+			/*case Op::Null:
+				objStack.top().setType(Op::VarType);
 				objStack.top().val.op = nameOp;
-				break;
+				break;*/
 			case Op::Public:
 			case Op::Private:
 				objStack.top().privacy = nameOp;
