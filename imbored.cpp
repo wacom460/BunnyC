@@ -177,8 +177,8 @@ OpNamePair pfxNames[] = {
 	{"Name($)", Op::Name},
 	{"VarType (%)", Op::VarType},
 	{"Pointer (&)", Op::Pointer},
-	{"LineEnd", Op::LineEnd},
-	{"Return", Op::Return},
+	{"LineEnd (\\n)", Op::LineEnd},
+	{"Return (@ret)", Op::Return},
 };
 const char* GetOpName(Op op) {
 	for (auto& opN : opNames)
