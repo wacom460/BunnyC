@@ -22,6 +22,7 @@ enum class Op {
 	False,//     no
 	True,//      yes
 	Unknown,// ?????
+	NotSet,
 	Use,//       use
 	Build,//     build
 	Space,//     space
@@ -104,46 +105,6 @@ enum class Op {
 	ModeString
 };
 
-typedef union Val {
-	void (*vrFunc)(void*);
-	int (*irFunc)(void*);
-	Op op;
-	unsigned char u8;
-	unsigned short u16;
-	unsigned int u32;
-	unsigned long long u64;
-	char i8;
-	char ch;
-	short i16;
-	int i32;
-	long long i64;
-	float f32;
-	double d64;
-	void* ptr;
-	char* str;
-} Val;
-
-void owStr(char** str, const char* with) {
-	if (*str) free(*str);
-	*str = _strdup(with);
-}
-
-struct Obj {
-	Op type = Op::Null;
-	Op privacy = Op::Public;
-	char* name = nullptr;
-	char* str = nullptr;
-	void setName(const char* name) {
-		owStr(&this->name, name);
-	}
-	void setStr(const char* Str) {
-		owStr(&this->str, str);
-	}
-	Op op;
-	Val val = {};
-	/*std::vector<Obj>* children = nullptr;*/
-};
-
 struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -211,14 +172,25 @@ OpNamePair opNames[] = {
 	{"ModeMultiLineComment", Op::ModeMultiLineComment},
 	{"ModeString", Op::ModeString}
 };
-
+OpNamePair pfxNames[] = {
+	{"Op (@)", Op::Op},
+	{"Comment (~)", Op::Comment},
+	{"Name($)", Op::Name},
+	{"VarType (%)", Op::VarType},
+	{"Pointer (&)", Op::Pointer},
+};
 const char* GetOpName(Op op) {
 	for (auto& opN : opNames)
 		if (op == opN.op) return opN.name;
 	return "OP NOT FOUND";
 }
+const char* GetPfxName(Op op) {
+	for (auto& opN : pfxNames)
+		if (op == opN.op) return opN.name;
+	return "PFX NOT FOUND";
+}
 
-Op GetOpFromName(const char* name){
+Op GetOpFromName(const char* name) {
 	for (auto& op : opNames)
 		if (!strcmp(op.name, name)) return op.op;
 	return Op::Error;
@@ -238,6 +210,51 @@ static Op fromPfxCh(char ch) {
 	}
 	return Op::Unknown;
 }
+
+typedef union Val {
+	void (*vrFunc)(void*);
+	int (*irFunc)(void*);
+	Op op;
+	unsigned char u8;
+	unsigned short u16;
+	unsigned int u32;
+	unsigned long long u64;
+	char i8;
+	char ch;
+	short i16;
+	int i32;
+	long long i64;
+	float f32;
+	double d64;
+	void* ptr;
+	char* str;
+} Val;
+
+void owStr(char** str, const char* with) {
+	if (*str) free(*str);
+	*str = _strdup(with);
+}
+
+struct Obj {
+	Op type = Op::NotSet;
+	Op privacy = Op::NotSet;
+	char* name = nullptr;
+	char* str = nullptr;
+	Op op;
+	Val val = {};
+	/*std::vector<Obj>* children = nullptr;*/
+	
+	void setName(const char* name) {
+		owStr(&this->name, name);
+	}
+	void setStr(const char* Str) {
+		owStr(&this->str, str);
+	}
+	void print() {
+		printf("OBJ[Type: %s(%d), Name: %s, Str: %s\nOP: %s(%d)\nVal as i64:%I64u]\n",
+			GetOpName(type), (int)type, name, str, GetOpName(op), (int)op, val);
+	}
+};
 
 class Compiler {
 	//Op expectNextPfx = Op::Null;
@@ -261,8 +278,9 @@ public:
 		objStack.push(obj);
 		return objStack.top();
 	}
-	void popObj() {
+	Obj& popObj() {
 		objStack.pop();
+		return objStack.top();
 	}
 	void push(Op mode, bool strAllowSpace = false){
 		this->strAllowSpace = strAllowSpace;
@@ -281,6 +299,9 @@ public:
 	}
 	void setAllowedNextPfxs(std::vector<Op> allowedNextPfxs) {
 		this->allowedNextPfxs = allowedNextPfxs;
+		printf("set allowed next pfxs to: ");
+		for (auto& p : this->allowedNextPfxs) printf("%s", GetPfxName(p));
+		printf("\n");
 	}
 	bool isPfxExpected(Op pfx) {
 		for (auto& p : allowedNextPfxs) 
@@ -294,7 +315,7 @@ public:
 		case Op::ErrUnexpectedNextPfx:
 			printf("Unexpected next prefix. Allowed:");
 			for (auto& p : allowedNextPfxs)
-				printf("%s,", GetOpName(p));
+				printf("%s,", GetPfxName(p));
 			break;
 		case Op::ErrExpectedVariablePfx:
 			printf("Expected a variable type to be next.");
@@ -325,7 +346,7 @@ public:
 			&& !allowedNextPfxs.empty()
 			&& !isPfxExpected(pfx))
 			Err(Op::ErrUnexpectedNextPfx, "");
-		printf("Got pfx %s\n", GetOpName(pfx));
+		printf("Got pfx %s\n", GetPfxName(pfx));
 		switch (pfx) {
 		case Op::VarType:
 		case Op::Op:
@@ -367,7 +388,7 @@ public:
 			switch (obj.type) {
 			case Op::FuncHasName:
 				obj = pushObj({});
-				obj.type = Op::FuncArgComplete;
+				obj.type = Op::FuncArgNameless;
 				setAllowedNextPfxs({Op::Name});
 				break;
 			}
@@ -377,17 +398,23 @@ public:
 			switch (obj.type){
 			case Op::Func:
 				obj.type = Op::FuncHasName;
-				setAllowedNextPfxs({Op::VarType});
+				setAllowedNextPfxs({Op::VarType, Op::LineEnd});
 				obj.setName(cs);
 				break;
 			case Op::FuncArgNameless:
 				obj.type = Op::FuncArgComplete;
 				setAllowedNextPfxs({ Op::VarType });
 				obj.setName(cs);
-				popObj();
+				obj = popObj();
 				break;
 			case Op::VarType:
 				obj.setName(cs);
+				break;
+			}
+			switch (obj.type)
+			{
+			case Op::FuncArgComplete:
+				
 				break;
 			}
 			break;
