@@ -21,6 +21,7 @@ enum class Op {
 	True,//      yes
 	Unknown,// ?????
 	NotSet,
+	Any,
 	Use,//       use
 	Build,//     build
 	Space,//     space
@@ -306,6 +307,7 @@ public:
 		printf("\n");
 	}
 	bool isPfxExpected(Op pfx) {
+		if (pfx == Op::Any)return true;
 		if (pfx == Op::Op) return opAllowedStack.top();
 		for (auto& p : allowedNextPfxs) if (p == pfx) return true;
 		return false;
@@ -349,7 +351,7 @@ public:
 		printf("Got pfx %s\n", GetPfxName(pfx));
 		switch (pfx) {
 		case Op::LineEnd:
-			setAllowedNextPfxs({});
+			setAllowedNextPfxs({Op::Any});
 			break;
 		case Op::VarType:
 		case Op::Op:
