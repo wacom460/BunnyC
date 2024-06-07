@@ -16,6 +16,7 @@
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 32
 #define IB_DEBUG_EXTRA1 1
+#define COMMENT_CHAR ('~')
 
 //multiple uses
 enum class Op {
@@ -39,7 +40,7 @@ enum class Op {
 	__VariableBuildingEnd__,
 
 	/*LineEnd,*/Op,Value,Done,Return,NoChange,Struct,VarType,
-	Comment,Public,Private,Imaginary,Void,/*StackFloorObj,*/
+	Comment,MultiLineComment,Public,Private,Imaginary,Void,/*StackFloorObj,*/
 	Set,SetAdd,Colon,Dot,Add,Subtract,Multiply,Divide,
 	AddEq,SubEq,MultEq,DivEq,Equals,NotEquals,LessThan,
 	GreaterThan,LessThanOrEquals,GreaterThanOrEquals,
@@ -197,9 +198,7 @@ Op GetOpFromName(const char* name) {
 }
 Op fromPfxCh(char ch) {
 	switch (ch) {
-	//case '\n': return Op::LineEnd;
 	case '@': return Op::Op;
-	case '~': return Op::Comment;
 	case '$': return Op::Name;
 	case '%': return Op::VarType;
 	case '&': return Op::Pointer;
@@ -291,6 +290,8 @@ class Compiler {
 	bool strAllowSpace = false;
 	unsigned int line = 0;
 	unsigned int column = 0;
+	Op commentMode = Op::NotSet;
+	int multiLineOffCount = 0;
 public:
 	Compiler(){
 		opAllowedStack.push(true);
@@ -408,50 +409,82 @@ public:
 		this->ch = ch;
 		bool nl = false;
 		switch (this->ch) {
-			case '\0': return;
-			case '\n': {
-				nl = true;
-				printf("Char():Line end\n");
-				switch (modeStack.top()) {
-				case Op::ModePrefixPass:
+		case COMMENT_CHAR: {
+			switch (commentMode) {
+			case Op::NotSet: {
+				commentMode = Op::Comment;
+				push(Op::ModeComment);
+				break;
+			}
+			case Op::Comment: {
+				pop();
+				push(Op::ModeMultiLineComment);
+				commentMode = Op::MultiLineComment;
+				break;
+			}
+			case Op::MultiLineComment: {
+				switch (multiLineOffCount++) {
+				case 0: break;
+				case 1: {
+					pop();
+					multiLineOffCount = 0;
+					commentMode = Op::NotSet;
 					break;
-				case Op::ModeStrPass: {
-					StrPayload();
-					setAllowedNextPfxs({});
-					break; }
 				}
-				if (!taskStack.empty()) {
-					switch (taskStack.top()) {
-					case Op::FuncArgsVarNeedsName: {
-						Err(Op::FuncArgsVarNeedsName);
-						break;
-					}
-					case Op::FuncNeedReturnValue: {
-						Err(Op::FuncNeedReturnValue);
-						break;
-					}
-					case Op::FuncSignatureComplete: {
-						break;
-					}
-					case Op::FuncHasName: {
-						//objStack.top().setType(Op::FuncSignatureComplete);
-						taskStack.top() = Op::Func;
-						popObj(true);
-						//break;
-					}
-					case Op::Func:
-						//objStack.top().setType(Op::CompletedFunction);
-
-						PopAndDoTask();
-						break;
-					}
 				}
 				break;
 			}
+			}
+			break;
+		}
+		case '\0': return;
+		case '\n': {
+			nl = true;
+			if(commentMode==Op::NotSet)printf("Char():Line end\n");
+			if (commentMode == Op::Comment) {
+				pop();
+				commentMode = Op::NotSet;
+			}
+			switch (modeStack.top()) {
+			case Op::ModePrefixPass:
+				break;
+			case Op::ModeStrPass: {
+				StrPayload();
+				setAllowedNextPfxs({});
+				break; }
+			}
+			if (!taskStack.empty()) {
+				switch (taskStack.top()) {
+				case Op::FuncArgsVarNeedsName: {
+					Err(Op::FuncArgsVarNeedsName);
+					break;
+				}
+				case Op::FuncNeedReturnValue: {
+					Err(Op::FuncNeedReturnValue);
+					break;
+				}
+				case Op::FuncSignatureComplete: {
+					break;
+				}
+				case Op::FuncHasName: {
+					//objStack.top().setType(Op::FuncSignatureComplete);
+					taskStack.top() = Op::Func;
+					popObj(true);
+					//break;
+				}
+				case Op::Func:
+					//objStack.top().setType(Op::CompletedFunction);
+
+					PopAndDoTask();
+					break;
+				}
+			}
+			break;
+		}
 		}
 		auto m = modeStack.top();
 		column++;
-		if (!nl) {
+		if (!nl && commentMode == Op::NotSet) {
 			if(this->ch == ' ') printf("-> SPACE (0x%x)\n",  this->ch);
 			else printf("-> %c (0x%x)\n", this->ch, this->ch);
 			switch (m) {
