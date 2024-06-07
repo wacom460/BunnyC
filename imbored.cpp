@@ -463,19 +463,11 @@ public:
 					Err(Op::FuncNeedReturnValue);
 					break;
 				}
-				case Op::FuncSignatureComplete: {
-					break;
-				}
-				case Op::FuncHasName: {
-					//objStack.top().setType(Op::FuncSignatureComplete);
-					taskStack.top() = Op::Func;
-					popObj(true);
-					//break;
-				}
+				case Op::FuncSignatureComplete:
+				case Op::FuncHasName:
 				case Op::Func:
-					//objStack.top().setType(Op::CompletedFunction);
-
-					PopAndDoTask();
+					popObj(true);
+					taskStack.top() = Op::FuncNeedVarsAndCode;
 					break;
 				}
 			}
@@ -504,6 +496,10 @@ public:
 	void PopAndDoTask()	{
 		assert(!taskStack.empty());
 		switch (taskStack.top()) {
+		case Op::FuncNeedVarsAndCode: {
+
+			break;
+		}
 		//case Op::FuncHasName:
 		case Op::Func: {
 			std::string cFuncModsTypeName, cFuncArgs, cFuncCode;
@@ -556,7 +552,6 @@ public:
 			break;
 		}
 		}
-		//Done:
 		popTask();
 		workingObjs.clear();
 	}
@@ -696,6 +691,8 @@ public:
 				if (taskStack.empty()) Err(Op::ErrNoTask, "");
 				switch (taskStack.top()) {
 				case Op::Func:
+				//case Op::CompletedFunction:
+				case Op::FuncNeedVarsAndCode:
 					printf("Finishing function\n");
 					for (auto& obj : workingObjs) {
 						//TODO: could cache func obj later but idk how
@@ -756,7 +753,10 @@ int main(int argc, char** argv) {
 		Compiler c;
 		while (!feof(f)) {
 			char ch;
-			fread(&ch, 1, 1, f);
+			ch = fgetc(f);
+			if (ch == 0xffffffff)break;
+			//fread(&ch, 1, 1, f);
+			//printf("%c\n", ch);
 			c.Char(ch);
 		}
 		fclose(f);
