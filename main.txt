@@ -1,1 +1,4 @@
-@ext @func $test @ret %void
+@func $test
+	%i32 $a =10
+	"%%" $a ~printf("%s", a)
+@@

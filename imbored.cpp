@@ -23,25 +23,20 @@
 enum class Op { //multiple uses
 	Null,False,True,Unknown,NotSet,Any,Use,Build,Space,
 
-	Func,
-	__FuncBuildingStart__,
-	FuncHasName,FuncNeedName,FuncNeedsRetValType,FuncArgsVarNeedsName,
-	FuncArgNameless,FuncArgComplete,FuncNeedVarsAndCode,
-	FuncSignatureComplete,FuncNeedReturnValue,CompletedFunction,
-	__FuncBuildingEnd__,
+	Func,FuncHasName,FuncNeedName,FuncNeedsRetValType,
+	FuncArgsVarNeedsName,FuncArgNameless,FuncArgComplete,
+	FuncNeedVarsAndCode,FuncSignatureComplete,FuncNeedReturnValue,
+	CompletedFunction,
 
-	__VariableBuildingStart__,
 	VarNeedName,VarWantValue,VarComplete,
-	__VariableBuildingEnd__,
 
 	Op,Value,Done,Return,NoChange,Struct,VarType,
 	Comment,MultiLineComment,Public,Private,Imaginary,Void,
 	Set,SetAdd,Call,Colon,Dot,Add,Subtract,Multiply,Divide,
 	AddEq,SubEq,MultEq,DivEq,Equals,NotEquals,LessThan,
 	GreaterThan,LessThanOrEquals,GreaterThanOrEquals,
-	ScopeOpen, ScopeClose,
-	ParenthesisOpen, ParenthesisClose,
-	BracketOpen, BracketClose,
+	ScopeOpen, ScopeClose,ParenthesisOpen, ParenthesisClose,
+	BracketOpen,BracketClose,SingleQuote,DoubleQuote,
 
 	Comma,CommaSpace,Name,String,Char,If,Else,For,While,Block,
 	c8,	u8, u16, u32, u64, i8, i16, i32, i64,f32, d64,
@@ -248,6 +243,17 @@ Compiler::Compiler(){
 	pushObj({});
 }Compiler::~Compiler() {
 	if (!str.empty()) StrPayload();
+	if (!taskStack.empty()) {
+		switch (taskStack.top()) {
+		case Op::FuncSignatureComplete:
+		case Op::FuncHasName: {
+			objStack.top().setType(Op::FuncSignatureComplete);
+			popObj(true);
+			PopAndDoTask();
+			break;
+		}
+		}
+	}
 	printf("-> Compilation complete <-\nResulting C code:\n\n");
 	printf("%s", cOutput.c_str());
 }
