@@ -260,13 +260,14 @@ public:
 	void setStr(const char* Str) { owStr(&this->str, str); }
 	void print() {
 		unsigned __int64 u64 = val.u64;
-		printf("OBJ[Type: %s(%d), Name: %s, Str: %s Val as i64:%I64u]\n",
-			GetOpName(type), (int)type, name, str, u64);
+		printf("[Type:%s(%d),Name:%s,Str:%s,Mod:%s,Val:%I64u]\n",
+			GetOpName(type), (int)type, name, str, GetOpName(modifier), u64);
 	}
 };
 class Compiler {
 	Op pfx = Op::Null;
 	Op pointer = Op::NotSet;
+	Op nameOp = Op::Null;
 	char ch = '\0';
 	std::stack<bool> opAllowedStack, strReadPtrsStack;
 	std::stack<Op> modeStack, taskStack;
@@ -285,10 +286,14 @@ public:
 		pushObj({});
 	}
 	~Compiler() {
-		if (!str.empty()) {
-			StrPayload();
-		}
+		if (!str.empty()) StrPayload();
 		printf("-> Compilation complete <-\n");
+	}
+	void pushTask(Op task) {
+		taskStack.push(task);
+	}
+	void popTask() {
+		taskStack.pop();
 	}
 	Obj& pushObj(Obj obj) {
 #if IB_DEBUG_EXTRA1
@@ -381,10 +386,7 @@ public:
 		exit(-1);
 	}
 	void Char(char ch){
-		column++;
 		this->ch = ch;
-		//printf("-> %c\n", this->ch);
-		auto m = modeStack.top();
 		bool nl = false;
 		switch (this->ch) {
 			case '\0': return;
@@ -393,6 +395,7 @@ public:
 				if (!taskStack.empty()) {
 					switch (taskStack.top()) {
 					case Op::FuncNeedReturnValue: {
+						printf("fucc");
 						break;
 					}
 					case Op::FuncHasName:{
@@ -410,6 +413,9 @@ public:
 				break;
 			}
 		}
+		auto m = modeStack.top();
+		column++;
+		printf("-> %c\n", this->ch);
 		switch (m){
 			case Op::ModePrefixPass:
 				Prefix();
@@ -423,8 +429,7 @@ public:
 			line++;
 		}
 	}
-	void PopAndDoTask()
-	{
+	void PopAndDoTask()	{
 		assert(!taskStack.empty());
 		switch (taskStack.top()) {
 		//case Op::FuncHasName:
@@ -458,7 +463,7 @@ public:
 		}
 		}
 		Done:
-		taskStack.pop();
+		popTask();
 		workingObjs.clear();
 	}
 	void Prefix(){
@@ -468,8 +473,11 @@ public:
 			&& !allowedNextPfxs.empty()
 			&& !isPfxExpected(pfx))
 			Err(Op::ErrUnexpectedNextPfx, "");
-		printf("Got pfx %s(\'%c\')\n", GetPfxName(pfx), ch);
+		printf("PFX:%s\n", GetPfxName(pfx));
 		switch (pfx) {
+		case Op::LineEnd:
+
+			break;
 		case Op::VarType:
 			strReadPtrsStack.push(true);
 		case Op::Value:
@@ -519,7 +527,7 @@ public:
 		auto cs = str.c_str();
 		Val strVal = {};
 		strVal.i64=strtoll(cs, nullptr, 10);
-		Op nameOp = GetOpFromName(cs);
+		nameOp = GetOpFromName(cs);
 		printf("Str: %s\n", cs);
 		switch (pfx)
 		{
@@ -533,6 +541,8 @@ public:
 							obj.func.returnValue = strVal;
 							obj.setType(Op::CompletedFunction);
 							PopAndDoTask();
+							popObj(true);
+							break;
 						}
 					}
 					break;
@@ -587,8 +597,7 @@ public:
 			switch (nameOp) {
 			case Op::Imaginary:
 				objStack.top().modifier = nameOp;
-				printf("imaginary\n");
-				setAllowedNextPfxs({ Op::VarType });
+				setAllowedNextPfxs({ /*Op::VarType*/ });
 				break;
 			case Op::Done:
 				if (taskStack.empty()) Err(Op::ErrNoTask, "");
@@ -622,11 +631,12 @@ public:
 				break;
 			}
 			case Op::Func:
+				assert(objStack.top().getType() == Op::NotSet);
 				objStack.top().setType(nameOp);
 				objStack.top().func.retType = Op::Void;
 				objStack.top().func.retTypeMod = Op::NotSet;
-				setAllowedNextPfxs({Op::Name, Op::LineEnd});
-				taskStack.push(Op::FuncNeedName);
+				setAllowedNextPfxs({Op::Name/*, Op::LineEnd*/});
+				pushTask(Op::FuncNeedName);
 				break;
 			case Op::Public:
 			case Op::Private:
@@ -645,13 +655,11 @@ public:
 	}
 };
 int main(int argc, char** argv) {
-	//declar sys libs here using Compiler::ReadChar
 	FILE* f;
 	const char* fname = /*argv[1]*/"main.txt";
 	if (!fopen_s(&f, fname, "r")){
 		Compiler c;
 		while (!feof(f)) {
-			//c.Char(fgetc(f));
 			char ch;
 			fread(&ch, 1, 1, f);
 			c.Char(ch);
