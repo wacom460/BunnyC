@@ -324,6 +324,7 @@ public:
 	Obj& popObj(bool pushToWorking) {
 		if (pushToWorking)
 		{
+			assert(objStack.top().getType() != Op::NotSet);
 			printf("pushed to working: ");
 			objStack.top().print();
 			workingObjs.push_back(objStack.top());
@@ -427,13 +428,14 @@ public:
 						break;
 					}
 					case Op::FuncHasName: {
-						objStack.top().setType(Op::FuncSignatureComplete);
+						//objStack.top().setType(Op::FuncSignatureComplete);
 						taskStack.top() = Op::Func;
 						popObj(true);
-						break;
+						//break;
 					}
 					case Op::Func:
-						objStack.top().setType(Op::CompletedFunction);
+						//objStack.top().setType(Op::CompletedFunction);
+
 						PopAndDoTask();
 						break;
 					}
@@ -479,7 +481,11 @@ public:
 					cFuncArgs += std::string(o.name);			
 					break;
 				}
-				case Op::FuncSignatureComplete:
+				case Op::FuncSignatureComplete: {
+					if (o.getMod() == Op::Imaginary) {
+						printf("img\n");
+					}
+				}
 				case Op::CompletedFunction://should only happen once
 					cFuncModsTypeName += GetCEqu(o.func.retType);
 					cFuncModsTypeName += GetCEqu(o.func.retTypeMod);
@@ -589,7 +595,9 @@ public:
 				objStack.top().func.retType = nameOp;
 				objStack.top().func.retTypeMod = pointer;
 				objStack.top().setType(Op::FuncSignatureComplete);
-				if(objStack.top().getMod() != Op::Imaginary) popObj(true);
+				popObj(true);
+				assert(taskStack.top() == Op::FuncHasName);
+				taskStack.top() = Op::Func;
 				break;
 			}
 			case Op::FuncHasName:
