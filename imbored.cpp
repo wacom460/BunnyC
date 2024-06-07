@@ -77,6 +77,7 @@ struct ArgObj {
 };
 struct VarObj {
 	Val val = {};
+	bool valSet = false;
 	Op type = Op::NotSet;
 	Op mod = Op::NotSet;
 };
@@ -123,6 +124,7 @@ public:
 	bool strAllowSpace = false;
 	Op commentMode = Op::NotSet;
 	int multiLineOffCount = 0;
+
 	Compiler();
 	~Compiler();
 	void pushTask(Op task);
@@ -178,13 +180,15 @@ OpNamePair opNames[] = {
 	{"ErrExpectedVariablePfx",Op::ErrExpectedVariablePfx},{"VarComplete", Op::VarComplete},
 	{"ErrNoTask", Op::ErrNoTask},{"FuncNeedReturnValue",Op::FuncNeedReturnValue},
 	{"CompletedFunction",Op::CompletedFunction},{"ErrUnknownOpStr",Op::ErrUnknownOpStr},
-	{"ErrNOT_GOOD", Op::ErrNOT_GOOD},{"FuncNeedName",Op::FuncNeedName},
+	{"ErrNOT_GOOD", Op::ErrNOT_GOOD},{"FuncNeedName",Op::FuncNeedName},{"String", Op::String},
+	{"VarComplete", Op::VarComplete},{"VarWantValue",Op::VarWantValue},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", Op::Null},{"Value (=)", Op::Value},{"Op (@)", Op::Op},
 	{"Comment (~)", Op::Comment},{"Name($)", Op::Name},
 	{"VarType (%)", Op::VarType},{"Pointer (&)", Op::Pointer},
-	{"Return (@ret)", Op::Return},
+	{"Return (@ret)", Op::Return},{"Op::Unknown", Op::Unknown},
+	{"String (\")", Op::String}
 };
 OpNamePair cEquivelents[] = {
 	{"void", Op::Void},{"return", Op::Return},
@@ -241,7 +245,8 @@ Compiler::Compiler(){
 	allowedNextPfxsStack.push({});
 	push(Op::ModePrefixPass);
 	pushObj({});
-}Compiler::~Compiler() {
+}
+Compiler::~Compiler() {
 	if (!str.empty()) StrPayload();
 	if (!taskStack.empty()) {
 		switch (taskStack.top()) {
@@ -561,8 +566,12 @@ void Compiler::Prefix(){
 		&& !(allowedNextPfxsStack.top().pfxs.empty())
 		&& !isPfxExpected(m_Pfx))
 		Err(Op::ErrUnexpectedNextPfx, "");
-	printf("PFX:%s\n", GetPfxName(m_Pfx));
+	printf("PFX:%s(%d)\n", GetPfxName(m_Pfx), (int)m_Pfx);
 	switch (m_Pfx) {
+	case Op::String: { //"
+		printf("String\n");
+		break;
+	}
 	case Op::VarType:
 		strReadPtrsStack.push(true);
 	case Op::Value:
