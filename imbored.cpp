@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
- #include <vector>
- #include <stack>
- #include <string>
+
+#include <vector>
+#include <stack>
+#include <string>
 
 //not actually a compiler
 //ascii only, maybe utf8 later...
@@ -19,8 +20,7 @@
 #define IB_DEBUG_EXTRA1 1
 #define COMMENT_CHAR ('~')
 
-//multiple uses
-enum class Op {
+enum class Op { //multiple uses
 	Null,False,True,Unknown,NotSet,Any,Use,Build,Space,
 
 	Func,
@@ -159,115 +159,48 @@ struct OpNamePair {
 	Op op;
 };
 OpNamePair opNames[] = {
-	{"null", Op::Null},
-	{"no", Op::False},
-	{"yes", Op::True},
-	{"set", Op::Set},
-	{"call", Op::Call},
-	{"add", Op::SetAdd},
-	{"func", Op::Func},
-	{"~", Op::Comment},
-	{"%", Op::VarType},
-	{"=", Op::Value},
-	{"@", Op::Done},
-	{"ret", Op::Return},
-	{"ext", Op::Imaginary},
-	{"if", Op::If},
-	{"else", Op::Else},
-	{"use", Op::Use},
-	{"build", Op::Build},
-	{"space", Op::Space},
-	{"+", Op::Add},
-	{"-", Op::Subtract},
-	{"*", Op::Multiply},
-	{"/", Op::Divide},
-	{"is", Op::Equals},
-	{"neq", Op::NotEquals},
-	{"lt", Op::LessThan},
-	{"gt", Op::GreaterThan},
-	{"lteq", Op::LessThanOrEquals},
-	{"gteq", Op::GreaterThanOrEquals},
-	{"{", Op::ScopeOpen},
-	{"}", Op::ScopeClose},
-	{"(", Op::ParenthesisOpen},
-	{")", Op::ParenthesisClose},
-	{"[", Op::BracketOpen},
-	{"]", Op::BracketClose},
-	{",", Op::Comma},
-	{"$", Op::Name},
-	{"for", Op::For},
-	{"loop", Op::While},
-	{"block", Op::Block}, //maybe use for templates
-	{"struct", Op::Struct},
-	{"priv", Op::Private},
-	{"pub", Op::Public},
-	{"void", Op::Void},
-	{"c8", Op::c8},
-	{"u8", Op::u8},
-	{"u16", Op::u16},
-	{"u32", Op::u32},
-	{"u64", Op::u64},
-	{"i8", Op::i8},
-	{"i16", Op::i16},
-	{"i32", Op::i32},
-	{"i64", Op::i64},
-	{"f32", Op::f32},
-	{"d64", Op::d64},
-	{"pointer", Op::Pointer},
-	{"double pointer", Op::DoublePointer},
-	{"tripple pointer", Op::TripplePointer},
-	{"ErrUnexpectedNextPfx", Op::ErrUnexpectedNextPfx},
-	{"ModePrefixPass", Op::ModePrefixPass},
-	{"ModeStrPass", Op::ModeStrPass},
-	{"ModeComment", Op::ModeComment},
-	{"ModeMultiLineComment", Op::ModeMultiLineComment},
-	{"FuncHasName", Op::FuncHasName},
-	{"NotSet", Op::NotSet},
-	{"Return", Op::Return},
-	{"FuncArgNameless", Op::FuncArgNameless},
-	{"FuncArgComplete",Op::FuncArgComplete},
-	{"FuncNeedsRetValType",Op::FuncNeedsRetValType},
-	{"FuncSignatureComplete", Op::FuncSignatureComplete},
-	{"VarNeedName", Op::VarNeedName},
-	{"VarComplete", Op::VarComplete},
-	{"ErrNoTask", Op::ErrNoTask},
-	{"ErrExpectedVariablePfx",Op::ErrExpectedVariablePfx},
-	{"FuncNeedReturnValue",Op::FuncNeedReturnValue},
-	{"CompletedFunction",Op::CompletedFunction},
-	{"ErrUnknownOpStr",Op::ErrUnknownOpStr},
-	{"ErrNOT_GOOD", Op::ErrNOT_GOOD},
+	{"null", Op::Null},{"no", Op::False},{"yes", Op::True},{"set", Op::Set},
+	{"call", Op::Call},{"add", Op::SetAdd},{"func", Op::Func},{"~", Op::Comment},
+	{"%", Op::VarType},{"=", Op::Value},{"@", Op::Done},{"ret", Op::Return},
+	{"ext", Op::Imaginary},{"if", Op::If},{"else", Op::Else},{"use", Op::Use},
+	{"build", Op::Build},{"space", Op::Space},{"+", Op::Add},{"-", Op::Subtract},
+	{"*", Op::Multiply},{"/", Op::Divide},{"is", Op::Equals},{"neq", Op::NotEquals},
+	{"lt", Op::LessThan},{"gt", Op::GreaterThan},{"lteq", Op::LessThanOrEquals},
+	{"gteq", Op::GreaterThanOrEquals},{"{", Op::ScopeOpen},{"}", Op::ScopeClose},
+	{"(", Op::ParenthesisOpen},{")", Op::ParenthesisClose},{"[", Op::BracketOpen},
+	{"]", Op::BracketClose},{",", Op::Comma},{"$", Op::Name},{"for", Op::For},
+	{"loop", Op::While},{"block", Op::Block},{"struct", Op::Struct},{"priv", Op::Private},
+	{"pub", Op::Public},{"void", Op::Void},{"c8", Op::c8},{"u8", Op::u8},{"u16", Op::u16},
+	{"u32", Op::u32},{"u64", Op::u64},{"i8", Op::i8},{"i16", Op::i16},{"i32", Op::i32},
+	{"i64", Op::i64},{"f32", Op::f32},{"d64", Op::d64},{"pointer", Op::Pointer},
+	{"double pointer", Op::DoublePointer},{"tripple pointer", Op::TripplePointer},
+	{"ErrUnexpectedNextPfx", Op::ErrUnexpectedNextPfx},{"ModePrefixPass", Op::ModePrefixPass},
+	{"ModeStrPass", Op::ModeStrPass},{"ModeComment", Op::ModeComment},{"NotSet", Op::NotSet},
+	{"ModeMultiLineComment", Op::ModeMultiLineComment},{"FuncHasName", Op::FuncHasName},
+	{"Return", Op::Return},{"FuncArgNameless", Op::FuncArgNameless},
+	{"FuncArgComplete",Op::FuncArgComplete},{"FuncNeedsRetValType",Op::FuncNeedsRetValType},
+	{"FuncSignatureComplete", Op::FuncSignatureComplete},{"VarNeedName", Op::VarNeedName},
+	{"ErrExpectedVariablePfx",Op::ErrExpectedVariablePfx},{"VarComplete", Op::VarComplete},
+	{"ErrNoTask", Op::ErrNoTask},{"FuncNeedReturnValue",Op::FuncNeedReturnValue},
+	{"CompletedFunction",Op::CompletedFunction},{"ErrUnknownOpStr",Op::ErrUnknownOpStr},
+	{"ErrNOT_GOOD", Op::ErrNOT_GOOD},{"FuncNeedName",Op::FuncNeedName},
 };
 OpNamePair pfxNames[] = {
-	{"NULL", Op::Null},
-	{"Value (=)", Op::Value},
-	{"Op (@)", Op::Op},
-	{"Comment (~)", Op::Comment},
-	{"Name($)", Op::Name},
-	{"VarType (%)", Op::VarType},
-	{"Pointer (&)", Op::Pointer},
-	//{"LineEnd (\\n)", Op::LineEnd},
+	{"NULL", Op::Null},{"Value (=)", Op::Value},{"Op (@)", Op::Op},
+	{"Comment (~)", Op::Comment},{"Name($)", Op::Name},
+	{"VarType (%)", Op::VarType},{"Pointer (&)", Op::Pointer},
 	{"Return (@ret)", Op::Return},
 };
 OpNamePair cEquivelents[] = {
-	{"void", Op::Void},
-	{"return", Op::Return},
-	{"int", Op::i32},
-	{"unsigned int", Op::u32},
-	{"long long", Op::i64},
-	{"unsigned long long", Op::u64},
-	{"short", Op::i16},
-	{"char", Op::i8},
-	{"char", Op::c8},
-	{"unsigned short", Op::u16},
-	{"unsigned char", Op::u8},
-	{"*", Op::Pointer},
-	{"**", Op::DoublePointer},
-	{"***", Op::TripplePointer},
-	{", ", Op::CommaSpace},
-	{"(", Op::ParenthesisOpen},
-	{")", Op::ParenthesisClose},
-	{"{", Op::ScopeOpen},
-	{"}", Op::ScopeClose},
+	{"void", Op::Void},{"return", Op::Return},
+	{"int", Op::i32},{"unsigned int", Op::u32},
+	{"long long", Op::i64},{"unsigned long long", Op::u64},
+	{"short", Op::i16},{"char", Op::i8},{"char", Op::c8},
+	{"unsigned short", Op::u16},{"unsigned char", Op::u8},
+	{"*", Op::Pointer},{"**", Op::DoublePointer},
+	{"***", Op::TripplePointer},{", ", Op::CommaSpace},
+	{"(", Op::ParenthesisOpen},{")", Op::ParenthesisClose},
+	{"{", Op::ScopeOpen},{"}", Op::ScopeClose},
 	{"", Op::NotSet},
 	{"extern", Op::Imaginary},
 };
@@ -548,7 +481,7 @@ void Compiler::PopAndDoTask()	{
 				}
 			}
 			case Op::FuncHasName:
-			case Op::CompletedFunction://should only happen once
+			case Op::CompletedFunction: {//should only happen once
 				funcObj = &o;
 				auto mod = o.getMod();
 				if (mod != Op::NotSet) {
@@ -558,11 +491,11 @@ void Compiler::PopAndDoTask()	{
 				cFuncModsTypeName += GetCEqu(o.func.retType);
 				cFuncModsTypeName += GetCEqu(o.func.retTypeMod);
 				cFuncModsTypeName += " ";
-				if(!o.name)Err(Op::ErrNOT_GOOD, "func name NULL");
+				if (!o.name)Err(Op::ErrNOT_GOOD, "func name NULL");
 				cFuncModsTypeName += std::string(o.name);
 				cFuncModsTypeName += "(";
-				//printf("AAA");
 				break;
+			}
 			}
 		}
 		for (auto& o : workingObjs) {
@@ -587,6 +520,7 @@ void Compiler::PopAndDoTask()	{
 		}
 		else {
 			cFuncArgs += "){\n";
+			if(!funcObj)Err(Op::ErrNOT_GOOD, "funcObj NULL");
 			if (funcObj->func.retType != Op::Void) {
 				cFuncCode += "\treturn ";
 				switch (funcObj->func.retType) {

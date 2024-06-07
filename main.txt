@@ -1,11 +1,1 @@
-~~
-@ext @func $malloc %i32 $size @ret %&void
-
-~My main function
-@func $main %i32 $argc %&&c8 $argv @ret %i32
-%i64 $test1 =69
-@@ =0420
-~~
-
-@func $imbored
-@@
+@ext @func $test @ret %void
