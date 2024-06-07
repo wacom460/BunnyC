@@ -1,2 +1,4 @@
+@ext @func $malloc %i32 $size @ret %&void
+
 @func $main %i32 $argc %&&c8 $argv @ret %i32
 @@ =0

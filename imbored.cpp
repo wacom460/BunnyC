@@ -24,24 +24,18 @@ enum class Op {
 
 	Func,
 	__FuncBuildingStart__,
-	FuncHasName, //have name
-	FuncNeedName,
-	FuncNeedsRetValType,FuncArgsVarNeedsName,FuncArgNameless,
-	FuncArgComplete,
-	FuncNeedVarsAndCode,
-	FuncSignatureComplete,
-	FuncNeedReturnValue,
-	CompletedFunction,
+	FuncHasName,FuncNeedName,FuncNeedsRetValType,FuncArgsVarNeedsName,
+	FuncArgNameless,FuncArgComplete,FuncNeedVarsAndCode,
+	FuncSignatureComplete,FuncNeedReturnValue,CompletedFunction,
 	__FuncBuildingEnd__,
 
 	__VariableBuildingStart__,
-	VarNeedName,//have var type need name
-	VarComplete, //have type and name
+	VarNeedName,VarComplete,
 	__VariableBuildingEnd__,
 
-	/*LineEnd,*/Op,Value,Done,Return,NoChange,Struct,VarType,
-	Comment,MultiLineComment,Public,Private,Imaginary,Void,/*StackFloorObj,*/
-	Set,SetAdd,Colon,Dot,Add,Subtract,Multiply,Divide,
+	Op,Value,Done,Return,NoChange,Struct,VarType,
+	Comment,MultiLineComment,Public,Private,Imaginary,Void,
+	Set,SetAdd,Call,Colon,Dot,Add,Subtract,Multiply,Divide,
 	AddEq,SubEq,MultEq,DivEq,Equals,NotEquals,LessThan,
 	GreaterThan,LessThanOrEquals,GreaterThanOrEquals,
 	ScopeOpen, ScopeClose,
@@ -57,13 +51,6 @@ enum class Op {
 	ErrQuadriplePointersNOT_ALLOWED, ErrUnknownOpStr,
 
 	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
-	ModeString,
-
-	__DO_NOT_INSERT_AFTER_THIS__,
-	__DO__NOT__DO__IT__,
-	__CustomOpsStart__,
-	__CustomTypesStart__ = __DO__NOT__DO__IT__ + 100,
-	__CustomTypesEnd__ = __CustomTypesStart__ - 1
 };
 typedef union Val {
 	void (*vrFunc)(void*);
@@ -153,13 +140,14 @@ public:
 	void StrPayload();
 	void ExplainErr(Op code);
 };
-#define Err(code, msg)\
+#define Err(code, msg){\
 	printf("%s", "ERR AT LINE ");\
 	PRINT_LINE_INFO();\
 	printf(":%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, line, column, GetOpName(code), (int)code);\
 	ExplainErr(code);\
 	printf("\n");\
-	exit(-1);
+	exit(-1);\
+}
 struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -167,16 +155,17 @@ struct OpNamePair {
 OpNamePair opNames[] = {
 	{"null", Op::Null},
 	{"no", Op::False},
-	{"set", Op::Set},
-	{"add", Op::SetAdd},
 	{"yes", Op::True},
+	{"set", Op::Set},
+	{"call", Op::Call},
+	{"add", Op::SetAdd},
 	{"func", Op::Func},
 	{"~", Op::Comment},
 	{"%", Op::VarType},
 	{"=", Op::Value},
 	{"@", Op::Done},
 	{"ret", Op::Return},
-	{"imaginary", Op::Imaginary},
+	{"ext", Op::Imaginary},
 	{"if", Op::If},
 	{"else", Op::Else},
 	{"use", Op::Use},
@@ -226,7 +215,6 @@ OpNamePair opNames[] = {
 	{"ModeStrPass", Op::ModeStrPass},
 	{"ModeComment", Op::ModeComment},
 	{"ModeMultiLineComment", Op::ModeMultiLineComment},
-	{"ModeString", Op::ModeString},
 	{"FuncHasName", Op::FuncHasName},
 	{"NotSet", Op::NotSet},
 	{"Return", Op::Return},
@@ -571,7 +559,7 @@ void Compiler::Prefix(){
 	//if (pfx == Op::LineEnd) return;
 	auto& obj = objStack.top();
 	if (m_Pfx != Op::Unknown 
-		&& !allowedNextPfxsStack.top().pfxs.empty()
+		&& !(allowedNextPfxsStack.top().pfxs.empty())
 		&& !isPfxExpected(m_Pfx))
 		Err(Op::ErrUnexpectedNextPfx, "");
 	printf("PFX:%s\n", GetPfxName(m_Pfx));
