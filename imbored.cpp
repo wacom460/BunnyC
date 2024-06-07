@@ -231,7 +231,7 @@ void owStr(char** str, const char* with) {
 	*str = _strdup(with);
 }
 struct FuncObj {
-	Val returnValue = {};
+	Val retVal = {};
 	Op retType = Op::NotSet;
 	Op retTypeMod = Op::NotSet;
 };
@@ -368,6 +368,7 @@ public:
 	}
 	void popAllowedNextPfxs() {
 		allowedNextPfxsStack.pop();
+		if (allowedNextPfxsStack.empty())allowedNextPfxsStack.push({});
 	}
 	bool isPfxExpected(Op pfx) {
 		if (allowedNextPfxsStack.top().empty()) return true;
@@ -629,7 +630,7 @@ public:
 					for (auto& obj : workingObjs) {
 						if (obj.getType() == Op::FuncNeedReturnValue) {
 							printf("Finishing func got ret value\n");
-							obj.func.returnValue = strVal;
+							obj.func.retVal = strVal;
 							obj.setType(Op::CompletedFunction);
 							PopAndDoTask();
 							popObj(true);
@@ -641,6 +642,13 @@ public:
 			}			
 			break;
 		case Op::VarType: //%
+			switch (taskStack.top()) {
+			case Op::FuncNeedVarsAndCode: {
+
+				break;
+			}
+			default:
+			}
 			switch (objStack.top().getType()) {
 			case Op::NotSet:
 				objStack.top().setType(Op::VarNeedName);
@@ -702,15 +710,15 @@ public:
 				case Op::FuncNeedVarsAndCode:
 					printf("Finishing function\n");
 					for (auto& obj : workingObjs) {
-						//TODO: could cache func obj later but idk how
+						//TODO: could cache func obj index later
 						if (obj.getType() == Op::FuncSignatureComplete) {
 							if (obj.func.retType != Op::Void) {
 								pushAllowedNextPfxs({Op::Value});
+								obj.setType(Op::FuncNeedReturnValue);
 							}else {
-								//setAllowedNextPfxs({});
+								obj.setType(Op::CompletedFunction);
 								popAllowedNextPfxs();
 							}
-							obj.setType(Op::FuncNeedReturnValue);
 						}
 					}
 					break;
