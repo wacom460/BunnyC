@@ -552,7 +552,20 @@ void Compiler::PopAndDoTask()	{
 		else {
 			cFuncArgs += "){\n";
 			if (funcObj->func.retType != Op::Void) {
-				cFuncCode += ("\treturn " + std::to_string(funcObj->func.retVal.i32) + ";\n");//TODO:FIX!!!!!!!!!!!!!
+				cFuncCode += "\treturn ";
+				switch (funcObj->func.retType) {
+				case Op::u8:  { cFuncCode += std::to_string(funcObj->func.retVal.u8);  break; }
+				case Op::c8:  { cFuncCode += std::to_string(funcObj->func.retVal.ch);  break; }
+				case Op::i16: { cFuncCode += std::to_string(funcObj->func.retVal.i16); break; }
+				case Op::u16: { cFuncCode += std::to_string(funcObj->func.retVal.u16); break; }
+				case Op::i32: { cFuncCode += std::to_string(funcObj->func.retVal.i32); break; }
+				case Op::i64: { cFuncCode += std::to_string(funcObj->func.retVal.i64); break; }
+				case Op::u32: { cFuncCode += std::to_string(funcObj->func.retVal.u32); break; }
+				case Op::u64: { cFuncCode += std::to_string(funcObj->func.retVal.u64); break; }
+				case Op::f32: { cFuncCode += std::to_string(funcObj->func.retVal.f32); break; }
+				case Op::d64: { cFuncCode += std::to_string(funcObj->func.retVal.d64); break; }
+				}
+				cFuncCode+=";\n";
 			}
 			cFuncCode += "}";
 		}
