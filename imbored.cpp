@@ -241,13 +241,18 @@ struct ArgObj {
 struct Obj {
 private:
 	Op type = Op::NotSet;
+	Op modifier = Op::NotSet;
 public:
 	const Op getType() { return type; }
 	void setType(Op type) {
-		printf("set obj type: %s(%d) -> %s(%d)\n", GetOpName(this->type), (int)this->type, GetOpName(type), (int)type);
+		printf("obj type: %s(%d) -> %s(%d)\n", GetOpName(this->type), (int)this->type, GetOpName(type), (int)type);
 		this->type = type;
 	}
-	Op modifier = Op::NotSet;
+	Op getMod() { return modifier; }
+	void setMod(Op mod) { 
+		printf("obj mod: %s(%d) -> %s(%d)\n", GetOpName(this->modifier), (int)this->modifier, GetOpName(mod), (int)mod);
+		modifier = mod; 
+	}
 	Op privacy = Op::NoChange;
 	char* name = nullptr;
 	char* str = nullptr;
@@ -256,8 +261,14 @@ public:
 		ArgObj arg = {};
 	};
 	Val val = {};
-	void setName(const char* name) { owStr(&this->name, name); }
-	void setStr(const char* Str) { owStr(&this->str, str); }
+	void setName(const char* name) { 
+		printf("obj name: %s -> %s\n", this->name, name);
+		owStr(&this->name, name); 
+	}
+	void setStr(const char* Str) { 
+		printf("obj str: %s -> %s\n", this->str, Str);
+		owStr(&this->str, Str); 
+	}
 	void print() {
 		unsigned __int64 u64 = val.u64;
 		printf("[Type:%s(%d),Name:%s,Str:%s,Mod:%s,Val:%I64u]\n",
@@ -394,13 +405,17 @@ public:
 			case '\0': return;
 			case '\n': {
 				nl = true;
+				printf("Char():Line end\n");
 				if (!taskStack.empty()) {
 					switch (taskStack.top()) {
 					case Op::FuncNeedReturnValue: {
 						printf("fucc");
 						break;
 					}
-					case Op::FuncHasName:{
+					case Op::FuncSignatureComplete: {
+						break;
+					}
+					case Op::FuncHasName: {
 						objStack.top().setType(Op::FuncSignatureComplete);
 						taskStack.top() = Op::Func;
 						popObj(true);
@@ -417,8 +432,10 @@ public:
 		}
 		auto m = modeStack.top();
 		column++;
-		if (!nl)printf("-> %c (0x%x)\n", this->ch, this->ch);
-		else printf("Char():Line end\n");
+		if (!nl) {
+			if(this->ch == ' ') printf("-> SPACE (0x%x)\n",  this->ch);
+			else printf("-> %c (0x%x)\n", this->ch, this->ch);
+		}
 		switch (m){
 			case Op::ModePrefixPass:
 				Prefix();
@@ -465,22 +482,20 @@ public:
 			break;
 		}
 		}
-		Done:
+		//Done:
 		popTask();
 		workingObjs.clear();
 	}
 	void Prefix(){
-		auto& obj = objStack.top();
 		pfx = fromPfxCh(ch);
+		if (pfx == Op::LineEnd) return;
+		auto& obj = objStack.top();
 		if (pfx != Op::Unknown 
 			&& !allowedNextPfxs.empty()
 			&& !isPfxExpected(pfx))
 			Err(Op::ErrUnexpectedNextPfx, "");
 		printf("PFX:%s\n", GetPfxName(pfx));
 		switch (pfx) {
-		case Op::LineEnd:
-
-			break;
 		case Op::VarType:
 			strReadPtrsStack.push(true);
 		case Op::Value:
@@ -495,11 +510,12 @@ public:
 	void Str(){
 		switch (ch) {
 		case '\n': {
+			printf("Str:Line end\n");
+			StrPayload();
 			setAllowedNextPfxs({});
-			return StrPayload();
-		}
-		case '\t':
 			return;
+		}
+		case '\t': return;
 		case ' ': {
 			if (strAllowSpace) break;
 			else return StrPayload();
@@ -508,12 +524,15 @@ public:
 			if (strReadPtrsStack.top()) {
 				switch (pointer) {
 				case Op::NotSet:
+					printf("got pointer\n");
 					pointer = Op::Pointer;
 					break;
 				case Op::Pointer:
+					printf("got double pointer\n");
 					pointer = Op::DoublePointer;
 					break;
 				case Op::DoublePointer:
+					printf("got tripple pointer\n");
 					pointer = Op::TripplePointer;
 					break;
 				case Op::TripplePointer:
@@ -580,12 +599,12 @@ public:
 			case Op::Func:
 				objStack.top().setType(Op::FuncHasName);
 				taskStack.top() = Op::FuncHasName;
-				setAllowedNextPfxs({Op::VarType, Op::LineEnd });
+				setAllowedNextPfxs({Op::VarType });
 				objStack.top().setName(cs);
 				break;
 			case Op::FuncArgNameless:
 				objStack.top().setType(Op::FuncArgComplete);
-				setAllowedNextPfxs({ Op::VarType, Op::LineEnd });
+				setAllowedNextPfxs({ Op::VarType });
 				objStack.top().setName(cs);
 				popObj(true);
 				break;
@@ -599,7 +618,7 @@ public:
 		case Op::Op: //@
 			switch (nameOp) {
 			case Op::Imaginary:
-				objStack.top().modifier = nameOp;
+				objStack.top().setMod(nameOp);
 				setAllowedNextPfxs({ /*Op::VarType*/ });
 				break;
 			case Op::Done:

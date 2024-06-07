@@ -1,3 +1,5 @@
+@func $dick
+@@
 @imaginary @func $malloc %i32 $size @ret %&void
 @imaginary @func $free %&void $ptr @ret %void
 @imaginary @func $test2
