@@ -1,4 +1,6 @@
 @ext @func $malloc %i32 $size @ret %&void
 
+~My main function
 @func $main %i32 $argc %&&c8 $argv @ret %i32
+%i64 $42069 =69
 @@ =0

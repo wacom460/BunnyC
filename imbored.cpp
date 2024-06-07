@@ -31,7 +31,7 @@ enum class Op {
 	__FuncBuildingEnd__,
 
 	__VariableBuildingStart__,
-	VarNeedName,VarComplete,
+	VarNeedName,VarWantValue,VarComplete,
 	__VariableBuildingEnd__,
 
 	Op,Value,Done,Return,NoChange,Struct,VarType,
@@ -80,6 +80,11 @@ struct ArgObj {
 	Op type = Op::Null;
 	Op mod = Op::NotSet;
 };
+struct VarObj {
+	Val val = {};
+	Op type = Op::NotSet;
+	Op mod = Op::NotSet;
+};
 const char* GetOpName(Op op);
 struct Obj {
 private:
@@ -91,6 +96,7 @@ public:
 	char* str = nullptr;
 	union {
 		FuncObj func;
+		VarObj var;
 		ArgObj arg = {};
 	};
 	Val val = {};
@@ -454,6 +460,13 @@ void Compiler::Char(char ch){
 			//pushAllowedNextPfxs({});
 			break; }
 		}
+		switch (objStack.top().getType()) {
+		case Op::VarWantValue: 
+		case Op::VarComplete: {
+			popObj(true);
+			break;
+		}
+		}
 		if (!taskStack.empty()) {
 			switch (taskStack.top()) {
 			case Op::FuncArgsVarNeedsName: {
@@ -639,6 +652,13 @@ void Compiler::StrPayload(){
 	switch (m_Pfx)
 	{
 	case Op::Value: { //=
+		switch (objStack.top().getType()) {
+		case Op::VarWantValue: {
+			objStack.top().var.val = strVal;
+			objStack.top().setType(Op::VarComplete);
+			break;
+		}
+		}
 		if (!taskStack.empty()) {
 			switch (taskStack.top()) {
 			case Op::FuncNeedReturnValue:
@@ -661,16 +681,13 @@ void Compiler::StrPayload(){
 		switch (taskStack.top()) {
 		case Op::FuncNeedVarsAndCode: {
 			pushObj({});
-			objStack.top().arg.type = m_NameOp;
+			objStack.top().var.type = m_NameOp;
 			objStack.top().setType(Op::VarNeedName);
 			pushAllowedNextPfxs({ Op::Name }, "Expected variable name after variable type");
 			break;
 		}
 		}
 		switch (objStack.top().getType()) {
-		case Op::NotSet:
-			objStack.top().setType(Op::VarNeedName);
-			break;
 		case Op::FuncNeedsRetValType: {
 			opAllowedStack.pop();
 			objStack.top().func.retType = m_NameOp;
@@ -711,8 +728,8 @@ void Compiler::StrPayload(){
 			break;
 		case Op::VarNeedName:
 			objStack.top().setName(cs);
-			objStack.top().setType(Op::VarComplete);
-			popObj(true);
+			objStack.top().setType(Op::VarWantValue);
+			pushAllowedNextPfxs({ Op::Value });
 			break;
 		}
 		break;
