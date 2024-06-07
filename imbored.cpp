@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
  #include <vector>
  #include <stack>
  #include <string>
@@ -12,7 +13,7 @@
 //compiler options inside source code, preferably using code
 //in number order breakpoints, if hit in the wrong order or missing then failure
 
-#define PRINT_LINE_INFO() printf("%d", __LINE__)
+#define PRINT_LINE_INFO() printf("LINE:%d", __LINE__)
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 32
 #define IB_DEBUG_EXTRA1 1
@@ -141,12 +142,11 @@ public:
 	void ExplainErr(Op code);
 };
 #define Err(code, msg){\
-	printf("%s", "ERR AT LINE ");\
 	PRINT_LINE_INFO();\
 	printf(":%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, line, column, GetOpName(code), (int)code);\
 	ExplainErr(code);\
 	printf("\n");\
-	exit(-1);\
+	__debugbreak();\
 }
 struct OpNamePair {
 	char name[OP_NAME_LEN];
@@ -228,7 +228,8 @@ OpNamePair opNames[] = {
 	{"ErrExpectedVariablePfx",Op::ErrExpectedVariablePfx},
 	{"FuncNeedReturnValue",Op::FuncNeedReturnValue},
 	{"CompletedFunction",Op::CompletedFunction},
-	{"ErrUnknownOpStr",Op::ErrUnknownOpStr}
+	{"ErrUnknownOpStr",Op::ErrUnknownOpStr},
+	{"ErrNOT_GOOD", Op::ErrNOT_GOOD},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", Op::Null},
@@ -306,9 +307,11 @@ Compiler::Compiler(){
 	printf("-> Compilation complete <-\n");
 }
 void Compiler::pushTask(Op task) {
+	printf("Push task %s(%d)\n", GetOpName(task),(int)task);
 	taskStack.push(task);
 }
 void Compiler::popTask() {
+	printf("Pop task %s(%d)\n", GetOpName(taskStack.top()),(int)taskStack.top());
 	taskStack.pop();
 }
 Obj& Compiler::pushObj(Obj obj) {
@@ -462,11 +465,11 @@ void Compiler::Char(char ch){
 				break;
 			}
 			case Op::FuncSignatureComplete:
-			case Op::FuncHasName:
-			case Op::Func:
-				popObj(true);
-				taskStack.top() = Op::FuncNeedVarsAndCode;
+			case Op::FuncHasName: {
+				//popObj(true);
+				PopAndDoTask();
 				break;
+			}
 			}
 		}
 		break;
@@ -498,7 +501,8 @@ void Compiler::PopAndDoTask()	{
 
 		break;
 	}
-	//case Op::FuncHasName:
+	case Op::FuncSignatureComplete:
+	case Op::FuncHasName:
 	case Op::Func: {
 		std::string cFuncModsTypeName, cFuncArgs, cFuncCode;
 		bool imaginary = false;
@@ -653,9 +657,14 @@ void Compiler::StrPayload(){
 			objStack.top().func.retType = m_NameOp;
 			objStack.top().func.retTypeMod = m_Pointer;
 			objStack.top().setType(Op::FuncSignatureComplete);
-			popObj(true);
 			if(taskStack.top() != Op::FuncHasName)Err(Op::ErrNOT_GOOD, "func signature needs name");
-			taskStack.top() = Op::Func;
+			if (objStack.top().getMod() == Op::Imaginary) {
+				taskStack.top() = Op::FuncSignatureComplete;
+			}
+			else {
+				taskStack.top() = Op::FuncNeedVarsAndCode;
+			}
+			popObj(true);
 			break;
 		}
 		case Op::FuncHasName:
@@ -779,7 +788,7 @@ void Compiler::ExplainErr(Op code) {
 		printf("Expected a variable type to be next.");
 		break;
 	default:
-		printf("Unknown error");
+		printf("Err msg unimplemented for %s", GetOpName(code));
 	}
 	printf("\nOBJ MEM:");
 	objStack.top().print();
