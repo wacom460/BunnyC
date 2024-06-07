@@ -116,7 +116,7 @@ class Compiler {
 public:
 	int line = 0, column = 0;
 	Op m_Pfx = Op::Null;
-	std::string str = {};
+	std::string str = {}, cOutput = {};
 	std::stack<Obj> objStack = {};
 	std::stack<AllowedPfxs> allowedNextPfxsStack = {};
 	Op m_Pointer = Op::NotSet;
@@ -252,9 +252,14 @@ OpNamePair cEquivelents[] = {
 	{"void", Op::Void},
 	{"return", Op::Return},
 	{"int", Op::i32},
+	{"unsigned int", Op::u32},
+	{"long long", Op::i64},
+	{"unsigned long long", Op::u64},
 	{"short", Op::i16},
 	{"char", Op::i8},
 	{"char", Op::c8},
+	{"unsigned short", Op::u16},
+	{"unsigned char", Op::u8},
 	{"*", Op::Pointer},
 	{"**", Op::DoublePointer},
 	{"***", Op::TripplePointer},
@@ -310,7 +315,8 @@ Compiler::Compiler(){
 	pushObj({});
 }Compiler::~Compiler() {
 	if (!str.empty()) StrPayload();
-	printf("-> Compilation complete <-\n");
+	printf("-> Compilation complete <-\nResulting C code:\n\n");
+	printf("%s", cOutput.c_str());
 }
 void Compiler::pushTask(Op task) {
 	printf("Push task %s(%d)\n", GetOpName(task),(int)task);
@@ -453,17 +459,16 @@ void Compiler::Char(char ch){
 			commentMode = Op::NotSet;
 		}
 		switch (modeStack.top()) {
-		case Op::ModePrefixPass:
-			break;
 		case Op::ModeStrPass: {
 			StrPayload();
-			//pushAllowedNextPfxs({});
-			break; }
+			break; 
+		}
 		}
 		switch (objStack.top().getType()) {
 		case Op::VarWantValue: 
 		case Op::VarComplete: {
 			popObj(true);
+			popAllowedNextPfxs();
 			break;
 		}
 		}
@@ -477,10 +482,11 @@ void Compiler::Char(char ch){
 				Err(Op::FuncNeedReturnValue, "");
 				break;
 			}
-			case Op::FuncSignatureComplete:
+			//case Op::FuncSignatureComplete:
 			case Op::FuncHasName: {
-				//popObj(true);
-				PopAndDoTask();
+				objStack.top().setType(Op::FuncSignatureComplete);
+				popObj(true);
+				taskStack.top() = Op::FuncNeedVarsAndCode;
 				break;
 			}
 			}
@@ -509,6 +515,7 @@ void Compiler::Char(char ch){
 }
 void Compiler::PopAndDoTask()	{
 	if(taskStack.empty())Err(Op::ErrNoTask, "task stack EMPTY!");
+	if(workingObjs.empty())Err(Op::ErrNOT_GOOD, "workingObjs EMPTY!");
 	switch (taskStack.top()) {
 	case Op::FuncNeedVarsAndCode: {
 
@@ -558,8 +565,24 @@ void Compiler::PopAndDoTask()	{
 				break;
 			}
 		}
+		for (auto& o : workingObjs) {
+			switch (o.getType()) {
+			case Op::VarComplete: {
+				cFuncCode += "\t";	
+				cFuncCode += GetCEqu(o.var.type);
+				cFuncCode += GetCEqu(o.var.mod);
+				cFuncCode += " ";
+				if(!o.name)Err(Op::ErrNOT_GOOD, "var name NULL");
+				cFuncCode += o.name;
+				cFuncCode += "=";
+				cFuncCode += std::to_string(o.var.val.i64);
+				cFuncCode += ";\n";
+				break;
+			}
+			}
+		}
 		if (imaginary) {
-			cFuncArgs += ");\n";
+			cFuncArgs += ");\n\n";
 			//cFuncCode += "}";
 		}
 		else {
@@ -580,9 +603,10 @@ void Compiler::PopAndDoTask()	{
 				}
 				cFuncCode+=";\n";
 			}
-			cFuncCode += "}";
+			cFuncCode += "}\n\n";
 		}
-		printf("%s\n", std::string(cFuncModsTypeName+cFuncArgs+cFuncCode).c_str());
+		//printf("%s\n", std::string(cFuncModsTypeName+cFuncArgs+cFuncCode).c_str());
+		cOutput += std::string(cFuncModsTypeName + cFuncArgs + cFuncCode);
 		break;
 	}
 	}
@@ -682,6 +706,7 @@ void Compiler::StrPayload(){
 		case Op::FuncNeedVarsAndCode: {
 			pushObj({});
 			objStack.top().var.type = m_NameOp;
+			objStack.top().var.mod = Op::NotSet;
 			objStack.top().setType(Op::VarNeedName);
 			pushAllowedNextPfxs({ Op::Name }, "Expected variable name after variable type");
 			break;
@@ -744,7 +769,7 @@ void Compiler::StrPayload(){
 			if (taskStack.empty()) Err(Op::ErrNoTask, "");
 			switch (taskStack.top()) {
 			case Op::Func:
-			//case Op::CompletedFunction:
+			case Op::FuncHasName:
 			case Op::FuncNeedVarsAndCode:
 				printf("Finishing function\n");
 				for (auto& obj : workingObjs) {
@@ -754,7 +779,7 @@ void Compiler::StrPayload(){
 							pushAllowedNextPfxs({Op::Value});
 							taskStack.top() = Op::FuncNeedReturnValue;
 						}else {
-							obj.setType(Op::CompletedFunction);
+							//obj.setType(Op::CompletedFunction);
 							popAllowedNextPfxs();
 						}
 					}
