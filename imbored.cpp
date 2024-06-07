@@ -80,6 +80,7 @@ OpNamePair opNames[] = {
 	{"=", Op::Value},
 	{"@", Op::Done},
 	{"ret", Op::Return},
+	{"imaginary", Op::Imaginary},
 	{"if", Op::If},
 	{"else", Op::Else},
 	{"use", Op::Use},
@@ -133,6 +134,7 @@ OpNamePair opNames[] = {
 	{"FuncHasName", Op::FuncHasName},
 	{"NotSet", Op::NotSet},
 	{"Return", Op::Return},
+	{"FuncArgNameless", Op::FuncArgNameless},
 	{"FuncArgComplete",Op::FuncArgComplete},
 	{"FuncNeedsRetValType",Op::FuncNeedsRetValType},
 	{"FuncSignatureComplete", Op::FuncSignatureComplete},
@@ -336,8 +338,8 @@ public:
 	}
 	void setAllowedNextPfxs(std::vector<Op> allowedNextPfxs) {
 		this->allowedNextPfxs = allowedNextPfxs;
-		printf("set allowed next pfxs to: ");
-		for (auto& p : this->allowedNextPfxs) printf("%s,", GetPfxName(p));
+		printf("set allowed next pfxs to");
+		for (auto& p : this->allowedNextPfxs) printf(", %s", GetPfxName(p));
 		printf("\n");
 	}
 	bool isPfxExpected(Op pfx) {
@@ -427,7 +429,7 @@ public:
 		switch (taskStack.top()) {
 		//case Op::FuncHasName:
 		case Op::Func: {
-			std::string cFuncModsTypeName, cFuncArgs;
+			std::string cFuncModsTypeName, cFuncArgs, cFuncCode;
 			for (int i = 0; i < workingObjs.size(); ++i) {
 				auto& o = workingObjs[i];
 				switch (o.getType()) {
@@ -447,11 +449,11 @@ public:
 					cFuncModsTypeName += " ";
 					cFuncModsTypeName += std::string(o.name);
 					cFuncModsTypeName += "(";
-					printf("AAA");
+					//printf("AAA");
 					break;
 				}
 			}
-			printf("Done");
+			printf("");
 			break;
 		}
 		}
@@ -521,7 +523,7 @@ public:
 		printf("Str: %s\n", cs);
 		switch (pfx)
 		{
-		case Op::Value:
+		case Op::Value: //=
 			if (!taskStack.empty()) {
 				switch (taskStack.top()) {
 				case Op::Func:
@@ -537,7 +539,7 @@ public:
 				}
 			}			
 			break;
-		case Op::VarType:
+		case Op::VarType: //%
 			switch (objStack.top().getType()) {
 			case Op::NotSet:
 				objStack.top().setType(Op::VarNeedName);
@@ -560,7 +562,7 @@ public:
 				break;
 			}
 			break;
-		case Op::Name://just dont use fallthru here...
+		case Op::Name: //$
 			switch (objStack.top().getType()){
 			case Op::Func:
 				objStack.top().setType(Op::FuncHasName);
@@ -581,8 +583,13 @@ public:
 				break;
 			}
 			break;
-		case Op::Op: 
+		case Op::Op: //@
 			switch (nameOp) {
+			case Op::Imaginary:
+				objStack.top().modifier = nameOp;
+				printf("imaginary\n");
+				setAllowedNextPfxs({ Op::VarType });
+				break;
 			case Op::Done:
 				if (taskStack.empty()) Err(Op::ErrNoTask, "");
 				switch (taskStack.top()) {

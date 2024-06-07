@@ -1,8 +1,11 @@
+@imaginary @func $malloc %i32 $size @ret %&void
+
 @func $test @ret %void
 @@
 
 @func $addInts %i32 $a %i32 $b @ret %i32
-@@ =$a+$b
+@set @ret =@add $a $b
+@@
 
 @func $main %i32 $argc %&&c8 $argv @ret %i32
 %i32 $a
