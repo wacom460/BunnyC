@@ -1,19 +1,2 @@
-@func $dick
-@@
 @imaginary @func $malloc %i32 $size @ret %&void
-@imaginary @func $free %&void $ptr @ret %void
-@imaginary @func $test2
 
-@func $test @ret %void
-@var %&void $mem = @call $malloc =32
-@call $free $mem
-@@
-
-@func $addInts %i32 $a %i32 $b @ret %i32
-@set @ret =@add $a $b
-@call $test
-@@
-
-@func $main %i32 $argc %&&c8 $argv @ret %i32
-@var %i32 $a =0
-@@ =0

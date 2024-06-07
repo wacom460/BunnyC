@@ -38,7 +38,7 @@ enum class Op {
 	VarComplete, //have type and name
 	__VariableBuildingEnd__,
 
-	LineEnd,Op,Value,Done,Return,NoChange,Struct,VarType,
+	/*LineEnd,*/Op,Value,Done,Return,NoChange,Struct,VarType,
 	Comment,Public,Private,Imaginary,Void,/*StackFloorObj,*/
 	Set,SetAdd,Colon,Dot,Add,Subtract,Multiply,Divide,
 	AddEq,SubEq,MultEq,DivEq,Equals,NotEquals,LessThan,
@@ -53,7 +53,7 @@ enum class Op {
 
 	Error, ErrNOT_GOOD, ErrUnexpectedNextPfx,
 	ErrExpectedVariablePfx, ErrNoTask,ErrUnexpectedOp,
-	ErrQuadriplePointersNOT_ALLOWED,
+	ErrQuadriplePointersNOT_ALLOWED, ErrUnknownOpStr,
 
 	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
 	ModeString,
@@ -144,6 +144,7 @@ OpNamePair opNames[] = {
 	{"ErrExpectedVariablePfx",Op::ErrExpectedVariablePfx},
 	{"FuncNeedReturnValue",Op::FuncNeedReturnValue},
 	{"CompletedFunction",Op::CompletedFunction},
+	{"ErrUnknownOpStr",Op::ErrUnknownOpStr}
 };
 OpNamePair pfxNames[] = {
 	{"NULL", Op::Null},
@@ -153,7 +154,7 @@ OpNamePair pfxNames[] = {
 	{"Name($)", Op::Name},
 	{"VarType (%)", Op::VarType},
 	{"Pointer (&)", Op::Pointer},
-	{"LineEnd (\\n)", Op::LineEnd},
+	//{"LineEnd (\\n)", Op::LineEnd},
 	{"Return (@ret)", Op::Return},
 };
 OpNamePair cEquivelents[] = {
@@ -195,7 +196,7 @@ Op GetOpFromName(const char* name) {
 }
 Op fromPfxCh(char ch) {
 	switch (ch) {
-	case '\n': return Op::LineEnd;
+	//case '\n': return Op::LineEnd;
 	case '@': return Op::Op;
 	case '~': return Op::Comment;
 	case '$': return Op::Name;
@@ -369,6 +370,9 @@ public:
 	//NO NEWLINES AT END OF STR
 	void ExplainErr(Op code) {
 		switch (code) {
+		case Op::ErrUnknownOpStr:
+			printf("Unknown OP str @%s\n", str.c_str());
+			break;
 		case Op::ErrQuadriplePointersNOT_ALLOWED:
 			printf("Why?");
 			break;
@@ -406,10 +410,17 @@ public:
 			case '\n': {
 				nl = true;
 				printf("Char():Line end\n");
+				switch (modeStack.top()) {
+				case Op::ModePrefixPass:
+					break;
+				case Op::ModeStrPass: {
+					StrPayload();
+					setAllowedNextPfxs({});
+					break; }
+				}
 				if (!taskStack.empty()) {
 					switch (taskStack.top()) {
 					case Op::FuncNeedReturnValue: {
-						printf("fucc");
 						break;
 					}
 					case Op::FuncSignatureComplete: {
@@ -435,14 +446,14 @@ public:
 		if (!nl) {
 			if(this->ch == ' ') printf("-> SPACE (0x%x)\n",  this->ch);
 			else printf("-> %c (0x%x)\n", this->ch, this->ch);
-		}
-		switch (m){
+			switch (m) {
 			case Op::ModePrefixPass:
 				Prefix();
 				break;
 			case Op::ModeStrPass:
 				Str();
 				break;
+			}
 		}
 		if (nl) {
 			column = 0;
@@ -468,11 +479,12 @@ public:
 					cFuncArgs += std::string(o.name);			
 					break;
 				}
+				case Op::FuncSignatureComplete:
 				case Op::CompletedFunction://should only happen once
 					cFuncModsTypeName += GetCEqu(o.func.retType);
 					cFuncModsTypeName += GetCEqu(o.func.retTypeMod);
 					cFuncModsTypeName += " ";
-					cFuncModsTypeName += std::string(o.name);
+					if(o.name)cFuncModsTypeName += std::string(o.name);
 					cFuncModsTypeName += "(";
 					//printf("AAA");
 					break;
@@ -488,7 +500,7 @@ public:
 	}
 	void Prefix(){
 		pfx = fromPfxCh(ch);
-		if (pfx == Op::LineEnd) return;
+		//if (pfx == Op::LineEnd) return;
 		auto& obj = objStack.top();
 		if (pfx != Op::Unknown 
 			&& !allowedNextPfxs.empty()
@@ -509,12 +521,6 @@ public:
 	}
 	void Str(){
 		switch (ch) {
-		case '\n': {
-			printf("Str:Line end\n");
-			StrPayload();
-			setAllowedNextPfxs({});
-			return;
-		}
 		case '\t': return;
 		case ' ': {
 			if (strAllowSpace) break;
@@ -546,6 +552,7 @@ public:
 		str.append(1, ch);
 	}
 	void StrPayload(){
+		printf("Doing Str payload\n");
 		auto cs = str.c_str();
 		Val strVal = {};
 		strVal.i64=strtoll(cs, nullptr, 10);
@@ -582,7 +589,7 @@ public:
 				objStack.top().func.retType = nameOp;
 				objStack.top().func.retTypeMod = pointer;
 				objStack.top().setType(Op::FuncSignatureComplete);
-				popObj(true);
+				if(objStack.top().getMod() != Op::Imaginary) popObj(true);
 				break;
 			}
 			case Op::FuncHasName:
@@ -630,8 +637,8 @@ public:
 						//TODO: could cache func obj later but idk how
 						if (obj.getType() == Op::FuncSignatureComplete) {
 							if (obj.func.retType != Op::Void) {
-								setAllowedNextPfxs({Op::LineEnd, Op::Value});
-							} else setAllowedNextPfxs({ Op::LineEnd });
+								setAllowedNextPfxs({Op::Value});
+							} else setAllowedNextPfxs({});
 							obj.setType(Op::FuncNeedReturnValue);
 						}
 					}
@@ -664,6 +671,8 @@ public:
 			case Op::Private:
 				objStack.top().privacy = nameOp;
 				break;
+			default:
+				Err(Op::ErrUnknownOpStr);
 			}
 		}
 		str.clear();
