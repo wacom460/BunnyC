@@ -153,12 +153,11 @@ public:
 	void StrPayload();
 	void ExplainErr(Op code);
 };
-Compiler *g_Compiler;
 #define Err(code, msg)\
 	printf("%s", "ERR AT LINE ");\
 	PRINT_LINE_INFO();\
-	printf(":%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, g_Compiler->line, g_Compiler->column, GetOpName(code), (int)code);\
-	g_Compiler->ExplainErr(code);\
+	printf(":%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, line, column, GetOpName(code), (int)code);\
+	ExplainErr(code);\
 	printf("\n");\
 	exit(-1);
 struct OpNamePair {
@@ -798,19 +797,18 @@ void Compiler::ExplainErr(Op code) {
 	objStack.top().print();
 }
 int main(int argc, char** argv) {
-	g_Compiler = new Compiler;
 	FILE* f;
 	const char* fname = /*argv[1]*/"main.txt";
 	if (!fopen_s(&f, fname, "r")){
+		Compiler c;
 		while (!feof(f)) {
 			char ch;
 			ch = fgetc(f);
 			if (ch == 0xffffffff)break;
 			//fread(&ch, 1, 1, f);
 			//printf("%c\n", ch);
-			g_Compiler->Char(ch);
+			c.Char(ch);
 		}
-		delete g_Compiler;
 		fclose(f);
 		return 0;
 	}
