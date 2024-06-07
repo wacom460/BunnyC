@@ -284,7 +284,7 @@ class Compiler {
 	std::stack<bool> opAllowedStack, strReadPtrsStack;
 	std::stack<Op> modeStack, taskStack;
 	std::stack<Obj> objStack;
-	std::vector<Op> allowedNextPfxs;
+	std::stack<std::vector<Op>> allowedNextPfxsStack;
 	std::vector<Obj> workingObjs;
 	std::string str;
 	bool strAllowSpace = false;
@@ -296,6 +296,7 @@ public:
 	Compiler(){
 		opAllowedStack.push(true);
 		strReadPtrsStack.push(false);
+		allowedNextPfxsStack.push({});
 		push(Op::ModePrefixPass);
 		pushObj({});
 	}
@@ -356,18 +357,22 @@ public:
 		printf("pop: to %s\n", GetOpName(modeStack.top()));
 		return modeStack.top();
 	}
-	void setAllowedNextPfxs(std::vector<Op> allowedNextPfxs) {
-		this->allowedNextPfxs = allowedNextPfxs;
-		if (!allowedNextPfxs.empty()) {
+	void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs) {
+		//allowedNextPfxsStack.push(allowedNextPfxs); //soon(TM)
+		allowedNextPfxsStack.top() = allowedNextPfxs;
+		if (!allowedNextPfxsStack.top().empty()) {
 			printf("set allowed next pfxs to");
-			for (auto& p : this->allowedNextPfxs) printf(", %s", GetPfxName(p));
+			for (auto& p : allowedNextPfxsStack.top()) printf(", %s", GetPfxName(p));
 			printf("\n");
-		}else printf("set allowed next pfxs to EMPTY\n");
+		}else printf("push allowed next pfxs to EMPTY\n");
+	}
+	void popAllowedNextPfxs() {
+		allowedNextPfxsStack.pop();
 	}
 	bool isPfxExpected(Op pfx) {
-		if (allowedNextPfxs.empty()) return true;
+		if (allowedNextPfxsStack.top().empty()) return true;
 		if (pfx == Op::Op) return opAllowedStack.top();
-		for (auto& p : allowedNextPfxs) if (p == pfx) return true;
+		for (auto& p : allowedNextPfxsStack.top()) if (p == pfx) return true;
 		return false;
 	}
 	//NO NEWLINES AT END OF STR
@@ -387,7 +392,7 @@ public:
 			break;
 		case Op::ErrUnexpectedNextPfx:
 			printf("Unexpected next prefix %s. Allowed:", GetPfxName(pfx));
-			for (auto& p : allowedNextPfxs)
+			for (auto& p : allowedNextPfxsStack.top())
 				printf("%s,", GetPfxName(p));
 			break;
 		case Op::ErrExpectedVariablePfx:
@@ -450,7 +455,7 @@ public:
 				break;
 			case Op::ModeStrPass: {
 				StrPayload();
-				setAllowedNextPfxs({});
+				//pushAllowedNextPfxs({});
 				break; }
 			}
 			if (!taskStack.empty()) {
@@ -560,7 +565,7 @@ public:
 		//if (pfx == Op::LineEnd) return;
 		auto& obj = objStack.top();
 		if (pfx != Op::Unknown 
-			&& !allowedNextPfxs.empty()
+			&& !allowedNextPfxsStack.top().empty()
 			&& !isPfxExpected(pfx))
 			Err(Op::ErrUnexpectedNextPfx, "");
 		printf("PFX:%s\n", GetPfxName(pfx));
@@ -642,7 +647,8 @@ public:
 				break;
 			case Op::FuncNeedsRetValType: {
 				opAllowedStack.pop();
-				setAllowedNextPfxs({});
+				//pushAllowedNextPfxs({});
+
 				objStack.top().func.retType = nameOp;
 				objStack.top().func.retTypeMod = pointer;
 				objStack.top().setType(Op::FuncSignatureComplete);
@@ -656,7 +662,7 @@ public:
 				objStack.top().setType(Op::FuncArgNameless);
 				objStack.top().arg.type= nameOp;
 				objStack.top().arg.mod = pointer;
-				setAllowedNextPfxs({Op::Name});
+				pushAllowedNextPfxs({Op::Name});
 				break;
 			}
 			break;
@@ -665,12 +671,12 @@ public:
 			case Op::Func:
 				objStack.top().setType(Op::FuncHasName);
 				taskStack.top() = Op::FuncHasName;
-				setAllowedNextPfxs({Op::VarType });
+				pushAllowedNextPfxs({Op::VarType });
 				objStack.top().setName(cs);
 				break;
 			case Op::FuncArgNameless:
 				objStack.top().setType(Op::FuncArgComplete);
-				setAllowedNextPfxs({ Op::VarType });
+				pushAllowedNextPfxs({ Op::VarType });
 				objStack.top().setName(cs);
 				popObj(true);
 				break;
@@ -685,7 +691,8 @@ public:
 			switch (nameOp) {
 			case Op::Imaginary:
 				objStack.top().setMod(nameOp);
-				setAllowedNextPfxs({ /*Op::VarType*/ });
+				//setAllowedNextPfxs({});
+				popAllowedNextPfxs();
 				break;
 			case Op::Done:
 				if (taskStack.empty()) Err(Op::ErrNoTask, "");
@@ -698,8 +705,11 @@ public:
 						//TODO: could cache func obj later but idk how
 						if (obj.getType() == Op::FuncSignatureComplete) {
 							if (obj.func.retType != Op::Void) {
-								setAllowedNextPfxs({Op::Value});
-							} else setAllowedNextPfxs({});
+								pushAllowedNextPfxs({Op::Value});
+							}else {
+								//setAllowedNextPfxs({});
+								popAllowedNextPfxs();
+							}
 							obj.setType(Op::FuncNeedReturnValue);
 						}
 					}
@@ -712,7 +722,7 @@ public:
 				case Op::FuncHasName:
 					opAllowedStack.push(false);
 					objStack.top().setType(Op::FuncNeedsRetValType);
-					setAllowedNextPfxs({ Op::VarType });
+					pushAllowedNextPfxs({ Op::VarType });
 					break;
 				default:
 					Err(Op::ErrUnexpectedOp);
@@ -725,7 +735,7 @@ public:
 				objStack.top().setType(nameOp);
 				objStack.top().func.retType = Op::Void;
 				objStack.top().func.retTypeMod = Op::NotSet;
-				setAllowedNextPfxs({Op::Name/*, Op::LineEnd*/});
+				pushAllowedNextPfxs({Op::Name});
 				pushTask(Op::FuncNeedName);
 				break;
 			case Op::Public:
