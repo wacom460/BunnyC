@@ -173,6 +173,7 @@ OpNamePair cEquivelents[] = {
 	{"{", Op::ScopeOpen},
 	{"}", Op::ScopeClose},
 	{"", Op::NotSet},
+	{"extern", Op::Imaginary},
 };
 const char* GetCEqu(Op op) {
 	for (auto& opN : cEquivelents)
@@ -421,7 +422,12 @@ public:
 				}
 				if (!taskStack.empty()) {
 					switch (taskStack.top()) {
+					case Op::FuncArgsVarNeedsName: {
+						Err(Op::FuncArgsVarNeedsName);
+						break;
+					}
 					case Op::FuncNeedReturnValue: {
+						Err(Op::FuncNeedReturnValue);
 						break;
 					}
 					case Op::FuncSignatureComplete: {
@@ -468,6 +474,7 @@ public:
 		//case Op::FuncHasName:
 		case Op::Func: {
 			std::string cFuncModsTypeName, cFuncArgs, cFuncCode;
+			bool imaginary = false;
 			for (int i = 0; i < workingObjs.size(); ++i) {
 				auto& o = workingObjs[i];
 				switch (o.getType()) {
@@ -483,20 +490,36 @@ public:
 				}
 				case Op::FuncSignatureComplete: {
 					if (o.getMod() == Op::Imaginary) {
-						printf("img\n");
+						//printf("img\n");
+						imaginary = true;
 					}
 				}
+				case Op::FuncHasName:
 				case Op::CompletedFunction://should only happen once
+					auto mod = o.getMod();
+					if (mod != Op::NotSet) {
+						cFuncModsTypeName += GetCEqu(mod);
+						cFuncModsTypeName += " ";
+					}
 					cFuncModsTypeName += GetCEqu(o.func.retType);
 					cFuncModsTypeName += GetCEqu(o.func.retTypeMod);
 					cFuncModsTypeName += " ";
-					if(o.name)cFuncModsTypeName += std::string(o.name);
+					assert(o.name != nullptr);
+					cFuncModsTypeName += std::string(o.name);
 					cFuncModsTypeName += "(";
 					//printf("AAA");
 					break;
 				}
 			}
-			printf("");
+			if (imaginary) {
+				cFuncArgs += ");\n";
+				//cFuncCode += "}";
+			}
+			else {
+				cFuncArgs += "){\n";
+				cFuncCode += "}";
+			}
+			printf("%s\n", std::string(cFuncModsTypeName+cFuncArgs+cFuncCode).c_str());
 			break;
 		}
 		}

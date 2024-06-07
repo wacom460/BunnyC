@@ -1,2 +1,7 @@
 @imaginary @func $malloc %i32 $size @ret %&void
 
+@func $hi
+@@
+
+@func $hello @ret %i32
+@@ =0
