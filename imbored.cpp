@@ -343,9 +343,11 @@ public:
 	}
 	void setAllowedNextPfxs(std::vector<Op> allowedNextPfxs) {
 		this->allowedNextPfxs = allowedNextPfxs;
-		printf("set allowed next pfxs to");
-		for (auto& p : this->allowedNextPfxs) printf(", %s", GetPfxName(p));
-		printf("\n");
+		if (!allowedNextPfxs.empty()) {
+			printf("set allowed next pfxs to");
+			for (auto& p : this->allowedNextPfxs) printf(", %s", GetPfxName(p));
+			printf("\n");
+		}else printf("set allowed next pfxs to EMPTY\n");
 	}
 	bool isPfxExpected(Op pfx) {
 		if (allowedNextPfxs.empty()) return true;
@@ -415,7 +417,8 @@ public:
 		}
 		auto m = modeStack.top();
 		column++;
-		printf("-> %c\n", this->ch);
+		if (!nl)printf("-> %c (0x%x)\n", this->ch, this->ch);
+		else printf("Char():Line end\n");
 		switch (m){
 			case Op::ModePrefixPass:
 				Prefix();
