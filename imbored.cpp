@@ -39,7 +39,7 @@ enum class Op { //multiple uses
 	BracketOpen,BracketClose,SingleQuote,DoubleQuote,
 
 	Comma,CommaSpace,Name,String,Char,If,Else,For,While,Block,
-	c8,	u8, u16, u32, u64, i8, i16, i32, i64,f32, d64,
+	c8,u8,u16,u32,u64,i8,i16,i32,i64,f32,d64,
 	Pointer,DoublePointer,TripplePointer,CompilerFlags,
 
 	Error, ErrNOT_GOOD, ErrUnexpectedNextPfx,
@@ -49,22 +49,17 @@ enum class Op { //multiple uses
 	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
 };
 typedef union Val {
-	void (*vrFunc)(void*);
-	int (*irFunc)(void*);
-	Op op;
 	unsigned char u8;
 	unsigned short u16;
 	unsigned int u32;
 	unsigned __int64 u64;
 	char i8;
-	char ch;
+	char c8;
 	short i16;
 	int i32;
 	__int64 i64;
 	float f32;
 	double d64;
-	void* ptr;
-	char* str;
 } Val;
 struct FuncObj {
 	Val retVal = {};
@@ -536,7 +531,7 @@ void Compiler::PopAndDoTask()	{
 				cFuncCode += "\treturn ";
 				switch (funcObj->func.retType) {
 				case Op::u8:  { cFuncCode += std::to_string(funcObj->func.retVal.u8);  break; }
-				case Op::c8:  { cFuncCode += std::to_string(funcObj->func.retVal.ch);  break; }
+				case Op::c8:  { cFuncCode += std::to_string(funcObj->func.retVal.c8);  break; }
 				case Op::i16: { cFuncCode += std::to_string(funcObj->func.retVal.i16); break; }
 				case Op::u16: { cFuncCode += std::to_string(funcObj->func.retVal.u16); break; }
 				case Op::i32: { cFuncCode += std::to_string(funcObj->func.retVal.i32); break; }
