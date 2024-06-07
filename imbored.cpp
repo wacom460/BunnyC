@@ -780,6 +780,8 @@ void Compiler::StrPayload(){
 							taskStack.top() = Op::FuncNeedReturnValue;
 						}else {
 							//obj.setType(Op::CompletedFunction);
+							taskStack.top() = Op::Func;
+							PopAndDoTask();
 							popAllowedNextPfxs();
 						}
 					}
