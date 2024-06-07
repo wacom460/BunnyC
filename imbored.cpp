@@ -506,6 +506,7 @@ void Compiler::PopAndDoTask()	{
 	case Op::Func: {
 		std::string cFuncModsTypeName, cFuncArgs, cFuncCode;
 		bool imaginary = false;
+		Obj* funcObj=nullptr;
 		for (int i = 0; i < workingObjs.size(); ++i) {
 			auto& o = workingObjs[i];
 			switch (o.getType()) {
@@ -528,6 +529,7 @@ void Compiler::PopAndDoTask()	{
 			}
 			case Op::FuncHasName:
 			case Op::CompletedFunction://should only happen once
+				funcObj = &o;
 				auto mod = o.getMod();
 				if (mod != Op::NotSet) {
 					cFuncModsTypeName += GetCEqu(mod);
@@ -549,6 +551,9 @@ void Compiler::PopAndDoTask()	{
 		}
 		else {
 			cFuncArgs += "){\n";
+			if (funcObj->func.retType != Op::Void) {
+				cFuncCode += ("\treturn " + std::to_string(funcObj->func.retVal.i32) + ";\n");//TODO:FIX!!!!!!!!!!!!!
+			}
 			cFuncCode += "}";
 		}
 		printf("%s\n", std::string(cFuncModsTypeName+cFuncArgs+cFuncCode).c_str());
@@ -620,24 +625,25 @@ void Compiler::StrPayload(){
 	printf("Str: %s\n", cs);
 	switch (m_Pfx)
 	{
-	case Op::Value: //=
+	case Op::Value: { //=
 		if (!taskStack.empty()) {
 			switch (taskStack.top()) {
-			case Op::Func:
+			case Op::FuncNeedReturnValue:
 				for (auto& obj : workingObjs) {
-					if (obj.getType() == Op::FuncNeedReturnValue) {
+					if (obj.getType() == Op::FuncSignatureComplete) {
 						printf("Finishing func got ret value\n");
 						obj.func.retVal = strVal;
-						obj.setType(Op::CompletedFunction);
+						//obj.setType(Op::CompletedFunction);
+						taskStack.top() = Op::Func;
 						PopAndDoTask();
-						popObj(true);
 						break;
 					}
 				}
 				break;
 			}
-		}			
+		}
 		break;
+	}
 	case Op::VarType: //%
 		switch (taskStack.top()) {
 		case Op::FuncNeedVarsAndCode: {
@@ -716,7 +722,7 @@ void Compiler::StrPayload(){
 					if (obj.getType() == Op::FuncSignatureComplete) {
 						if (obj.func.retType != Op::Void) {
 							pushAllowedNextPfxs({Op::Value});
-							obj.setType(Op::FuncNeedReturnValue);
+							taskStack.top() = Op::FuncNeedReturnValue;
 						}else {
 							obj.setType(Op::CompletedFunction);
 							popAllowedNextPfxs();
