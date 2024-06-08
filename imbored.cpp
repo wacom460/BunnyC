@@ -17,7 +17,6 @@
 #define PRINT_LINE_INFO() printf("LINE:%d", __LINE__)
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 32
-#define IB_DEBUG_EXTRA1 1
 #define COMMENT_CHAR ('~')
 
 enum class Op { //multiple uses
@@ -318,18 +317,14 @@ void Compiler::popTask() {
 	m_TaskStack.pop();
 }
 Obj& Compiler::pushObj(Obj obj) {
-#if IB_DEBUG_EXTRA1
 	printf("Push obj: ");
 	if (!m_ObjStack.empty()) {
 		GetObj.print();
 		printf(" -> ");
 	}
-#endif
 	m_ObjStack.push(obj);
-#if IB_DEBUG_EXTRA1
 	GetObj.print();
 	printf("\n");
-#endif
 	return GetObj;
 }
 Obj& Compiler::popObj(bool pushToWorking) {
@@ -340,17 +335,13 @@ Obj& Compiler::popObj(bool pushToWorking) {
 		printf("\n");
 		GetTaskWorkingObjs.push_back(GetObj);
 	}
-#if IB_DEBUG_EXTRA1
 	printf("Pop obj: ");
 	GetObj.print();
-#endif
 	if (m_ObjStack.size() == 1)GetObj = {};
 	else m_ObjStack.pop();
-#if IB_DEBUG_EXTRA1
 	printf(" -> ");
 	GetObj.print();
 	printf("\n");
-#endif
 	return GetObj;
 }
 void Compiler::push(Op mode, bool strAllowSpace){

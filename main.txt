@@ -1,11 +1,16 @@
 @ext @func $malloc %i32 $size @ret %&void
-@dbgBreak
+~@dbgBreak
 @func $test %i32 $f @ret %i32
 %i64 $fuck =24
 "values: %% %% %% %%" =10 =12 $f $fuck
 @@ =0
-@dbgBreak
+~@dbgBreak
+@func $empty %u64 $a
+"hi"
+"%%" $a
+%&void $vp =@call $malloc =100
+@@
 @func $func2 %u64 $v @ret %c8
 "%%" $v
 @@ =0
-@dbgBreak
+~@dbgBreak
