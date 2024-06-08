@@ -25,7 +25,7 @@ enum class Op { //multiple uses
 
 	Func,FuncHasName,FuncNeedName,FuncNeedsRetValType,
 	FuncArgsVarNeedsName,FuncArgNameless,FuncArgComplete,
-	FuncWantCode,FuncSigComplete,FuncNeedRetVal,
+	FuncWantCode,FuncSigComplete,FuncNeedRetVal,FuncArg,
 	CompletedFunction,
 
 	VarNeedName,VarWantValue,VarComplete,
@@ -43,9 +43,9 @@ enum class Op { //multiple uses
 	c8,u8,u16,u32,u64,i8,i16,i32,i64,f32,d64,
 	Pointer,DoublePointer,TripplePointer,CompilerFlags,
 
-	Error, ErrNOT_GOOD, ErrUnexpectedNextPfx,
-	ErrExpectedVariablePfx, ErrNoTask,ErrUnexpectedOp,
-	ErrQuadriplePointersNOT_ALLOWED, ErrUnknownOpStr,
+	NotFound,Error,ErrNOT_GOOD,ErrUnexpectedNextPfx,
+	ErrExpectedVariablePfx,ErrNoTask,ErrUnexpectedOp,
+	ErrQuadriplePointersNOT_ALLOWED,ErrUnknownOpStr,
 
 	ModePrefixPass,ModeStrPass,ModeComment,ModeMultiLineComment,
 };
@@ -62,6 +62,15 @@ typedef union Val {
 	float f32;
 	double d64;
 } Val;
+struct NameInfo {
+	Op type = Op::NotSet;
+	const char* name = nullptr;
+};
+struct NameInfoDB {
+	std::vector<NameInfo> pairs = {};
+	void add(const char* name, Op type);
+	Op findType(const char* name);
+};
 struct FuncObj {
 	Val retVal = {};
 	Op retType = Op::NotSet;
@@ -128,6 +137,7 @@ public:
 	bool m_StrAllowSpace = false;
 	Op m_CommentMode = Op::NotSet;
 	int m_MultiLineOffCount = 0;
+	NameInfoDB m_NameTypeCtx = {};
 
 	Compiler();
 	~Compiler();
@@ -511,7 +521,8 @@ const char* Compiler::GetPrintfFmtForType(Op type) {
 	case Op::u32:    return "u";
 	case Op::Char:   return "c";
 	}
-	Err(Op::ErrNOT_GOOD, "GetPrintfFmtForType: unknown type");
+	return "???";
+	//Err(Op::ErrNOT_GOOD, "GetPrintfFmtForType: unknown type");
 }
 void Compiler::PopAndDoTask()	{
 	if(m_TaskStack.empty())Err(Op::ErrNoTask, "task stack EMPTY!");
@@ -620,14 +631,19 @@ void Compiler::PopAndDoTask()	{
 			switch (c) {
 			case '%':{
 					if (!firstPercent) {
-						//printf("%%");
 						GetTaskCode += "%";
 						firstPercent = true;
 					}
 					else {
 						switch (GetTaskWorkingObjs[varIdx].getType()) {
+						case Op::Name:{
+							//get type of variable
+							//func args
+							//func block vars
+
+							//break;
+						}
 						case Op::Value:{
-								//printf("%s", GetPrintfFmtForType(GetTaskWorkingObjs[varIdx].var.type));
 								GetTaskCode += GetPrintfFmtForType(GetTaskWorkingObjs[varIdx].var.type);
 							}
 						}
@@ -637,24 +653,33 @@ void Compiler::PopAndDoTask()	{
 					break;
 				}
 			default: {
-				/*printf("%c", c);*/
 				GetTaskCode += c;
 				break;
 			}
 			}
 		}
 		GetTaskCode += "\"";
-		for (auto& o : GetTaskWorkingObjs) {
+		if (GetTaskWorkingObjs.size() > 1) GetTaskCode += ", ";
+		for (int i = 1; i < GetTaskWorkingObjs.size(); ++i) {
+			Obj& o = GetTaskWorkingObjs[i];
 			switch (o.getType()) {
+			case Op::Name: {
+				GetTaskCode += o.name;
+				break;
+			}
 			case Op::String: {
+				GetTaskCode += "\"";
 				GetTaskCode += std::string(o.str);
+				GetTaskCode += "\"";
 				break;
 			}
 			case Op::Value: {
-
+				GetTaskCode += std::to_string(o.val.i32);//for now
 			}
 			}
+			if(i < GetTaskWorkingObjs.size()-1) GetTaskCode += ", ";
 		}
+		GetTaskCode += ");\n";
 		break;
 	}
 	}
@@ -733,7 +758,7 @@ void Compiler::StrPayload(){
 	printf("Doing Str payload\n");
 	auto cs = m_Str.c_str();
 	Val strVal = {};
-	strVal.i64=strtoll(cs, nullptr, 10);
+	strVal.i32=atoi(cs);
 	m_NameOp = GetOpFromName(cs);
 	printf("Str: %s\n", cs);
 	switch (m_Pfx)
@@ -765,7 +790,8 @@ void Compiler::StrPayload(){
 			switch (m_TaskStack.top().type) {
 			case Op::CPrintfHaveFmtStr:{
 				pushObj({});
-				GetObj.setStr(cs);
+				//GetObj.setStr(cs);
+				GetObj.val = strVal;
 				GetObj.setType(Op::Value);
 				GetObj.var.type = Op::i32;//for now
 				popObj(true);
@@ -837,10 +863,12 @@ void Compiler::StrPayload(){
 			SetObjType(Op::FuncArgComplete);
 			PopPfxs();
 			GetObj.setName(cs);
+			m_NameTypeCtx.add(cs, GetObj.arg.type);
 			popObj(true);
 			break;
 		case Op::VarNeedName:
 			GetObj.setName(cs);
+			m_NameTypeCtx.add(cs, GetObj.var.type);
 			SetObjType(Op::VarWantValue);
 			//PushPfxs({ Op::Value });
 			PopPfxs();
@@ -964,4 +992,15 @@ int main(int argc, char** argv) {
 		printf("Error\n");
 	}
 	return 1;
+}
+
+void NameInfoDB::add(const char* name, Op type){
+	pairs.push_back({ type, _strdup(name) });
+}
+
+Op NameInfoDB::findType(const char* name){
+	for (auto& p : pairs)
+		if (!strcmp(p.name, name))
+			return p.type;
+	return Op::NotFound;
 }
