@@ -9,7 +9,7 @@
 
 //not actually a compiler
 //ascii only, maybe utf8 later...
-//transpile to ANSI C89/C90
+//transpile to C99
 //no order of operations, sequential ONLY
 //compiler options inside source code, preferably using code
 //in number order breakpoints, if hit in the wrong order or missing then failure
