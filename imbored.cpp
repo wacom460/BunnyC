@@ -288,7 +288,7 @@ Compiler::Compiler(){
 	m_StrReadPtrsStack.push(false);
 	PushPfxs({Op::Op}, "");
 	push(Op::ModePrefixPass);
-	pushObj({});
+	//pushObj({});
 }
 Compiler::~Compiler() {
 	if (m_StringMode)Err(Op::ErrNOT_GOOD, "Reached end of file without closing string");
@@ -714,7 +714,7 @@ void Compiler::PopAndDoTask()	{
 }
 void Compiler::Prefix(){
 	m_Pfx = fromPfxCh(m_Ch);
-	auto& obj = GetObj;
+	//auto& obj = GetObj;
 	if (m_Pfx != Op::Unknown 
 		&& !(m_AllowedNextPfxsStack.top().pfxs.empty())
 		&& !isPfxExpected(m_Pfx))
@@ -875,6 +875,7 @@ void Compiler::StrPayload(){
 			SetObjType(Op::FuncArgNameless);
 			GetObj.arg.type= m_NameOp;
 			GetObj.arg.mod = m_Pointer;
+			PopPfxs();
 			PushPfxs({Op::Name}, "Expected func arg name");
 			break;
 		}
@@ -970,7 +971,8 @@ void Compiler::StrPayload(){
 			break;
 		}
 		case Op::Func:
-			if (GetObjType != Op::NotSet)Err(Op::ErrNOT_GOOD, "");
+			//if (GetObjType != Op::NotSet)Err(Op::ErrNOT_GOOD, "");
+			pushObj({});
 			SetObjType(m_NameOp);
 			GetObj.func.retType = Op::Void;
 			GetObj.func.retTypeMod = Op::NotSet;
