@@ -344,6 +344,7 @@ Obj& Compiler::popObj(bool pushToWorking) {
 	GetObj.print();
 #endif
 	if (m_ObjStack.size() == 1)GetObj = {};
+	else m_ObjStack.pop();
 #if IB_DEBUG_EXTRA1
 	printf(" -> ");
 	GetObj.print();
@@ -886,13 +887,15 @@ void Compiler::StrPayload(){
 		}
 		SwitchTaskStackEnd
 		switch (GetObjType) {
-		case Op::Func:
+		case Op::Func: {
 			SetObjType(Op::FuncHasName);
 			SetTaskType(Op::FuncHasName);
 			PopPfxs();
-			PushPfxs({ Op::VarType,Op::LineEnd/*means allowed pfx will be cleared on newline*/ }, "");
+			auto allowed = { Op::VarType,Op::Op,Op::LineEnd/*means allowed pfx will be cleared on newline*/ };
+			PushPfxs(allowed, "");
 			GetObj.setName(cs);
 			break;
+		}
 		case Op::FuncArgNameless:
 			SetObjType(Op::FuncArgComplete);
 			PopPfxs();
@@ -944,6 +947,14 @@ void Compiler::StrPayload(){
 		case Op::Return: {
 			auto t = GetObjType;
 			switch (t) {
+			case Op::FuncArgComplete: {
+				printf("what\n");
+				popObj(true);
+				if (GetObjType != Op::FuncHasName) {
+					Err(Op::ErrNOT_GOOD, "expected FuncHasName");
+					break;
+				}
+			}
 			case Op::FuncHasName:
 				SetObjType(Op::FuncNeedsRetValType);
 				PushPfxs({ Op::VarType },"");

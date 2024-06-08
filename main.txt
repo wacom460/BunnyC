@@ -1,4 +1,4 @@
-@func $test %i32 $f
+@func $test %i32 $f @ret i32
 %i64 $fuck =24
 "values: %% %% %% %%" =10 =12 $f $fuck
 @@ =0
