@@ -529,10 +529,7 @@ void Compiler::PopAndDoTask()	{
 	if(m_TaskStack.empty())Err(Op::ErrNoTask, "task stack EMPTY!");
 	if(GetTaskWorkingObjs.empty())Err(Op::ErrNOT_GOOD, "workingObjs EMPTY!");
 	switch (m_TaskStack.top().type) {
-	case Op::FuncWantCode: {
-
-		break;
-	}
+	case Op::FuncWantCode: break;
 	case Op::FuncSigComplete:
 	case Op::FuncHasName:
 	case Op::Func: {
@@ -626,7 +623,7 @@ void Compiler::PopAndDoTask()	{
 		Obj& fmtObj = GetTaskWorkingObjs.front();
 		GetTaskCode += "printf(\"";
 		bool firstPercent = false;
-		int varIdx = 1;
+		int varIdx = 0;
 		for (int i = 0; i < strlen(fmtObj.str); ++i) {
 			auto c = fmtObj.str[i];
 			switch (c) {
@@ -636,17 +633,17 @@ void Compiler::PopAndDoTask()	{
 						firstPercent = true;
 					}
 					else {
-						switch (GetTaskWorkingObjs[varIdx].getType()) {
+						auto& vo = GetTaskWorkingObjs[varIdx + 1];
+						switch (vo.getType()) {
 						case Op::Name:{
-							//get type of variable
-							//func args
-							//func block vars
-
-							//break;
+							auto type = m_NameTypeCtx.findType(vo.name);
+							GetTaskCode += GetPrintfFmtForType(type);
+							break;
 						}
 						case Op::Value:{
-								GetTaskCode += GetPrintfFmtForType(GetTaskWorkingObjs[varIdx].var.type);
-							}
+							GetTaskCode += GetPrintfFmtForType(vo.var.type);
+							break;
+						}
 						}
 						firstPercent = false;
 						varIdx++;
