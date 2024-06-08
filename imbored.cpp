@@ -760,6 +760,11 @@ void Compiler::Str(){
 		return;
 	}
 	switch (m_Ch) {
+	case '@': {
+		pop();
+		Prefix();
+		return;
+	}
 	case '\t': return;
 	case ' ': {
 		if (m_StrAllowSpace) break;
