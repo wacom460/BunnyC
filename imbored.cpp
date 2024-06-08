@@ -484,7 +484,8 @@ void Compiler::Char(char ch){
 			case Op::FuncHasName: {
 				SetObjType(Op::FuncSigComplete);
 				PopPfxs();
-				PushPfxs({ Op::Op,Op::String }, "");
+				auto allowed = { Op::Op,Op::String, Op::VarType };
+				PushPfxs(allowed, "expected operator, print statement, or variable declaration");
 				popObj(true);
 				m_TaskStack.top().type = Op::FuncWantCode;
 				break;
