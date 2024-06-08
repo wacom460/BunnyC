@@ -528,6 +528,7 @@ const char* Compiler::GetPrintfFmtForType(Op type) {
 	//Err(Op::ErrNOT_GOOD, "GetPrintfFmtForType: unknown type");
 }
 void Compiler::PopAndDoTask()	{
+	printf("PopAndDoTask()\n");
 	if(m_TaskStack.empty())Err(Op::ErrNoTask, "task stack EMPTY!");
 	if(GetTaskWorkingObjs.empty())Err(Op::ErrNOT_GOOD, "workingObjs EMPTY!");
 	bool subTask = false;
@@ -621,6 +622,8 @@ void Compiler::PopAndDoTask()	{
 		}
 		//printf("%s\n", std::string(cFuncModsTypeName+cFuncArgs+cFuncCode).c_str());
 		m_cOutput += std::string(cFuncModsTypeName + cFuncArgs + cFuncCode);
+
+		//GetTaskWorkingObjs.clear();
 		break;
 	}
 	case Op::CPrintfHaveFmtStr: {
@@ -704,7 +707,6 @@ void Compiler::PopAndDoTask()	{
 		}
 	}
 	else popTask();
-	GetTaskWorkingObjs.clear();
 }
 void Compiler::Prefix(){
 	m_Pfx = fromPfxCh(m_Ch);
@@ -918,7 +920,8 @@ void Compiler::StrPayload(){
 			case Op::Func:
 			case Op::FuncHasName:
 			case Op::FuncWantCode:
-				printf("Finishing function\n");
+				PRINT_LINE_INFO();
+				printf(" Finishing function\n");
 				for (auto& obj : GetTaskWorkingObjs) {
 					//TODO: could cache func obj index later
 					if (obj.getType() == Op::FuncSigComplete) {
