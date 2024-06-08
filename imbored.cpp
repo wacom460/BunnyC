@@ -229,11 +229,11 @@ OpNamePair opNames[] = {
 	{"CPrintfHaveFmtStr",Op::CPrintfHaveFmtStr},{"FuncWantCode",Op::FuncWantCode},
 };
 OpNamePair pfxNames[] = {
-	{"NULL", Op::Null},{"Value (=)", Op::Value},{"Op (@)", Op::Op},
-	{"Comment (~)", Op::Comment},{"Name($)", Op::Name},
-	{"VarType (%)", Op::VarType},{"Pointer (&)", Op::Pointer},
-	{"Return (@ret)", Op::Return},{"Op::Unknown", Op::Unknown},
-	{"String (\")", Op::String},{"LineEnd", Op::LineEnd},
+	{"NULL", Op::Null},{"Value(=)", Op::Value},{"Op(@)", Op::Op},
+	{"Comment(~)", Op::Comment},{"Name($)", Op::Name},
+	{"VarType(%)", Op::VarType},{"Pointer(&)", Op::Pointer},
+	{"Return(@ret)", Op::Return},{"Op::Unknown", Op::Unknown},
+	{"String(\")", Op::String},{"LineEnd(\\n)", Op::LineEnd},
 };
 OpNamePair cEquivelents[] = {
 	{"void", Op::Void},{"return", Op::Return},
@@ -286,9 +286,9 @@ void owStr(char** str, const char* with) {
 }
 Compiler::Compiler(){
 	m_StrReadPtrsStack.push(false);
-	PushPfxs({Op::Op}, "");
+	//PushPfxs({Op::Op}, "");
+	m_AllowedNextPfxsStack.push({ { Op::Op }, "" });
 	push(Op::ModePrefixPass);
-	//pushObj({});
 }
 Compiler::~Compiler() {
 	if (m_StringMode)Err(Op::ErrNOT_GOOD, "Reached end of file without closing string");
@@ -395,20 +395,30 @@ void Obj::print() {
 	printf("]");
 }
 void Compiler::pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err) {
-	m_AllowedNextPfxsStack.push({ allowedNextPfxs, err });
 	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
-		printf(" push allowed next pfxs");
-		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf(", %s", GetPfxName(p));
-		printf("\n");
+		printf(" allowed pfxs PUSH: { ");
+		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
+		printf("} -> { ");
+		m_AllowedNextPfxsStack.push({ allowedNextPfxs, err });
+		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
+		printf("}\n");
 	}
 	else Err(Op::ErrNOT_GOOD, "pfx stack vec cannot be empty");
 }
 void Compiler::popAllowedNextPfxs() {
-	m_AllowedNextPfxsStack.pop();
+	/*m_AllowedNextPfxsStack.pop();
 	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
 		printf(" allowed next pfxs after POP");
 		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf(", %s", GetPfxName(p));
 		printf("\n");
+	}*/
+	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
+		printf(" allowed pfxs POP: { ");
+		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
+		printf("} -> { ");
+		m_AllowedNextPfxsStack.pop();
+		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
+		printf("}\n");
 	}
 }
 bool Compiler::isPfxExpected(Op pfx) {
@@ -467,7 +477,7 @@ void Compiler::Char(char ch){
 		case Op::VarWantValue: 
 		case Op::VarComplete: {
 			popObj(true);
-			PopPfxs();
+			//PopPfxs();
 			break;
 		}
 		}
@@ -867,6 +877,8 @@ void Compiler::StrPayload(){
 			}
 			popObj(true);
 			auto allowed = { Op::Op,Op::String, Op::VarType };
+			PopPfxs();
+			PopPfxs();
 			PushPfxs(allowed, "expected operator, print statement, or variable declaration");
 			break;
 		}
@@ -875,7 +887,7 @@ void Compiler::StrPayload(){
 			SetObjType(Op::FuncArgNameless);
 			GetObj.arg.type= m_NameOp;
 			GetObj.arg.mod = m_Pointer;
-			PopPfxs();
+			//PopPfxs();
 			PushPfxs({Op::Name}, "Expected func arg name");
 			break;
 		}
@@ -961,7 +973,7 @@ void Compiler::StrPayload(){
 			}
 			case Op::FuncHasName:
 				SetObjType(Op::FuncNeedsRetValType);
-				PopPfxs();
+				//PopPfxs();
 				PushPfxs({ Op::VarType },"");
 				break;
 			default:
