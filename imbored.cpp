@@ -741,6 +741,7 @@ void Compiler::Prefix(){
 	case Op::Value:
 	case Op::Op:
 	case Op::Name:
+		getchar();
 		push(Op::ModeStrPass);
 		break;
 	case Op::Comment:
