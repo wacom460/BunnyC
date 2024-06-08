@@ -9,7 +9,7 @@
 
 //not actually a compiler
 //ascii only, maybe utf8 later...
-//transpile to C
+//transpile to ANSI C89/C90
 //no order of operations, sequential ONLY
 //compiler options inside source code, preferably using code
 //in number order breakpoints, if hit in the wrong order or missing then failure
@@ -95,11 +95,11 @@ public:
 	Op privacy = Op::NoChange;
 	char* name = nullptr;
 	char* str = nullptr;
-	union {
+	//union {
 		FuncObj func;
 		VarObj var;
 		ArgObj arg = {};
-	};
+	//};
 	Val val = {};
 	const Op getType();
 	void setType(Op type);
@@ -809,6 +809,7 @@ void Compiler::StrPayload(){
 		case Op::VarWantValue: {
 			GetObj.var.val = strVal;
 			SetObjType(Op::VarComplete);
+			PopPfxs();
 			break;
 		}
 		}
@@ -865,6 +866,8 @@ void Compiler::StrPayload(){
 				SetTaskType(Op::FuncWantCode);
 			}
 			popObj(true);
+			auto allowed = { Op::Op,Op::String, Op::VarType };
+			PushPfxs(allowed, "expected operator, print statement, or variable declaration");
 			break;
 		}
 		case Op::FuncHasName:
@@ -872,7 +875,7 @@ void Compiler::StrPayload(){
 			SetObjType(Op::FuncArgNameless);
 			GetObj.arg.type= m_NameOp;
 			GetObj.arg.mod = m_Pointer;
-			PushPfxs({Op::Name}, "");
+			PushPfxs({Op::Name}, "Expected func arg name");
 			break;
 		}
 		break;
@@ -957,6 +960,7 @@ void Compiler::StrPayload(){
 			}
 			case Op::FuncHasName:
 				SetObjType(Op::FuncNeedsRetValType);
+				PopPfxs();
 				PushPfxs({ Op::VarType },"");
 				break;
 			default:
