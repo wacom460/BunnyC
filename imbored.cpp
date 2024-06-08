@@ -505,18 +505,11 @@ void Compiler::Char(char ch){
 }
 const char* Compiler::GetPrintfFmtForType(Op type) {
 	switch (type) {
-	case Op::String:
-		return "%s";
-		break;
-	case Op::i32:
-		return "%d";
-		break;
-	case Op::f32:
-		return "%f";
-		break;
-	case Op::Char:
-		return "%c";
-		break;
+	case Op::String: return "s";
+	case Op::i32:    return "d";
+	case Op::f32:    return "f";
+	case Op::u32:    return "u";
+	case Op::Char:   return "c";
 	}
 	Err(Op::ErrNOT_GOOD, "GetPrintfFmtForType: unknown type");
 }
@@ -627,15 +620,30 @@ void Compiler::PopAndDoTask()	{
 			switch (c) {
 			case '%':{
 					if (!firstPercent) {
+						//printf("%%");
+						GetTaskCode += "%";
 						firstPercent = true;
 					}
 					else {
-						printf("%s", GetPrintfFmtForType(GetTaskWorkingObjs[varIdx].getType()));
+						switch (GetTaskWorkingObjs[varIdx].getType()) {
+						case Op::Value:{
+								//printf("%s", GetPrintfFmtForType(GetTaskWorkingObjs[varIdx].var.type));
+								GetTaskCode += GetPrintfFmtForType(GetTaskWorkingObjs[varIdx].var.type);
+							}
+						}
+						firstPercent = false;
 						varIdx++;
 					}
+					break;
 				}
+			default: {
+				/*printf("%c", c);*/
+				GetTaskCode += c;
+				break;
+			}
 			}
 		}
+		GetTaskCode += "\"";
 		for (auto& o : GetTaskWorkingObjs) {
 			switch (o.getType()) {
 			case Op::String: {
@@ -759,6 +767,7 @@ void Compiler::StrPayload(){
 				pushObj({});
 				GetObj.setStr(cs);
 				GetObj.setType(Op::Value);
+				GetObj.var.type = Op::i32;//for now
 				popObj(true);
 				//PopPfxs();
 				break;
