@@ -202,7 +202,7 @@ struct OpNamePair {
 OpNamePair opNames[] = {
 	{"null", Op::Null},{"no", Op::False},{"yes", Op::True},{"set", Op::Set},
 	{"call", Op::Call},{"add", Op::SetAdd},{"func", Op::Func},{"~", Op::Comment},
-	{"%", Op::VarType},{"=", Op::Value},{"@", Op::Done},{"ret", Op::Return},
+	{"%", Op::VarType},{"Value", Op::Value},{"@", Op::Done},{"ret", Op::Return},
 	{"ext", Op::Imaginary},{"if", Op::If},{"else", Op::Else},{"use", Op::Use},
 	{"build", Op::Build},{"space", Op::Space},{"+", Op::Add},{"-", Op::Subtract},
 	{"*", Op::Multiply},{"/", Op::Divide},{"is", Op::Equals},{"neq", Op::NotEquals},
@@ -294,6 +294,9 @@ Compiler::~Compiler() {
 	if (m_StringMode)Err(Op::ErrNOT_GOOD, "Reached end of file without closing string");
 	if (!m_Str.empty()) StrPayload();
 	SwitchTaskStackStart
+		case Op::FuncNeedRetVal:
+			Err(Op::ErrNOT_GOOD, "Reached end of file without closing function");
+			break;
 		case Op::FuncSigComplete:
 		case Op::FuncHasName: {
 			SetObjType(Op::FuncSigComplete);
