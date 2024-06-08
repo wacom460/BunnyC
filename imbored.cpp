@@ -143,6 +143,7 @@ public:
 	//NO NEWLINES AT END OF STR
 	void Char(char ch);
 	void PopAndDoTask();
+	const char* GetPrintfFmtForType(Op type);
 	void Prefix();
 	void Str();
 	void StrPayload();
@@ -502,6 +503,23 @@ void Compiler::Char(char ch){
 		m_Line++;
 	}
 }
+const char* Compiler::GetPrintfFmtForType(Op type) {
+	switch (type) {
+	case Op::String:
+		return "%s";
+		break;
+	case Op::i32:
+		return "%d";
+		break;
+	case Op::f32:
+		return "%f";
+		break;
+	case Op::Char:
+		return "%c";
+		break;
+	}
+	Err(Op::ErrNOT_GOOD, "GetPrintfFmtForType: unknown type");
+}
 void Compiler::PopAndDoTask()	{
 	if(m_TaskStack.empty())Err(Op::ErrNoTask, "task stack EMPTY!");
 	if(GetTaskWorkingObjs.empty())Err(Op::ErrNOT_GOOD, "workingObjs EMPTY!");
@@ -600,20 +618,21 @@ void Compiler::PopAndDoTask()	{
 		break;
 	}
 	case Op::CPrintfHaveFmtStr: {
-		printf("CPrintfHaveFmtStr\n");
 		Obj& fmtObj = GetTaskWorkingObjs.front();
 		GetTaskCode += "printf(\"";
 		bool firstPercent = false;
-		for (auto c : std::string(fmtObj.str)) {
+		int varIdx = 1;
+		for (int i = 0; i < strlen(fmtObj.str); ++i) {
+			auto c = fmtObj.str[i];
 			switch (c) {
 			case '%':{
 					if (!firstPercent) {
-
+						firstPercent = true;
 					}
 					else {
-
+						printf("%s", GetPrintfFmtForType(GetTaskWorkingObjs[varIdx].getType()));
+						varIdx++;
 					}
-					break;
 				}
 			}
 		}
