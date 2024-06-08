@@ -41,7 +41,7 @@ enum class Op { //multiple uses
 
 	Comma,CommaSpace,Name,String,CPrintfFmtStr,Char,If,Else,For,While,Block,
 	c8,u8,u16,u32,u64,i8,i16,i32,i64,f32,d64,
-	Pointer,DoublePointer,TripplePointer,CompilerFlags,
+	Pointer,DoublePointer,TripplePointer,CompilerFlags,dbgBreak,
 
 	NotFound,Error,ErrNOT_GOOD,ErrUnexpectedNextPfx,
 	ErrExpectedVariablePfx,ErrNoTask,ErrUnexpectedOp,
@@ -122,7 +122,7 @@ struct Task {
 };
 class Compiler {
 public:
-	int m_Line = 1, m_Column = 0;
+	int m_Line = 1, m_Column = 1;
 	Op m_Pfx = Op::Null;
 	std::string m_Str = {}, m_cOutput = {};
 	std::stack<Obj> m_ObjStack = {};
@@ -226,7 +226,7 @@ OpNamePair opNames[] = {
 	{"CompletedFunction",Op::CompletedFunction},{"ErrUnknownOpStr",Op::ErrUnknownOpStr},
 	{"ErrNOT_GOOD", Op::ErrNOT_GOOD},{"FuncNeedName",Op::FuncNeedName},{"String", Op::String},
 	{"VarComplete", Op::VarComplete},{"VarWantValue",Op::VarWantValue},{"LineEnd", Op::LineEnd},
-	{"CPrintfHaveFmtStr",Op::CPrintfHaveFmtStr},{"FuncWantCode",Op::FuncWantCode},
+	{"CPrintfHaveFmtStr",Op::CPrintfHaveFmtStr},{"FuncWantCode",Op::FuncWantCode},{"dbgBreak", Op::dbgBreak}
 };
 OpNamePair pfxNames[] = {
 	{"NULL", Op::Null},{"Value(=)", Op::Value},{"Op(@)", Op::Op},
@@ -289,6 +289,7 @@ Compiler::Compiler(){
 	//PushPfxs({Op::Op}, "");
 	m_AllowedNextPfxsStack.push({ { Op::Op }, "" });
 	push(Op::ModePrefixPass);
+	pushObj({});
 }
 Compiler::~Compiler() {
 	if (m_StringMode)Err(Op::ErrNOT_GOOD, "Reached end of file without closing string");
@@ -495,13 +496,21 @@ void Compiler::Char(char ch){
 				break;
 			}
 			//case Op::FuncSignatureComplete:
+			case Op::FuncSigComplete:
 			case Op::FuncHasName: {
 				SetObjType(Op::FuncSigComplete);
 				PopPfxs();
-				auto allowed = { Op::Op,Op::String, Op::VarType };
-				PushPfxs(allowed, "expected operator, print statement, or variable declaration");
+				PopPfxs();
+				Op mod = GetObj.getMod();
 				popObj(true);
-				m_TaskStack.top().type = Op::FuncWantCode;
+				if (mod != Op::Imaginary) {
+					auto allowed = { Op::Op,Op::String, Op::VarType };
+					PushPfxs(allowed, "expected operator, print statement, or variable declaration");
+					m_TaskStack.top().type = Op::FuncWantCode;
+				}
+				else {
+					PopAndDoTask();
+				}
 				break;
 			}
 		SwitchTaskStackEnd
@@ -512,7 +521,7 @@ void Compiler::Char(char ch){
 	m_Column++;
 	if (!nl && m_CommentMode == Op::NotSet) {
 		if(this->m_Ch == ' ') printf("-> SPACE (0x%x)\n",  this->m_Ch);
-		else printf("-> %c (0x%x)\n", this->m_Ch, this->m_Ch);
+		else printf("-> %c (0x%x) %d:%d\n", this->m_Ch, this->m_Ch, m_Line, m_Column);
 		switch (m) {
 		case Op::ModePrefixPass:
 			Prefix();
@@ -643,7 +652,7 @@ void Compiler::PopAndDoTask()	{
 	case Op::CPrintfHaveFmtStr: {
 		subTask = true;
 		Obj& fmtObj = GetTaskWorkingObjs.front();
-		GetTaskCode += "printf(\"";
+		GetTaskCode += "\tprintf(\"";
 		bool firstPercent = false;
 		int varIdx = 1;
 		for (int i = 0; i < strlen(fmtObj.str); ++i) {
@@ -869,17 +878,17 @@ void Compiler::StrPayload(){
 			GetObj.func.retType = m_NameOp;
 			GetObj.func.retTypeMod = m_Pointer;
 			SetObjType(Op::FuncSigComplete);
-			if (GetObj.getMod() == Op::Imaginary) {
+			/*if (GetObj.getMod() == Op::Imaginary) {
 				SetTaskType(Op::FuncSigComplete);
 			}
 			else {
 				SetTaskType(Op::FuncWantCode);
-			}
-			popObj(true);
-			auto allowed = { Op::Op,Op::String, Op::VarType };
+			}*/
+			//popObj(true);
+			/*auto allowed = { Op::Op,Op::String, Op::VarType };
 			PopPfxs();
 			PopPfxs();
-			PushPfxs(allowed, "expected operator, print statement, or variable declaration");
+			PushPfxs(allowed, "expected operator, print statement, or variable declaration");*/
 			break;
 		}
 		case Op::FuncHasName:
@@ -931,10 +940,15 @@ void Compiler::StrPayload(){
 	}
 	case Op::Op: //@
 		switch (m_NameOp) {
+		case Op::dbgBreak: {
+			__debugbreak();
+			m_TaskStack;
+			break;
+		}
 		case Op::Imaginary:
 			GetObj.setMod(m_NameOp);
 			//setAllowedNextPfxs({});
-			PopPfxs();
+			//PopPfxs();
 			break;
 		case Op::Done:
 			if (m_TaskStack.empty()) Err(Op::ErrNoTask, "");
@@ -984,7 +998,7 @@ void Compiler::StrPayload(){
 		}
 		case Op::Func:
 			//if (GetObjType != Op::NotSet)Err(Op::ErrNOT_GOOD, "");
-			pushObj({});
+			//pushObj({});
 			SetObjType(m_NameOp);
 			GetObj.func.retType = Op::Void;
 			GetObj.func.retTypeMod = Op::NotSet;
