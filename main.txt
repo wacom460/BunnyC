@@ -10,7 +10,9 @@
 "%%" $a
 %&void $vp =@call $malloc =100
 @@
+~~
 @func $func2 %u64 $v @ret %c8
 "%%" $v
 @@ =0
 ~@dbgBreak
+~~

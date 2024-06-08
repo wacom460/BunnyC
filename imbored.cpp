@@ -152,7 +152,7 @@ public:
 	//NO NEWLINES AT END OF STR
 	void Char(char ch);
 	void PopAndDoTask();
-	const char* GetPrintfFmtForType(Op type);
+	const char* GetCPrintfFmtForType(Op type);
 	void Prefix();
 	void Str();
 	void StrPayload();
@@ -282,8 +282,7 @@ void owStr(char** str, const char* with) {
 	if (*str) free(*str);
 	*str = _strdup(with);
 }
-Obj& Compiler::GetObj()
-{
+Obj& Compiler::GetObj() {
 	return m_ObjStack.top();
 }
 Compiler::Compiler(){
@@ -401,17 +400,12 @@ void Compiler::pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* 
 	else Err(Op::ErrNOT_GOOD, "pfx stack vec cannot be empty");
 }
 void Compiler::popAllowedNextPfxs() {
-	/*m_AllowedNextPfxsStack.pop();
-	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
-		printf(" allowed next pfxs after POP");
-		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf(", %s", GetPfxName(p));
-		printf("\n");
-	}*/
 	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
 		printf(" allowed pfxs POP: { ");
 		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
 		printf("} -> { ");
 		m_AllowedNextPfxsStack.pop();
+		if (m_AllowedNextPfxsStack.empty()) Err(Op::ErrNOT_GOOD, "catastrophic failure");
 		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
 		printf("}\n");
 	}
@@ -511,6 +505,9 @@ void Compiler::Char(char ch){
 		break;
 	}
 	}
+	if (m_MultiLineOffCount == 1 && m_Ch != COMMENT_CHAR) {
+		m_MultiLineOffCount = 0;
+	}
 	auto m = m_ModeStack.top();
 	m_Column++;
 	if (!nl && m_CommentMode == Op::NotSet) {
@@ -531,7 +528,7 @@ void Compiler::Char(char ch){
 		m_Line++;
 	}
 }
-const char* Compiler::GetPrintfFmtForType(Op type) {
+const char* Compiler::GetCPrintfFmtForType(Op type) {
 	switch (type) {
 	case Op::String: return "s";
 	case Op::i32:    return "d";
@@ -541,8 +538,8 @@ const char* Compiler::GetPrintfFmtForType(Op type) {
 	case Op::u32:    return "u";
 	case Op::Char:   return "c";
 	}
+	Err(Op::ErrNOT_GOOD, "GetPrintfFmtForType: unknown type");
 	return "???";
-	//Err(Op::ErrNOT_GOOD, "GetPrintfFmtForType: unknown type");
 }
 void Compiler::PopAndDoTask()	{
 	printf("PopAndDoTask()\n");
@@ -662,11 +659,11 @@ void Compiler::PopAndDoTask()	{
 						switch (vo.getType()) {
 						case Op::Name:{
 							auto type = m_NameTypeCtx.findType(vo.name);
-							GetTaskCode += GetPrintfFmtForType(type);
+							GetTaskCode += GetCPrintfFmtForType(type);
 							break;
 						}
 						case Op::Value:{
-							GetTaskCode += GetPrintfFmtForType(vo.var.type);
+							GetTaskCode += GetCPrintfFmtForType(vo.var.type);
 							break;
 						}
 						}
@@ -727,7 +724,7 @@ void Compiler::PopAndDoTask()	{
 }
 void Compiler::Prefix(){
 	m_Pfx = fromPfxCh(m_Ch);
-	//auto& obj = GetObj;
+	auto& obj = GetObj();
 	if (m_Pfx != Op::Unknown 
 		&& !(m_AllowedNextPfxsStack.top().pfxs.empty())
 		&& !isPfxExpected(m_Pfx))
