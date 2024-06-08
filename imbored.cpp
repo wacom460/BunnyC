@@ -39,7 +39,7 @@ enum class Op { //multiple uses
 	BracketOpen,BracketClose,SingleQuote,DoubleQuote,
 	CPrintfHaveFmtStr,
 
-	Comma,CommaSpace,Name,String,Char,If,Else,For,While,Block,
+	Comma,CommaSpace,Name,String,CPrintfFmtStr,Char,If,Else,For,While,Block,
 	c8,u8,u16,u32,u64,i8,i16,i32,i64,f32,d64,
 	Pointer,DoublePointer,TripplePointer,CompilerFlags,
 
@@ -104,6 +104,13 @@ struct AllowedPfxs {
 	std::vector<Op> pfxs = {};
 	const char* err = NULL;
 };
+struct Task {
+	Op type = Op::NotSet;
+	std::vector<Obj> working = {};
+	std::string code = {};
+	std::string codePart1 = {};
+	std::string codePart2 = {};
+};
 class Compiler {
 public:
 	int m_Line = 0, m_Column = 0;
@@ -116,8 +123,8 @@ public:
 	char m_Ch = '\0';
 	std::stack<bool> m_StrReadPtrsStack;
 	bool m_StringMode = false;
-	std::stack<Op> m_ModeStack, m_TaskStack;
-	std::vector<Obj> m_WorkingObjs;
+	std::stack<Op> m_ModeStack;
+	std::stack<Task> m_TaskStack;
 	bool m_StrAllowSpace = false;
 	Op m_CommentMode = Op::NotSet;
 	int m_MultiLineOffCount = 0;
@@ -162,8 +169,19 @@ public:
 	PRINT_LINE_INFO();\
 	popAllowedNextPfxs();\
 }
+#define GetTask (m_TaskStack.top())
+#define GetTaskType   (GetTask.type)
+#define GetTaskCode   (GetTask.code)
+#define GetTaskCodeP1 (GetTask.codePart1)
+#define GetTaskCodeP2 (GetTask.codePart2)
+#define SetTaskType(tt) {\
+	PRINT_LINE_INFO();\
+	printf("SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(GetTask.type), (int)GetTask.type, GetOpName(tt), (int)tt);\
+	GetTask.type = tt;\
+}
+#define GetTaskWorkingObjs (GetTask.working)
 #define SwitchTaskStackStart if (!m_TaskStack.empty()) {\
-	switch (m_TaskStack.top()) {
+	switch (m_TaskStack.top().type) {
 #define SwitchTaskStackEnd }\
 	}
 struct OpNamePair {
@@ -278,10 +296,10 @@ Compiler::~Compiler() {
 }
 void Compiler::pushTask(Op task) {
 	printf("Push task %s(%d)\n", GetOpName(task),(int)task);
-	m_TaskStack.push(task);
+	m_TaskStack.push({ task, {} });
 }
 void Compiler::popTask() {
-	printf("Pop task %s(%d)\n", GetOpName(m_TaskStack.top()),(int)m_TaskStack.top());
+	printf("Pop task %s(%d)\n", GetOpName(m_TaskStack.top().type),(int)m_TaskStack.top().type);
 	m_TaskStack.pop();
 }
 Obj& Compiler::pushObj(Obj obj) {
@@ -305,7 +323,7 @@ Obj& Compiler::popObj(bool pushToWorking) {
 		printf("To working: ");
 		GetObj.print();
 		printf("\n");
-		m_WorkingObjs.push_back(GetObj);
+		GetTaskWorkingObjs.push_back(GetObj);
 	}
 #if IB_DEBUG_EXTRA1
 	printf("Pop obj: ");
@@ -457,7 +475,7 @@ void Compiler::Char(char ch){
 				PopPfxs();
 				PushPfxs({ Op::Op,Op::String }, "");
 				popObj(true);
-				m_TaskStack.top() = Op::FuncWantCode;
+				m_TaskStack.top().type = Op::FuncWantCode;
 				break;
 			}
 		SwitchTaskStackEnd
@@ -486,8 +504,8 @@ void Compiler::Char(char ch){
 }
 void Compiler::PopAndDoTask()	{
 	if(m_TaskStack.empty())Err(Op::ErrNoTask, "task stack EMPTY!");
-	if(m_WorkingObjs.empty())Err(Op::ErrNOT_GOOD, "workingObjs EMPTY!");
-	switch (m_TaskStack.top()) {
+	if(GetTaskWorkingObjs.empty())Err(Op::ErrNOT_GOOD, "workingObjs EMPTY!");
+	switch (m_TaskStack.top().type) {
 	case Op::FuncWantCode: {
 
 		break;
@@ -498,8 +516,8 @@ void Compiler::PopAndDoTask()	{
 		std::string cFuncModsTypeName, cFuncArgs, cFuncCode;
 		bool imaginary = false;
 		Obj* funcObj=nullptr;
-		for (int i = 0; i < m_WorkingObjs.size(); ++i) {
-			auto& o = m_WorkingObjs[i];
+		for (int i = 0; i < GetTaskWorkingObjs.size(); ++i) {
+			auto& o = GetTaskWorkingObjs[i];
 			switch (o.getType()) {
 			case Op::FuncArgComplete: {//multiple allowed
 				auto at = o.arg.type;
@@ -536,7 +554,7 @@ void Compiler::PopAndDoTask()	{
 			}
 			}
 		}
-		for (auto& o : m_WorkingObjs) {
+		for (auto& o : GetTaskWorkingObjs) {
 			switch (o.getType()) {
 			case Op::VarComplete: {
 				cFuncCode += "\t";	
@@ -582,12 +600,39 @@ void Compiler::PopAndDoTask()	{
 		break;
 	}
 	case Op::CPrintfHaveFmtStr: {
+		printf("CPrintfHaveFmtStr\n");
+		Obj& fmtObj = GetTaskWorkingObjs.front();
+		GetTaskCode += "printf(\"";
+		bool firstPercent = false;
+		for (auto c : std::string(fmtObj.str)) {
+			switch (c) {
+			case '%':{
+					if (!firstPercent) {
 
+					}
+					else {
+
+					}
+					break;
+				}
+			}
+		}
+		for (auto& o : GetTaskWorkingObjs) {
+			switch (o.getType()) {
+			case Op::String: {
+				GetTaskCode += std::string(o.str);
+				break;
+			}
+			case Op::Value: {
+
+			}
+			}
+		}
 		break;
 	}
 	}
 	popTask();
-	m_WorkingObjs.clear();
+	GetTaskWorkingObjs.clear();
 }
 void Compiler::Prefix(){
 	m_Pfx = fromPfxCh(m_Ch);
@@ -669,10 +714,11 @@ void Compiler::StrPayload(){
 	case Op::String: { //"
 		SwitchTaskStackStart
 		case Op::FuncWantCode: { //printf
+			pushTask(Op::CPrintfHaveFmtStr);
 			pushObj({});
 			GetObj.setStr(cs);
-			GetObj.setType(Op::String);
-			pushTask(Op::CPrintfHaveFmtStr);
+			GetObj.setType(Op::CPrintfFmtStr);
+			popObj(true);
 			auto allowed = { Op::Value, Op::Name, Op::String, Op::LineEnd };
 			PushPfxs(allowed, "expected fmt args or line end");
 			break;
@@ -689,11 +735,8 @@ void Compiler::StrPayload(){
 		}
 		}
 		if (!m_TaskStack.empty()) {
-			switch (m_TaskStack.top()) {
+			switch (m_TaskStack.top().type) {
 			case Op::CPrintfHaveFmtStr:{
-				/*PopPfxs();
-				std::vector<Op> allowed = { Op::LineEnd, Op::Value, Op::Name, Op::String };
-				PushPfxs(allowed, "expected more fmt args or line end");*/
 				pushObj({});
 				GetObj.setStr(cs);
 				GetObj.setType(Op::Value);
@@ -702,13 +745,13 @@ void Compiler::StrPayload(){
 				break;
 			}
 			case Op::FuncNeedRetVal:
-				for (auto& obj : m_WorkingObjs) {
+				for (auto& obj : GetTaskWorkingObjs) {
 					if (obj.getType() == Op::FuncSigComplete) {
 						printf("Finishing func got ret value\n");
 						obj.func.retVal = strVal;
 						//SetObjType(Op::CompletedFunction);
 						PopPfxs();
-						m_TaskStack.top() = Op::Func;
+						SetTaskType(Op::Func);
 						PopAndDoTask();
 						break;
 					}
@@ -719,7 +762,7 @@ void Compiler::StrPayload(){
 		break;
 	}
 	case Op::VarType: //%
-		switch (m_TaskStack.top()) {
+		switch (m_TaskStack.top().type) {
 		case Op::FuncWantCode: {
 			pushObj({});
 			GetObj.var.type = m_NameOp;
@@ -731,15 +774,15 @@ void Compiler::StrPayload(){
 		}
 		switch (GetObjType) {
 		case Op::FuncNeedsRetValType: {
-			if (m_TaskStack.top() != Op::FuncHasName)Err(Op::ErrNOT_GOOD, "func signature needs name");
+			if (GetTaskType != Op::FuncHasName)Err(Op::ErrNOT_GOOD, "func signature needs name");
 			GetObj.func.retType = m_NameOp;
 			GetObj.func.retTypeMod = m_Pointer;
 			SetObjType(Op::FuncSigComplete);
 			if (GetObj.getMod() == Op::Imaginary) {
-				m_TaskStack.top() = Op::FuncSigComplete;
+				SetTaskType(Op::FuncSigComplete);
 			}
 			else {
-				m_TaskStack.top() = Op::FuncWantCode;
+				SetTaskType(Op::FuncWantCode);
 			}
 			popObj(true);
 			break;
@@ -757,7 +800,7 @@ void Compiler::StrPayload(){
 		switch (GetObjType){
 		case Op::Func:
 			SetObjType(Op::FuncHasName);
-			m_TaskStack.top() = Op::FuncHasName;
+			SetTaskType(Op::FuncHasName);
 			PopPfxs();
 			PushPfxs({Op::VarType,Op::LineEnd/*means allowed pfx will be cleared on newline*/}, "");
 			GetObj.setName(cs);
@@ -785,20 +828,19 @@ void Compiler::StrPayload(){
 			break;
 		case Op::Done:
 			if (m_TaskStack.empty()) Err(Op::ErrNoTask, "");
-			switch (m_TaskStack.top()) {
+			switch (GetTaskType) {
 			case Op::Func:
 			case Op::FuncHasName:
 			case Op::FuncWantCode:
 				printf("Finishing function\n");
-				for (auto& obj : m_WorkingObjs) {
+				for (auto& obj : GetTaskWorkingObjs) {
 					//TODO: could cache func obj index later
 					if (obj.getType() == Op::FuncSigComplete) {
 						if (obj.func.retType != Op::Void) {
 							PushPfxs({Op::Value},"");
-							m_TaskStack.top() = Op::FuncNeedRetVal;
+							SetTaskType(Op::FuncNeedRetVal);
 						}else {
-							//obj.setType(Op::CompletedFunction);
-							m_TaskStack.top() = Op::Func;
+							SetTaskType(Op::Func);
 							PopAndDoTask();
 							PopPfxs();
 						}
