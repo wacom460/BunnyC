@@ -137,7 +137,7 @@ public:
 	Op m_CommentMode = Op::NotSet;
 	int m_MultiLineOffCount = 0;
 	NameInfoDB m_NameTypeCtx = {};
-
+	Obj& GetObj();
 	Compiler();
 	~Compiler();
 	void pushTask(Op task);
@@ -167,10 +167,9 @@ public:
 }
 #define SetObjType(type){\
 	PRINT_LINE_INFO();\
-	GetObj.setType(type);\
+	GetObj().setType(type);\
 }
-#define GetObj (m_ObjStack.top())
-#define GetObjType (GetObj.getType())
+#define GetObjType (GetObj().getType())
 #define PushPfxs(pfxs, msg){\
 	PRINT_LINE_INFO();\
 	pushAllowedNextPfxs(pfxs, msg);\
@@ -283,6 +282,10 @@ void owStr(char** str, const char* with) {
 	if (*str) free(*str);
 	*str = _strdup(with);
 }
+Obj& Compiler::GetObj()
+{
+	return m_ObjStack.top();
+}
 Compiler::Compiler(){
 	m_StrReadPtrsStack.push(false);
 	//PushPfxs({Op::Op}, "");
@@ -319,30 +322,30 @@ void Compiler::popTask() {
 Obj& Compiler::pushObj(Obj obj) {
 	printf("Push obj: ");
 	if (!m_ObjStack.empty()) {
-		GetObj.print();
+		GetObj().print();
 		printf(" -> ");
 	}
 	m_ObjStack.push(obj);
-	GetObj.print();
+	GetObj().print();
 	printf("\n");
-	return GetObj;
+	return GetObj();
 }
 Obj& Compiler::popObj(bool pushToWorking) {
 	if (pushToWorking){
 		if (GetObjType == Op::NotSet)Err(Op::ErrNOT_GOOD, "");
 		printf("To working: ");
-		GetObj.print();
+		GetObj().print();
 		printf("\n");
-		GetTaskWorkingObjs.push_back(GetObj);
+		GetTaskWorkingObjs.push_back(GetObj());
 	}
 	printf("Pop obj: ");
-	GetObj.print();
-	if (m_ObjStack.size() == 1)GetObj = {};
+	GetObj().print();
+	if (m_ObjStack.size() == 1)GetObj() = {};
 	else m_ObjStack.pop();
 	printf(" -> ");
-	GetObj.print();
+	GetObj().print();
 	printf("\n");
-	return GetObj;
+	return GetObj();
 }
 void Compiler::push(Op mode, bool strAllowSpace){
 	this->m_StrAllowSpace = strAllowSpace;
@@ -492,7 +495,7 @@ void Compiler::Char(char ch){
 				SetObjType(Op::FuncSigComplete);
 				PopPfxs();
 				PopPfxs();
-				Op mod = GetObj.getMod();
+				Op mod = GetObj().getMod();
 				popObj(true);
 				if (mod != Op::Imaginary) {
 					auto allowed = { Op::Op,Op::String, Op::VarType };
@@ -809,8 +812,8 @@ void Compiler::StrPayload(){
 		case Op::FuncWantCode: { //printf
 			pushTask(Op::CPrintfHaveFmtStr);
 			pushObj({});
-			GetObj.setStr(cs);
-			GetObj.setType(Op::CPrintfFmtStr);
+			GetObj().setStr(cs);
+			GetObj().setType(Op::CPrintfFmtStr);
 			popObj(true);
 			auto allowed = { Op::Value, Op::Name, Op::String, Op::LineEnd };
 			PushPfxs(allowed, "expected fmt args or line end");
@@ -822,7 +825,7 @@ void Compiler::StrPayload(){
 	case Op::Value: { //=
 		switch (GetObjType) {
 		case Op::VarWantValue: {
-			GetObj.var.val = strVal;
+			GetObj().var.val = strVal;
 			SetObjType(Op::VarComplete);
 			PopPfxs();
 			break;
@@ -832,10 +835,10 @@ void Compiler::StrPayload(){
 			switch (m_TaskStack.top().type) {
 			case Op::CPrintfHaveFmtStr:{
 				pushObj({});
-				//GetObj.setStr(cs);
-				GetObj.val = strVal;
-				GetObj.setType(Op::Value);
-				GetObj.var.type = Op::i32;//for now
+				//GetObj().setStr(cs);
+				GetObj().val = strVal;
+				GetObj().setType(Op::Value);
+				GetObj().var.type = Op::i32;//for now
 				popObj(true);
 				//PopPfxs();
 				break;
@@ -861,8 +864,8 @@ void Compiler::StrPayload(){
 		switch (m_TaskStack.top().type) {
 		case Op::FuncWantCode: {
 			pushObj({});
-			GetObj.var.type = m_NameOp;
-			GetObj.var.mod = Op::NotSet;
+			GetObj().var.type = m_NameOp;
+			GetObj().var.mod = Op::NotSet;
 			SetObjType(Op::VarNeedName);
 			PushPfxs({ Op::Name }, "Expected variable name after variable type");
 			break;
@@ -871,10 +874,10 @@ void Compiler::StrPayload(){
 		switch (GetObjType) {
 		case Op::FuncNeedsRetValType: {
 			if (GetTaskType != Op::FuncHasName)Err(Op::ErrNOT_GOOD, "func signature needs name");
-			GetObj.func.retType = m_NameOp;
-			GetObj.func.retTypeMod = m_Pointer;
+			GetObj().func.retType = m_NameOp;
+			GetObj().func.retTypeMod = m_Pointer;
 			SetObjType(Op::FuncSigComplete);
-			/*if (GetObj.getMod() == Op::Imaginary) {
+			/*if (GetObj().getMod() == Op::Imaginary) {
 				SetTaskType(Op::FuncSigComplete);
 			}
 			else {
@@ -890,8 +893,8 @@ void Compiler::StrPayload(){
 		case Op::FuncHasName:
 			pushObj({});
 			SetObjType(Op::FuncArgNameless);
-			GetObj.arg.type= m_NameOp;
-			GetObj.arg.mod = m_Pointer;
+			GetObj().arg.type= m_NameOp;
+			GetObj().arg.mod = m_Pointer;
 			//PopPfxs();
 			PushPfxs({Op::Name}, "Expected func arg name");
 			break;
@@ -901,8 +904,8 @@ void Compiler::StrPayload(){
 		SwitchTaskStackStart
 		case Op::CPrintfHaveFmtStr: {
 			pushObj({});
-			GetObj.setName(cs);
-			GetObj.setType(Op::Name);
+			GetObj().setName(cs);
+			GetObj().setType(Op::Name);
 			popObj(true);
 			break;
 		}
@@ -914,19 +917,19 @@ void Compiler::StrPayload(){
 			PopPfxs();
 			auto allowed = { Op::VarType,Op::Op,Op::LineEnd/*means allowed pfx will be cleared on newline*/ };
 			PushPfxs(allowed, "");
-			GetObj.setName(cs);
+			GetObj().setName(cs);
 			break;
 		}
 		case Op::FuncArgNameless:
 			SetObjType(Op::FuncArgComplete);
 			PopPfxs();
-			GetObj.setName(cs);
-			m_NameTypeCtx.add(cs, GetObj.arg.type);
+			GetObj().setName(cs);
+			m_NameTypeCtx.add(cs, GetObj().arg.type);
 			popObj(true);
 			break;
 		case Op::VarNeedName:
-			GetObj.setName(cs);
-			m_NameTypeCtx.add(cs, GetObj.var.type);
+			GetObj().setName(cs);
+			m_NameTypeCtx.add(cs, GetObj().var.type);
 			SetObjType(Op::VarWantValue);
 			PopPfxs();
 			PushPfxs({ Op::Value, Op::LineEnd }, "expected value or line end after var name");
@@ -942,7 +945,7 @@ void Compiler::StrPayload(){
 			break;
 		}
 		case Op::Imaginary:
-			GetObj.setMod(m_NameOp);
+			GetObj().setMod(m_NameOp);
 			//setAllowedNextPfxs({});
 			//PopPfxs();
 			break;
@@ -996,14 +999,14 @@ void Compiler::StrPayload(){
 			//if (GetObjType != Op::NotSet)Err(Op::ErrNOT_GOOD, "");
 			//pushObj({});
 			SetObjType(m_NameOp);
-			GetObj.func.retType = Op::Void;
-			GetObj.func.retTypeMod = Op::NotSet;
+			GetObj().func.retType = Op::Void;
+			GetObj().func.retTypeMod = Op::NotSet;
 			PushPfxs({Op::Name}, "");
 			pushTask(Op::FuncNeedName);
 			break;
 		case Op::Public:
 		case Op::Private:
-			GetObj.privacy = m_NameOp;
+			GetObj().privacy = m_NameOp;
 			break;
 		default:
 			Err(Op::ErrUnknownOpStr, "");
@@ -1044,7 +1047,7 @@ void Compiler::ExplainErr(Op code) {
 		printf("Err msg unimplemented for %s", GetOpName(code));
 	}
 	printf("\nOBJ:");
-	GetObj.print();
+	GetObj().print();
 	printf("\n");
 }
 int main(int argc, char** argv) {
