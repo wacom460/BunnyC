@@ -67,7 +67,11 @@ typedef struct IBVector {
 	int slotCount;
 	size_t dataSize;
 	size_t iterIdx;
-	void* data;
+	union {
+		void* data;
+		struct AllowedPfxs *apfxs;
+		struct Task *task;
+	};
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->elemSize = elemSize;
