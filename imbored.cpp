@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdarg.h>
 
-#include <vector>
+//#include <vector>
 #include <stack>
 
 //not actually a compiler
@@ -40,8 +41,8 @@ typedef enum Op { //multiple uses
 	OP_BracketOpen, OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
 	OP_CPrintfHaveFmtStr,
 
-	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String, 
-	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While, 
+	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
+	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
 	OP_Block, OP_c8, OP_u8, OP_u16, OP_u32, OP_u64, OP_i8, OP_i16,
 	OP_i32, OP_i64, OP_f32, OP_d64, OP_Pointer, OP_DoublePointer,
 	OP_TripplePointer, OP_CompilerFlags, OP_dbgBreak,
@@ -52,6 +53,92 @@ typedef enum Op { //multiple uses
 
 	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
 } Op;
+
+int ClampInt(int val, int min, int max) {
+	if (val < min) return min;
+	if (val > max) return max;
+	return val;
+}
+
+size_t ClampSizeT(size_t val, size_t min, size_t max) {
+	if (val < min) return min;
+	if (val > max) return max;
+	return val;
+}
+
+typedef struct IBVector {
+	size_t elemSize;
+	int elemCount;
+	int slotCount;
+	size_t dataSize;
+	size_t iterIdx;
+	void* data;
+} IBVector;
+
+void IBVectorInit(IBVector* vec, size_t elemSize) {
+	vec->elemSize = elemSize;
+	vec->elemCount = 0;
+	vec->slotCount = 1;
+	vec->dataSize = vec->elemSize * vec->slotCount;
+	vec->iterIdx = 0;
+	vec->data = malloc(vec->dataSize);
+	memset(vec->data, 0, vec->dataSize);
+}
+
+void* IBVectorGet(IBVector* vec, int idx) {
+	if (idx >= vec->elemCount) return NULL;
+	return (char*)vec->data + vec->elemSize * idx;
+}
+
+void* IBVectorIterNext(IBVector* vec) {
+	if (vec->iterIdx >= vec->elemCount) {
+		vec->iterIdx = 0;
+		return NULL;
+	}
+	return (char*)vec->data + vec->elemSize * vec->iterIdx++;
+}
+
+void IBVectorCopyPush(IBVector* vec, void* elem) {
+	assert(vec->elemCount <= vec->slotCount);
+	if (vec->elemCount >= vec->slotCount) {
+		vec->slotCount++;
+		vec->dataSize = vec->elemSize * vec->slotCount;
+		vec->data = realloc(vec->data, vec->dataSize);
+	}
+	memcpy((char*)vec->data + vec->elemSize * vec->elemCount, elem, vec->elemSize);
+	vec->elemCount++;
+}
+
+void IBVectorCopyPushBool(IBVector* vec, bool val) {
+	IBVectorCopyPush(vec, &val);
+}
+
+void IBVectorCopyPushOp(IBVector* vec, Op val) {
+	IBVectorCopyPush(vec, &val);
+}
+
+void* IBVectorTop(IBVector* vec) {
+	if (vec->elemCount <= 0) return NULL;
+	return (char*)vec->data + vec->elemSize * (vec->elemCount - 1);
+}
+
+void* IBVectorFront(IBVector* vec) {
+	if (vec->elemCount <= 0) return NULL;
+	return (char*)vec->data;
+}
+
+void IBVectorPop(IBVector* vec) {
+	if(vec->elemCount <= 0) return;
+	vec->elemCount--;
+	vec->slotCount = ClampSizeT(vec->slotCount, 1, vec->elemCount);
+	vec->dataSize = vec->elemSize * vec->slotCount;
+	realloc(vec->data, vec->dataSize);
+}
+
+void IBVectorFree(IBVector* vec) {
+	free(vec->data);
+}
+
 typedef union Val {
 	unsigned char u8;
 	unsigned short u16;
@@ -70,7 +157,7 @@ typedef struct NameInfo {
 	const char* name = NULL;
 } NameInfo;
 typedef struct NameInfoDB {
-	std::vector<NameInfo> pairs = {};
+	IBVector pairs;
 	void add(const char* name, Op type);
 	Op findType(const char* name);
 } NameInfoDB;
@@ -91,10 +178,10 @@ typedef struct VarObj {
 } VarObj;
 const char* GetOpName(Op op);
 typedef struct Obj {
-private:
+//private:
 	Op type = OP_NotSet;
 	Op modifier = OP_NotSet;
-public:
+//public:
 	Op privacy = OP_NoChange;
 	char* name = NULL;
 	char* str = NULL;
@@ -110,29 +197,60 @@ public:
 	void setStr(const char* Str);
 	void print();
 } Obj;
+void ObjInit(Obj* o) {
+	o->type=OP_NotSet;
+	o->modifier=OP_NotSet;
+	o->privacy=OP_NoChange;
+	if(o->name) free(o->name);
+	o->name=NULL;
+	if(o->str) free(o->str);
+	o->str=NULL;
+	o->val.i32 = 0;
+	memset(&o->func, 0, sizeof(FuncObj));
+	memset(&o->var, 0, sizeof(VarObj));
+	o->arg.type = OP_Null;
+	o->arg.mod = OP_NotSet;
+}
 typedef struct AllowedPfxs {
-	std::vector<Op> pfxs = {};
-	const char* err = NULL;
-	int life=0;
+	IBVector pfxs;
+	const char* err;
+	int life;
 } AllowedPfxs;
+void AllowedPfxsInit(AllowedPfxs* ap, int count, ...) {
+	va_list args;
+	ap->err=NULL;
+	ap->life=0;
+	va_start(args, count);
+	while (count--) {
+		Op o;
+		o = va_arg(args, Op);
+		IBVectorCopyPushOp(&ap->pfxs, o);
+	}
+	va_end(args);
+}
 typedef struct Task {
 	Op type = OP_NotSet;
-	std::vector<Obj> working = {};
-	char code1[CODE_STR_MAX] = {};
-	char code2[CODE_STR_MAX] = {};
-	//char code3[CODE_STR_MAX]={};
+	IBVector working;//Obj
+	char code1[CODE_STR_MAX];
+	char code2[CODE_STR_MAX];
 } Task;
+void TaskInit(Task* t, Op type) {
+	IBVectorInit(&t->working, sizeof(Obj));
+	t->type = type;
+	t->code1[0] = '\0';
+	t->code2[0] = '\0';
+}
 typedef struct  Compiler {
 	int m_Line = 1, m_Column = 1;
 	Op m_Pfx = OP_Null;
 	char m_Str[COMPILER_STR_MAX] = {};
 	char m_cOutput[CODE_STR_MAX] = {};
 
-	std::stack<Obj> m_ObjStack = {};
-	std::stack<AllowedPfxs> m_AllowedNextPfxsStack = {};
-	std::stack<Op> m_ModeStack;
-	std::stack<Task> m_TaskStack;
-	std::stack<bool> m_StrReadPtrsStack;
+	IBVector m_ObjStack; //Obj
+	IBVector m_AllowedNextPfxsStack; //AllowedPfxs
+	IBVector m_ModeStack; //Op
+	IBVector m_TaskStack; //Task
+	IBVector m_StrReadPtrsStack; //bool
 
 	Op m_Pointer = OP_NotSet;
 	Op m_NameOp = OP_Null;
@@ -143,17 +261,18 @@ typedef struct  Compiler {
 	int m_MultiLineOffCount = 0;
 	NameInfoDB m_NameTypeCtx = {};
 
-	Obj& GetObj();
+	Obj* GetObj();
 	Compiler();
 	~Compiler();
 	void pushTask(Op task);
 	void popTask();
-	Obj& pushObj(Obj obj);
-	Obj& popObj(bool pushToWorking = true);
+	Obj* pushObj();
+	Obj* popObj(bool pushToWorking = true);
 	void push(Op mode, bool strAllowSpace = false);
 	Op pop();
 	//life:0 = infinite, -1 life each pfx
-	void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life);
+	//void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life);
+	void pushAllowedPfxs(int life, const char* err, int count, ...);
 	void popAllowedNextPfxs();
 	bool isPfxExpected(Op pfx);
 	//NO NEWLINES AT END OF STR
@@ -174,9 +293,9 @@ typedef struct  Compiler {
 }
 #define SetObjType(type){\
 	PRINT_LINE_INFO();\
-	GetObj().setType(type);\
+	GetObj()->setType(type);\
 }
-#define GetObjType (GetObj().getType())
+#define GetObjType (GetObj()->getType())
 #define PushPfxs(pfxs, msg, life){\
 	PRINT_LINE_INFO();\
 	pushAllowedNextPfxs(pfxs, msg, life);\
@@ -185,18 +304,20 @@ typedef struct  Compiler {
 	PRINT_LINE_INFO();\
 	popAllowedNextPfxs();\
 }
-#define GetTask (m_TaskStack.top())
-#define GetTaskType   (GetTask.type)
-#define GetTaskCode   (GetTask.code1)
-#define GetTaskCodeP1 (GetTask.code2)
+#define GetAllowedPfxsTop ((AllowedPfxs*)IBVectorTop(&m_AllowedNextPfxsStack))
+#define GetTask ((Task*)IBVectorTop(&m_TaskStack))
+#define GetMode *((Op*)IBVectorTop(&m_ModeStack))
+#define GetTaskType   (GetTask->type)
+#define GetTaskCode   (GetTask->code1)
+#define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
 	PRINT_LINE_INFO();\
-	printf("SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(GetTask.type), (int)GetTask.type, GetOpName(tt), (int)tt);\
-	GetTask.type = tt;\
+	printf("SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
+	GetTask->type = tt;\
 }
-#define GetTaskWorkingObjs (GetTask.working)
-#define SwitchTaskStackStart if (!m_TaskStack.empty()) {\
-	switch (m_TaskStack.top().type) {
+#define GetTaskWorkingObjs (GetTask->working)
+#define SwitchTaskStackStart if (!m_TaskStack.elemCount) {\
+	switch (GetTaskType) {
 #define SwitchTaskStackEnd }\
 	}
 struct OpNamePair {
@@ -291,21 +412,29 @@ void owStr(char** str, const char* with) {
 	if (*str) free(*str);
 	*str = _strdup(with);
 }
-Obj& Compiler::GetObj() {
-	return m_ObjStack.top();
+Obj* Compiler::GetObj() {
+	return (Obj*)IBVectorTop(&m_ObjStack);
 }
 Compiler::Compiler(){
-	m_StrReadPtrsStack.push(false);
-	//PushPfxs({OP_Op}, "");
-	m_AllowedNextPfxsStack.push({ { OP_Op }, "" });
+	AllowedPfxs ap;
+	IBVectorInit(&m_AllowedNextPfxsStack, sizeof(AllowedPfxs));
+	AllowedPfxsInit(&ap, 1, OP_Op);
+	IBVectorCopyPush(&m_AllowedNextPfxsStack, &ap);
+	
+	IBVectorInit(&m_NameTypeCtx.pairs, sizeof(NameInfo));
+	IBVectorInit(&m_ObjStack, sizeof(Obj));
+	IBVectorInit(&m_ModeStack, sizeof(Op));
+	IBVectorInit(&m_StrReadPtrsStack, sizeof(bool));
+	IBVectorInit(&m_TaskStack, sizeof(Task));
+	IBVectorCopyPushBool(&m_StrReadPtrsStack, false);
 	push(OP_ModePrefixPass);
-	pushObj({});
+	pushObj();
 }
 Compiler::~Compiler() {
 	if (m_StringMode)Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
-	//if (!m_Str.empty()) StrPayload();
-	if(m_Str[0]!='\0') StrPayload();
-	SwitchTaskStackStart
+	if(m_Str[0]) StrPayload();
+	if (m_TaskStack.elemCount) {
+		switch (((Task*)IBVectorTop(&m_TaskStack))->type) {
 		case OP_FuncNeedRetVal:
 			Err(OP_ErrNOT_GOOD, "Reached end of file without closing function");
 			break;
@@ -316,56 +445,70 @@ Compiler::~Compiler() {
 			PopAndDoTask();
 			break;
 		}
-	SwitchTaskStackEnd
+		}
+	
+	}
 	printf("-> Compilation complete <-\nResulting C code:\n\n");
 	//printf("%s", m_cOutput.c_str());
 	printf("%s", m_cOutput);
 }
 void Compiler::pushTask(Op task) {
+	Task t;
 	printf("Push task %s(%d)\n", GetOpName(task),(int)task);
-	m_TaskStack.push({ task, {} });
+	TaskInit(&t, task);
+	IBVectorCopyPush(&m_TaskStack, &t);
 }
 void Compiler::popTask() {
-	printf("Pop task %s(%d)\n", GetOpName(m_TaskStack.top().type),(int)m_TaskStack.top().type);
-	m_TaskStack.pop();
+	printf("Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
+	IBVectorPop(&m_TaskStack);
 }
-Obj& Compiler::pushObj(Obj obj) {
+Obj* Compiler::pushObj() {
+	Obj obj;
+	ObjInit(&obj);
 	printf("Push obj: ");
-	if (!m_ObjStack.empty()) {
-		GetObj().print();
+	if (m_ObjStack.elemCount) {
+		GetObj()->print();
 		printf(" -> ");
 	}
-	m_ObjStack.push(obj);
-	GetObj().print();
+	IBVectorCopyPush(&m_ObjStack, &obj);
+	GetObj()->print();
 	printf("\n");
 	return GetObj();
 }
-Obj& Compiler::popObj(bool pushToWorking) {
+Obj* Compiler::popObj(bool pushToWorking) {
 	if (pushToWorking){
 		if (GetObjType == OP_NotSet)Err(OP_ErrNOT_GOOD, "");
 		printf("To working: ");
-		GetObj().print();
+		GetObj()->print();
 		printf("\n");
-		GetTaskWorkingObjs.push_back(GetObj());
+		//GetTaskWorkingObjs.push_back(GetObj());
+		IBVectorCopyPush(&GetTaskWorkingObjs, GetObj());
 	}
 	printf("Pop obj: ");
-	GetObj().print();
-	if (m_ObjStack.size() == 1)GetObj() = {};
-	else m_ObjStack.pop();
+	GetObj()->print();
+	if (m_ObjStack.elemCount == 1) {
+		//GetObj() = {};
+		ObjInit(GetObj());
+	}
+	else {
+		//m_ObjStack.pop();
+		IBVectorPop(&m_ObjStack);
+	}
 	printf(" -> ");
-	GetObj().print();
+	GetObj()->print();
 	printf("\n");
 	return GetObj();
 }
 void Compiler::push(Op mode, bool strAllowSpace){
 	this->m_StrAllowSpace = strAllowSpace;
-	m_ModeStack.push(mode);
-	printf("push: to %s\n", GetOpName(m_ModeStack.top()));
+	//m_ModeStack.push(mode);
+	IBVectorCopyPushOp(&m_ModeStack, mode);
+	printf("push: to %s\n", GetOpName(GetMode));
 }
 Op Compiler::pop() {
-	m_ModeStack.pop();
-	printf("pop: to %s\n", GetOpName(m_ModeStack.top()));
-	return m_ModeStack.top();
+	IBVectorPop(&m_ModeStack);
+	printf("pop: to %s\n", GetOpName(GetMode));
+	return GetMode;
 }
 const Op Obj::getType() { return type; }
 void Obj::setType(Op type) {
@@ -399,36 +542,59 @@ void Obj::print() {
 	/*if(u64)*/printf("Val:%I64u", u64);
 	printf("]");
 }
-void Compiler::pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life) {
-	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
-		printf(" allowed pfxs PUSH: { ");
-		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
-		printf("} -> { ");
-		m_AllowedNextPfxsStack.push({ allowedNextPfxs, err, life });
-		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
-		printf("}\n");
+//void Compiler::pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life) {
+//	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
+//		printf(" allowed pfxs PUSH: { ");
+//		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
+//		printf("} -> { ");
+//		m_AllowedNextPfxsStack.push({ allowedNextPfxs, err, life });
+//		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
+//		printf("}\n");
+//	}
+//	else Err(OP_ErrNOT_GOOD, "pfx stack vec cannot be empty");
+//}
+void Compiler::pushAllowedPfxs(int life, const char* err, int count, ...)
+{
+	va_list args;
+	va_start(args, count);
+	while (count--) {
+		AllowedPfxs ap;
+		//memset(&ap, 0, sizeof(AllowedPfxs));
+		//ap.pfx = va_arg(args, Op);
+		IBVectorInit(&ap.pfxs, sizeof(Op));
 	}
-	else Err(OP_ErrNOT_GOOD, "pfx stack vec cannot be empty");
+
 }
 void Compiler::popAllowedNextPfxs() {
-	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
+	if (GetAllowedPfxsTop->pfxs.elemCount) {
+		Op* oi;
 		printf(" allowed pfxs POP: { ");
-		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
+		while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs)) {
+			printf("%s ", GetPfxName(*oi));
+		}
 		printf("} -> { ");
-		m_AllowedNextPfxsStack.pop();
-		if (m_AllowedNextPfxsStack.empty()) Err(OP_ErrNOT_GOOD, "catastrophic failure");
-		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
+		//m_AllowedNextPfxsStack.pop();
+		IBVectorPop(&m_AllowedNextPfxsStack);
+		if (!m_AllowedNextPfxsStack.elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
+		while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs)) {
+			printf("%s ", GetPfxName(*oi));
+		}
 		printf("}\n");
 	}
 }
 bool Compiler::isPfxExpected(Op pfx) {
-	for (auto& p : m_AllowedNextPfxsStack.top().pfxs) if (p == pfx) return true;
+	Op* oi;
+	while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs)) {
+		if (*oi == pfx) return true;
+	}
 	return false;
 }
 //NO NEWLINES AT END OF STR
 void Compiler::Char(char ch){
+	Op m;
+	bool nl;
 	this->m_Ch = ch;
-	bool nl = false;
+	nl = false;
 	switch (this->m_Ch) {
 	case COMMENT_CHAR: {
 		if (m_StringMode) break;
@@ -467,7 +633,7 @@ void Compiler::Char(char ch){
 			pop();
 			m_CommentMode = OP_NotSet;
 		}
-		switch (m_ModeStack.top()) {
+		switch (GetMode) {
 		case OP_ModeStrPass: {
 			StrPayload();
 			break; 
@@ -503,12 +669,13 @@ void Compiler::Char(char ch){
 				SetObjType(OP_FuncSigComplete);
 				PopPfxs();
 				//PopPfxs();
-				Op mod = GetObj().getMod();
+				Op mod = GetObj()->getMod();
 				popObj(true);
 				if (mod != OP_Imaginary) {
-					auto allowed = { OP_Op,OP_String, OP_VarType };
-					PushPfxs(allowed, "expected operator, print statement, or variable declaration", 0);
-					m_TaskStack.top().type = OP_FuncWantCode;
+					pushAllowedPfxs(0, "expected operator, print statement, or variable declaration",
+						3,
+						OP_Op, OP_String, OP_VarType);
+					SetTaskType(OP_FuncWantCode);
 				}
 				else {
 					PopAndDoTask();
@@ -522,7 +689,7 @@ void Compiler::Char(char ch){
 	if (m_MultiLineOffCount == 1 && m_Ch != COMMENT_CHAR) {
 		m_MultiLineOffCount = 0;
 	}
-	auto m = m_ModeStack.top();
+	m = GetMode;
 	m_Column++;
 	if (!nl && m_CommentMode == OP_NotSet) {
 		if(this->m_Ch == ' ') printf("-> SPACE (0x%x)\n",  this->m_Ch);
@@ -572,10 +739,10 @@ void Val2Str(char *dest, int destSz, Val v, Op type) {
 }
 void Compiler::PopAndDoTask()	{
 	printf("PopAndDoTask()\n");
-	if(m_TaskStack.empty())Err(OP_ErrNoTask, "task stack EMPTY!");
-	if(GetTaskWorkingObjs.empty())Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
+	if(!m_TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
+	if(!GetTaskWorkingObjs.elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
 	bool subTask = false;
-	switch (m_TaskStack.top().type) {
+	switch (GetTaskType) {
 	case OP_FuncWantCode: break;
 	case OP_FuncSigComplete:
 	case OP_FuncHasName:
@@ -585,58 +752,60 @@ void Compiler::PopAndDoTask()	{
 		char cFuncCode[CODE_STR_MAX] = {};
 		bool imaginary = false;
 		Obj* funcObj=NULL;
-		for (int i = 0; i < GetTaskWorkingObjs.size(); ++i) {
-			auto& o = GetTaskWorkingObjs[i];
-			switch (o.getType()) {
+		for (int i = 0; i < GetTaskWorkingObjs.elemCount; ++i) {
+			//auto& o = GetTaskWorkingObjs[i];
+			Obj* o = (Obj*)IBVectorGet(&GetTaskWorkingObjs, i);
+			switch (o->getType()) {
 			case OP_FuncArgComplete: {//multiple allowed
-				auto at = o.arg.type;
+				auto at = o->arg.type;
 				if (at == OP_Null)Err(OP_ErrNOT_GOOD, "arg type NULL");
 				if (cFuncArgs[0] != '\0') {
 					strcat_s(cFuncArgs, CODE_STR_MAX, ", ");
 				}
-				strcat_s(cFuncArgs, CODE_STR_MAX, GetCEqu(o.arg.type));
-				strcat_s(cFuncArgs, CODE_STR_MAX, GetCEqu(o.arg.mod));
+				strcat_s(cFuncArgs, CODE_STR_MAX, GetCEqu(o->arg.type));
+				strcat_s(cFuncArgs, CODE_STR_MAX, GetCEqu(o->arg.mod));
 				strcat_s(cFuncArgs, CODE_STR_MAX, " ");
-				if (!o.name)Err(OP_ErrNOT_GOOD, "arg name NULL");
-				strcat_s(cFuncArgs, CODE_STR_MAX, o.name);
+				if (!o->name)Err(OP_ErrNOT_GOOD, "arg name NULL");
+				strcat_s(cFuncArgs, CODE_STR_MAX, o->name);
 				break;
 			}
 			case OP_FuncSigComplete: {
-				if (o.getMod() == OP_Imaginary) {
+				if (o->getMod() == OP_Imaginary) {
 					imaginary = true;
 				}
 			}
 			case OP_FuncHasName:
 			case OP_CompletedFunction: {//should only happen once
-				funcObj = &o;
-				Op mod = o.getMod();
+				funcObj = o;
+				Op mod = o->getMod();
 				if (mod != OP_NotSet) {
 					strcat_s(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(mod));
 					strcat_s(cFuncModsTypeName, CODE_STR_MAX, " ");
 				}
-				strcat_s(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o.func.retType));
-				strcat_s(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o.func.retTypeMod));
+				strcat_s(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retType));
+				strcat_s(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retTypeMod));
 				strcat_s(cFuncModsTypeName, CODE_STR_MAX, " ");
-				if (!o.name)Err(OP_ErrNOT_GOOD, "func name NULL");
-				strcat_s(cFuncModsTypeName, CODE_STR_MAX, o.name);
+				if (!o->name)Err(OP_ErrNOT_GOOD, "func name NULL");
+				strcat_s(cFuncModsTypeName, CODE_STR_MAX, o->name);
 				strcat_s(cFuncModsTypeName, CODE_STR_MAX, "(");
 				break;
 			}
 			}
 		}
-		for (auto& o : GetTaskWorkingObjs) {
-			switch (o.getType()) {
+		Obj* o;
+		while (o= (Obj*)IBVectorIterNext(&GetTaskWorkingObjs)) {
+			switch (o->getType()) {
 			case OP_VarComplete: {
 				char valBuf[32];
 				valBuf[0] = '\0';
 				strcat_s(cFuncCode, CODE_STR_MAX, "\t");
-				strcat_s(cFuncCode, CODE_STR_MAX, GetCEqu(o.var.type));
-				strcat_s(cFuncCode, CODE_STR_MAX, GetCEqu(o.var.mod));
+				strcat_s(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.type));
+				strcat_s(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.mod));
 				strcat_s(cFuncCode, CODE_STR_MAX, " ");
-				if(!o.name)Err(OP_ErrNOT_GOOD, "var name NULL");
-				strcat_s(cFuncCode, CODE_STR_MAX, o.name);
+				if(!o->name)Err(OP_ErrNOT_GOOD, "var name NULL");
+				strcat_s(cFuncCode, CODE_STR_MAX, o->name);
 				strcat_s(cFuncCode, CODE_STR_MAX, "=");
-				snprintf(valBuf, 32, "%I64u", o.var.val.i64);
+				snprintf(valBuf, 32, "%I64u", o->var.val.i64);
 				strcat_s(cFuncCode, 32, valBuf);
 				strcat_s(cFuncCode, CODE_STR_MAX, ";\n");
 				break;
@@ -668,12 +837,13 @@ void Compiler::PopAndDoTask()	{
 	}
 	case OP_CPrintfHaveFmtStr: {
 		subTask = true;
-		Obj& fmtObj = GetTaskWorkingObjs.front();
+		//Obj& fmtObj = GetTaskWorkingObjs.front();
+		Obj* fmtObj = (Obj*)IBVectorFront(&GetTaskWorkingObjs);
 		strcat_s(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 		bool firstPercent = false;
 		int varIdx = 1;
-		for (int i = 0; i < strlen(fmtObj.str); ++i) {
-			auto c = fmtObj.str[i];
+		for (int i = 0; i < strlen(fmtObj->str); ++i) {
+			auto c = fmtObj->str[i];
 			switch (c) {
 			case '%':{
 					if (!firstPercent) {
@@ -681,15 +851,16 @@ void Compiler::PopAndDoTask()	{
 						firstPercent = true;
 					}
 					else {
-						auto& vo = GetTaskWorkingObjs[varIdx];
-						switch (vo.getType()) {
+						//auto& vo = GetTaskWorkingObjs[varIdx];
+						Obj* vo = (Obj*)IBVectorGet(&GetTaskWorkingObjs, varIdx);
+						switch (vo->getType()) {
 						case OP_Name:{
-							auto type = m_NameTypeCtx.findType(vo.name);
+							auto type = m_NameTypeCtx.findType(vo->name);
 							strcat_s(GetTaskCode, CODE_STR_MAX, GetCPrintfFmtForType(type));
 							break;
 						}
 						case OP_Value:{
-							strcat_s(GetTaskCode, CODE_STR_MAX, GetCPrintfFmtForType(vo.var.type));
+							strcat_s(GetTaskCode, CODE_STR_MAX, GetCPrintfFmtForType(vo->var.type));
 							break;
 						}
 						}
@@ -708,19 +879,20 @@ void Compiler::PopAndDoTask()	{
 			}
 		}
 		strcat_s(GetTaskCode, CODE_STR_MAX, "\"");
-		if (GetTaskWorkingObjs.size() > 1) {
+		if (GetTaskWorkingObjs.elemCount > 1) {
 			strcat_s(GetTaskCode, CODE_STR_MAX, ", ");
 		}
-		for (int i = 1; i < GetTaskWorkingObjs.size(); ++i) {
-			Obj& o = GetTaskWorkingObjs[i];
-			switch (o.getType()) {
+		for (int i = 1; i < GetTaskWorkingObjs.elemCount; ++i) {
+			//Obj& o = GetTaskWorkingObjs[i];
+			Obj* o = (Obj*)IBVectorGet(&GetTaskWorkingObjs, i);
+			switch (o->getType()) {
 			case OP_Name: {
-				strcat_s(GetTaskCode, CODE_STR_MAX, o.name);
+				strcat_s(GetTaskCode, CODE_STR_MAX, o->name);
 				break;
 			}
 			case OP_String: {
 				strcat_s(GetTaskCode, CODE_STR_MAX, "\"");
-				strcat_s(GetTaskCode, CODE_STR_MAX, o.str);
+				strcat_s(GetTaskCode, CODE_STR_MAX, o->str);
 				strcat_s(GetTaskCode, CODE_STR_MAX, "\"");
 				break;
 			}
@@ -728,11 +900,11 @@ void Compiler::PopAndDoTask()	{
 				//GetTaskCode += std::to_string(o.val.i32);//for now
 				char valBuf[32];
 				valBuf[0] = '\0';
-				Val2Str(valBuf, 32, o.val, o.var.type);
+				Val2Str(valBuf, 32, o->val, o->var.type);
 				strcat_s(GetTaskCode, 32, valBuf);
 			}
 			}
-			if (i < GetTaskWorkingObjs.size() - 1) {
+			if (i < GetTaskWorkingObjs.elemCount - 1) {
 				strcat_s(GetTaskCode, CODE_STR_MAX, ", ");
 			}
 		}
@@ -743,7 +915,7 @@ void Compiler::PopAndDoTask()	{
 	if (subTask) {
 		switch (GetTaskType) {
 		case OP_CPrintfHaveFmtStr: {
-			if (m_TaskStack.size() - 2 >= 0) {
+			if (m_TaskStack.elemCount - 2 >= 0) {
 				char theCode[CODE_STR_MAX] = {};
 				strcpy_s(theCode, CODE_STR_MAX, GetTaskCode);
 				popTask();
@@ -763,12 +935,13 @@ void Compiler::PopAndDoTask()	{
 void Compiler::Prefix(){
 	//for assigning func call ret val to var
 	if (m_Pfx == OP_Value && m_Ch == '@' && !m_Str[0]) {
-		PushPfxs({ OP_Op }, "", 1);
+		//PushPfxs({ OP_Op }, "", 1);
+		pushAllowedPfxs(1, "", 1, OP_Op);
 	}
 	m_Pfx = fromPfxCh(m_Ch);
-	auto& obj = GetObj();
+	Obj* obj = GetObj();
 	if (m_Pfx != OP_Unknown 
-		&& !(m_AllowedNextPfxsStack.top().pfxs.empty())
+		&& GetAllowedPfxsTop->pfxs.elemCount
 		&& !isPfxExpected(m_Pfx))
 		Err(OP_ErrUnexpectedNextPfx, "");
 	printf("PFX:%s(%d)\n", GetPfxName(m_Pfx), (int)m_Pfx);
@@ -779,7 +952,8 @@ void Compiler::Prefix(){
 		break;
 	}
 	case OP_VarType:
-		m_StrReadPtrsStack.push(true);
+		//m_StrReadPtrsStack.push(true);
+		IBVectorCopyPushBool(&m_StrReadPtrsStack, true);
 	case OP_Value:
 	case OP_Op:
 	case OP_Name:
@@ -790,8 +964,12 @@ void Compiler::Prefix(){
 		break;
 	}
 	if (m_Pfx == OP_Op) {
-		auto& aps = m_AllowedNextPfxsStack.top();
-		if (aps.life && --aps.life <= 0) m_AllowedNextPfxsStack.pop();
+		//auto& aps = m_AllowedNextPfxsStack.top();
+		AllowedPfxs* aps = GetAllowedPfxsTop;
+		if (aps->life && --aps->life <= 0) {
+			//m_AllowedNextPfxsStack.pop();
+			IBVectorPop(&m_AllowedNextPfxsStack);
+		}
 	}
 }
 void Compiler::Str(){
@@ -827,7 +1005,7 @@ void Compiler::Str(){
 			else return StrPayload();
 		}
 		case '&': {
-			if (m_StrReadPtrsStack.top()) {
+			if (*(bool*)IBVectorTop(&m_StrReadPtrsStack)) {
 				switch (m_Pointer) {
 				case OP_NotSet:
 					printf("got pointer\n");
@@ -864,12 +1042,11 @@ void Compiler::StrPayload(){
 		SwitchTaskStackStart
 		case OP_FuncWantCode: { //printf
 			pushTask(OP_CPrintfHaveFmtStr);
-			Obj&o=pushObj({});
-			o.setStr(m_Str);
-			o.setType(OP_CPrintfFmtStr);
+			Obj*o=pushObj();
+			o->setStr(m_Str);
+			o->setType(OP_CPrintfFmtStr);
 			popObj(true);
-			auto allowed = { OP_Value, OP_Name, OP_String, OP_LineEnd };
-			PushPfxs(allowed, "expected fmt args or line end", 0);
+			pushAllowedPfxs(0, "expected fmt args or line end", 4, OP_Value, OP_Name, OP_String, OP_LineEnd);
 			break;
 		}
 		SwitchTaskStackEnd
@@ -878,29 +1055,30 @@ void Compiler::StrPayload(){
 	case OP_Value: { //=
 		switch (GetObjType) {
 		case OP_VarWantValue: {
-			GetObj().var.val = strVal;
+			GetObj()->var.val = strVal;
 			SetObjType(OP_VarComplete);
 			PopPfxs();
 			break;
 		}
 		}
-		if (!m_TaskStack.empty()) {
-			switch (m_TaskStack.top().type) {
+		if (m_TaskStack.elemCount) {
+			switch (GetTaskType) {
 			case OP_CPrintfHaveFmtStr:{
-				pushObj({});
-				//GetObj().setStr(cs);
-				GetObj().val = strVal;
-				GetObj().setType(OP_Value);
-				GetObj().var.type = OP_i32;//for now
+				pushObj();
+				//GetObj()->setStr(cs);
+				GetObj()->val = strVal;
+				GetObj()->setType(OP_Value);
+				GetObj()->var.type = OP_i32;//for now
 				popObj(true);
 				//PopPfxs();
 				break;
 			}
-			case OP_FuncNeedRetVal:
-				for (auto& obj : GetTaskWorkingObjs) {
-					if (obj.getType() == OP_FuncSigComplete) {
+			case OP_FuncNeedRetVal: {
+				Obj* o;
+				while (o = (Obj*)IBVectorIterNext(&GetTaskWorkingObjs)) {
+					if (o->getType() == OP_FuncSigComplete) {
 						printf("Finishing func got ret value\n");
-						obj.func.retVal = strVal;
+						o->func.retVal = strVal;
 						//SetObjType(OP_CompletedFunction);
 						PopPfxs();
 						SetTaskType(OP_Func);
@@ -910,27 +1088,28 @@ void Compiler::StrPayload(){
 				}
 				break;
 			}
+			}
 		}
 		break;
 	}
 	case OP_VarType: //%
-		switch (m_TaskStack.top().type) {
+		switch (GetTaskType) {
 		case OP_FuncWantCode: {
-			pushObj({});
-			GetObj().var.type = m_NameOp;
-			GetObj().var.mod = OP_NotSet;
+			pushObj();
+			GetObj()->var.type = m_NameOp;
+			GetObj()->var.mod = OP_NotSet;
 			SetObjType(OP_VarNeedName);
-			PushPfxs({ OP_Name }, "Expected variable name after variable type", 0);
+			pushAllowedPfxs(0, "Expected variable name after variable type", 1, OP_Name);
 			break;
 		}
 		}
 		switch (GetObjType) {
 		case OP_FuncNeedsRetValType: {
 			if (GetTaskType != OP_FuncHasName)Err(OP_ErrNOT_GOOD, "func signature needs name");
-			GetObj().func.retType = m_NameOp;
-			GetObj().func.retTypeMod = m_Pointer;
+			GetObj()->func.retType = m_NameOp;
+			GetObj()->func.retTypeMod = m_Pointer;
 			SetObjType(OP_FuncSigComplete);
-			/*if (GetObj().getMod() == OP_Imaginary) {
+			/*if (GetObj()->getMod() == OP_Imaginary) {
 				SetTaskType(OP_FuncSigComplete);
 			}
 			else {
@@ -944,21 +1123,22 @@ void Compiler::StrPayload(){
 			break;
 		}
 		case OP_FuncHasName:
-			pushObj({});
+			Obj*o=pushObj();
 			SetObjType(OP_FuncArgNameless);
-			GetObj().arg.type= m_NameOp;
-			GetObj().arg.mod = m_Pointer;
+			o->arg.type= m_NameOp;
+			o->arg.mod = m_Pointer;
 			//PopPfxs();
-			PushPfxs({OP_Name}, "Expected func arg name", 0);
+			//PushPfxs({OP_Name}, "Expected func arg name", 0);
+			pushAllowedPfxs(0, "Expected func arg name", 1, OP_Name);
 			break;
 		}
 		break;
 	case OP_Name: { //$
 		SwitchTaskStackStart
 		case OP_CPrintfHaveFmtStr: {
-			auto&o=pushObj({});
-			o.setName(m_Str);
-			o.setType(OP_Name);
+			Obj*o=pushObj();
+			o->setName(m_Str);
+			o->setType(OP_Name);
 			popObj(true);
 			break;
 		}
@@ -967,33 +1147,34 @@ void Compiler::StrPayload(){
 		case OP_CallNeedName: { //=@call
 			SetObjType(OP_CallWantArgs);
 			PopPfxs();
-			auto allowed = { OP_Name, OP_Value, OP_LineEnd };
-			PushPfxs(allowed, "expected var type or line end after func name", 0);
+			pushAllowedPfxs(0, "expected var type or line end after func name", 3, OP_Name, OP_Value, OP_LineEnd);
 
 		}
 		case OP_Func: {
 			SetObjType(OP_FuncHasName);
 			SetTaskType(OP_FuncHasName);
 			PopPfxs();
-			auto allowed = { OP_VarType,OP_Op,OP_LineEnd/*means allowed pfx will be cleared on newline*/ };
-			PushPfxs(allowed, "", 0);
-			GetObj().setName(m_Str);
+			//auto allowed = { OP_VarType,OP_Op,OP_LineEnd };
+			//PushPfxs(allowed, "", 0);
+			pushAllowedPfxs(0, "", 3, OP_VarType, OP_Op, OP_LineEnd/*means allowed pfx will be cleared on newline*/);
+			GetObj()->setName(m_Str);
 			break;
 		}
 		case OP_FuncArgNameless:
 			SetObjType(OP_FuncArgComplete);
 			PopPfxs();
-			GetObj().setName(m_Str);
-			m_NameTypeCtx.add(m_Str, GetObj().arg.type);
+			GetObj()->setName(m_Str);
+			m_NameTypeCtx.add(m_Str, GetObj()->arg.type);
 			popObj(true);
 			break;
 		case OP_VarNeedName:
-			GetObj().setName(m_Str);
-			m_NameTypeCtx.add(m_Str, GetObj().var.type);
+			GetObj()->setName(m_Str);
+			m_NameTypeCtx.add(m_Str, GetObj()->var.type);
 			SetObjType(OP_VarWantValue);
 			PopPfxs();
-			auto allowed = { OP_Value, OP_LineEnd };
-			PushPfxs(allowed, "expected value or line end after var name", 0);
+			/*auto allowed = { OP_Value, OP_LineEnd };
+			PushPfxs(allowed, "expected value or line end after var name", 0);*/
+			pushAllowedPfxs(0, "expected value or line end after var name", 2, OP_Value, OP_LineEnd);
 			break;
 		}
 		break;
@@ -1006,9 +1187,10 @@ void Compiler::StrPayload(){
 				/*auto& tst = m_TaskStack.top();
 				auto& ost = m_ObjStack.top();
 				auto& pfxs=m_AllowedNextPfxsStack.top().pfxs;*/
-				auto&o=pushObj({});
-				o.setType(OP_CallNeedName);
-				PushPfxs({OP_Name}, "expected function name", 0);
+				Obj*o=pushObj();
+				o->setType(OP_CallNeedName);
+				//PushPfxs({OP_Name}, "expected function name", 0);
+				pushAllowedPfxs(0, "expected function name", 1, OP_Name);
 			}
 			}
 			break;
@@ -1019,25 +1201,28 @@ void Compiler::StrPayload(){
 			break;
 		}
 		case OP_Imaginary:
-			GetObj().setMod(m_NameOp);
+			GetObj()->setMod(m_NameOp);
 			//setAllowedNextPfxs({});
 			//PopPfxs();
 			break;
 		case OP_Done:
-			if (m_TaskStack.empty()) Err(OP_ErrNoTask, "");
+			if (!m_TaskStack.elemCount) Err(OP_ErrNoTask, "");
 			switch (GetTaskType) {
 			case OP_Func:
 			case OP_FuncHasName:
-			case OP_FuncWantCode:
+			case OP_FuncWantCode: {
+				Obj* o;
 				PRINT_LINE_INFO();
 				printf(" Finishing function\n");
-				for (auto& obj : GetTaskWorkingObjs) {
+				while (o = (Obj*)IBVectorIterNext(&GetTaskWorkingObjs)) {
 					//TODO: could cache func obj index later
-					if (obj.getType() == OP_FuncSigComplete) {
-						if (obj.func.retType != OP_Void) {
-							PushPfxs({OP_Value},"", 0);
+					if (o->getType() == OP_FuncSigComplete) {
+						if (o->func.retType != OP_Void) {
+							//PushPfxs({OP_Value},"", 0);
+							pushAllowedPfxs(0, "", 1, OP_Value);
 							SetTaskType(OP_FuncNeedRetVal);
-						}else {
+						}
+						else {
 							SetTaskType(OP_Func);
 							PopAndDoTask();
 							PopPfxs();
@@ -1045,6 +1230,7 @@ void Compiler::StrPayload(){
 					}
 				}
 				break;
+			}
 			}
 			break;
 		case OP_Return: {
@@ -1061,7 +1247,8 @@ void Compiler::StrPayload(){
 			case OP_FuncHasName:
 				SetObjType(OP_FuncNeedsRetValType);
 				//PopPfxs();
-				PushPfxs({ OP_VarType },"", 0);
+				//PushPfxs({ OP_VarType },"", 0);
+				pushAllowedPfxs(0, "", 1, OP_VarType);
 				break;
 			default:
 				Err(OP_ErrUnexpectedOp, "");
@@ -1073,14 +1260,15 @@ void Compiler::StrPayload(){
 			//if (GetObjType != OP_NotSet)Err(OP_ErrNOT_GOOD, "");
 			//pushObj({});
 			SetObjType(m_NameOp);
-			GetObj().func.retType = OP_Void;
-			GetObj().func.retTypeMod = OP_NotSet;
-			PushPfxs({OP_Name}, "",0);
+			GetObj()->func.retType = OP_Void;
+			GetObj()->func.retTypeMod = OP_NotSet;
+			//PushPfxs({OP_Name}, "",0);
+			pushAllowedPfxs(0, "", 1, OP_Name);
 			pushTask(OP_FuncNeedName);
 			break;
 		case OP_Public:
 		case OP_Private:
-			GetObj().privacy = m_NameOp;
+			GetObj()->privacy = m_NameOp;
 			break;
 		default:
 			Err(OP_ErrUnknownOpStr, "");
@@ -1090,10 +1278,10 @@ void Compiler::StrPayload(){
 	m_Str[0] = '\0';
 	printf("Str payload complete\n");
 	pop();
-	if(m_StrReadPtrsStack.size() > 1)
+	if(m_StrReadPtrsStack.elemCount > 1)
 	{
-		if (m_StrReadPtrsStack.top()) m_Pointer = OP_NotSet;
-		m_StrReadPtrsStack.pop();
+		if (*(bool*)IBVectorTop(&m_StrReadPtrsStack)) m_Pointer = OP_NotSet;
+		IBVectorPop(&m_StrReadPtrsStack);
 	}
 }
 void Compiler::ExplainErr(Op code) {
@@ -1111,9 +1299,11 @@ void Compiler::ExplainErr(Op code) {
 		printf("No working task to call done (@@) for");
 		break;
 	case OP_ErrUnexpectedNextPfx:
-		printf("%s Unexpected next prefix %s. Pfx stack idx:%zd Allowed:", m_AllowedNextPfxsStack.top().err, GetPfxName(m_Pfx), m_AllowedNextPfxsStack.size() - 1);
-		for (auto& p : m_AllowedNextPfxsStack.top().pfxs)
-			printf("%s,", GetPfxName(p));
+		printf("%s Unexpected next prefix %s. Pfx stack idx:%zd Allowed:", GetAllowedPfxsTop->err, GetPfxName(m_Pfx), m_AllowedNextPfxsStack.elemCount - 1);
+		Op* oi;
+		while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs)) {
+			printf("%s,", GetPfxName(*oi));
+		}
 		break;
 	case OP_ErrExpectedVariablePfx:
 		printf("Expected a variable type to be next.");
@@ -1122,7 +1312,7 @@ void Compiler::ExplainErr(Op code) {
 		printf("Err msg unimplemented for %s", GetOpName(code));
 	}
 	printf("\nOBJ:");
-	GetObj().print();
+	GetObj()->print();
 	printf("\n");
 }
 int main(int argc, char** argv) {
@@ -1144,11 +1334,16 @@ int main(int argc, char** argv) {
 	return 1;
 }
 void NameInfoDB::add(const char* name, Op type){
-	pairs.push_back({ type, _strdup(name) });
+	NameInfo info;
+	info.type = type;
+	info.name = _strdup(name);
+	IBVectorCopyPush(&pairs, &info);
 }
 Op NameInfoDB::findType(const char* name){
-	for (auto& p : pairs)
-		if (!strcmp(p.name, name))
-			return p.type;
+	NameInfo* pair;
+	while (pair = (NameInfo*)IBVectorIterNext(&pairs)) {
+		if (!strcmp(pair->name, name))
+			return pair->type;
+	}
 	return OP_NotFound;
 }
