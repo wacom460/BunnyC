@@ -582,13 +582,15 @@ void ObjPrint(Obj* obj) {
 //}
 void Compiler_pushAllowedPfxs(Compiler* compiler, int life, const char* err, int count, ...)
 {
+	Op o;
 	va_list args;
 	va_start(args, count);
+	AllowedPfxs ap;
+	AllowedPfxsInit(&ap, 0);
+	IBVectorInit(&ap.pfxs, sizeof(Op));
 	while (count--) {
-		AllowedPfxs ap;
-		//memset(&ap, 0, sizeof(AllowedPfxs));
-		//ap.pfx = va_arg(args, Op);
-		IBVectorInit(&ap.pfxs, sizeof(Op));
+		o = va_arg(args, Op);
+		IBVectorCopyPushOp(&ap.pfxs, o);
 	}
 
 }
@@ -971,7 +973,7 @@ void Compiler_Prefix(Compiler* compiler){
 		Compiler_pushAllowedPfxs(compiler, 1, "", 1, OP_Op);
 	}
 	compiler->m_Pfx = fromPfxCh(compiler->m_Ch);
-	Compiler_GetObj(compiler);
+	obj=Compiler_GetObj(compiler);
 	if (compiler->m_Pfx != OP_Unknown 
 		&& GetAllowedPfxsTop->pfxs.elemCount
 		&& !Compiler_isPfxExpected(compiler, compiler->m_Pfx))
