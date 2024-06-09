@@ -956,6 +956,11 @@ void Compiler::StrPayload(){
 		switch (m_NameOp) {
 		case Op::Call:{
 			printf("Call\n");
+			switch (GetObjType) {
+			case Op::VarWantValue: {
+
+			}
+			}
 			break;
 		}
 		case Op::dbgBreak: {
