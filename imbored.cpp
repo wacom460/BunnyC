@@ -38,7 +38,7 @@ enum class Op { //multiple uses
 	BracketOpen,BracketClose,SingleQuote,DoubleQuote,
 	CPrintfHaveFmtStr,
 
-	Comma,CommaSpace,Name,String,CPrintfFmtStr,Char,If,Else,For,While,Block,
+	SpaceChar,Comma,CommaSpace,Name,String,CPrintfFmtStr,Char,If,Else,For,While,Block,
 	c8,u8,u16,u32,u64,i8,i16,i32,i64,f32,d64,
 	Pointer,DoublePointer,TripplePointer,CompilerFlags,dbgBreak,
 
@@ -111,6 +111,7 @@ public:
 struct AllowedPfxs {
 	std::vector<Op> pfxs = {};
 	const char* err = NULL;
+	int life=0;
 };
 struct Task {
 	Op type = Op::NotSet;
@@ -146,7 +147,8 @@ public:
 	Obj& popObj(bool pushToWorking = true);
 	void push(Op mode, bool strAllowSpace = false);
 	Op pop();
-	void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err = nullptr);
+	//life:0 = infinite, -1 life each pfx
+	void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err = nullptr, int life = 0);
 	void popAllowedNextPfxs();
 	bool isPfxExpected(Op pfx);
 	//NO NEWLINES AT END OF STR
@@ -170,9 +172,9 @@ public:
 	GetObj().setType(type);\
 }
 #define GetObjType (GetObj().getType())
-#define PushPfxs(pfxs, msg){\
+#define PushPfxs(pfxs, msg, life){\
 	PRINT_LINE_INFO();\
-	pushAllowedNextPfxs(pfxs, msg);\
+	pushAllowedNextPfxs(pfxs, msg, life);\
 }
 #define PopPfxs(){\
 	PRINT_LINE_INFO();\
@@ -268,6 +270,7 @@ Op GetOpFromName(const char* name) {
 }
 Op fromPfxCh(char ch) {
 	switch (ch) {
+	case ' ': return Op::SpaceChar;
 	case '@': return Op::Op;
 	case '$': return Op::Name;
 	case '%': return Op::VarType;
@@ -388,12 +391,12 @@ void Obj::print() {
 	/*if(u64)*/printf("Val:%I64u", u64);
 	printf("]");
 }
-void Compiler::pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err) {
+void Compiler::pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life) {
 	if (!m_AllowedNextPfxsStack.top().pfxs.empty()) {
 		printf(" allowed pfxs PUSH: { ");
 		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
 		printf("} -> { ");
-		m_AllowedNextPfxsStack.push({ allowedNextPfxs, err });
+		m_AllowedNextPfxsStack.push({ allowedNextPfxs, err, life });
 		for (auto& p : m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
 		printf("}\n");
 	}
@@ -488,12 +491,12 @@ void Compiler::Char(char ch){
 			case Op::FuncHasName: {
 				SetObjType(Op::FuncSigComplete);
 				PopPfxs();
-				PopPfxs();
+				//PopPfxs();
 				Op mod = GetObj().getMod();
 				popObj(true);
 				if (mod != Op::Imaginary) {
 					auto allowed = { Op::Op,Op::String, Op::VarType };
-					PushPfxs(allowed, "expected operator, print statement, or variable declaration");
+					PushPfxs(allowed, "expected operator, print statement, or variable declaration", 0);
 					m_TaskStack.top().type = Op::FuncWantCode;
 				}
 				else {
@@ -723,6 +726,9 @@ void Compiler::PopAndDoTask()	{
 	else popTask();
 }
 void Compiler::Prefix(){
+	if (m_Pfx == Op::Value && m_Ch == '@' && m_Str.empty()) {
+		PushPfxs({Op::Op},"",1);
+	}
 	m_Pfx = fromPfxCh(m_Ch);
 	auto& obj = GetObj();
 	if (m_Pfx != Op::Unknown 
@@ -741,12 +747,14 @@ void Compiler::Prefix(){
 	case Op::Value:
 	case Op::Op:
 	case Op::Name:
-		getchar();
+		//getchar();
 		push(Op::ModeStrPass);
 		break;
 	case Op::Comment:
 		break;
 	}
+	auto& aps=m_AllowedNextPfxsStack.top();
+	if ((--aps.life) <= 0)m_AllowedNextPfxsStack.pop();
 }
 void Compiler::Str(){
 	if (m_StringMode) {
@@ -760,12 +768,19 @@ void Compiler::Str(){
 		m_Str.append(1, m_Ch);
 		return;
 	}
-	switch (m_Ch) {
-	case '@': {
-		pop();
-		Prefix();
-		return;
+	switch (m_Pfx) {
+	case Op::Value: {
+		switch (m_Ch) {
+		case '@': {
+			pop();
+			Prefix();
+			return;
+		}
+		}
+		break;
 	}
+	}
+	switch (m_Ch) {
 	case '\t': return;
 	case ' ': {
 		if (m_StrAllowSpace) break;
@@ -814,7 +829,7 @@ void Compiler::StrPayload(){
 			GetObj().setType(Op::CPrintfFmtStr);
 			popObj(true);
 			auto allowed = { Op::Value, Op::Name, Op::String, Op::LineEnd };
-			PushPfxs(allowed, "expected fmt args or line end");
+			PushPfxs(allowed, "expected fmt args or line end", 0);
 			break;
 		}
 		SwitchTaskStackEnd
@@ -865,7 +880,7 @@ void Compiler::StrPayload(){
 			GetObj().var.type = m_NameOp;
 			GetObj().var.mod = Op::NotSet;
 			SetObjType(Op::VarNeedName);
-			PushPfxs({ Op::Name }, "Expected variable name after variable type");
+			PushPfxs({ Op::Name }, "Expected variable name after variable type", 0);
 			break;
 		}
 		}
@@ -894,7 +909,7 @@ void Compiler::StrPayload(){
 			GetObj().arg.type= m_NameOp;
 			GetObj().arg.mod = m_Pointer;
 			//PopPfxs();
-			PushPfxs({Op::Name}, "Expected func arg name");
+			PushPfxs({Op::Name}, "Expected func arg name", 0);
 			break;
 		}
 		break;
@@ -914,7 +929,7 @@ void Compiler::StrPayload(){
 			SetTaskType(Op::FuncHasName);
 			PopPfxs();
 			auto allowed = { Op::VarType,Op::Op,Op::LineEnd/*means allowed pfx will be cleared on newline*/ };
-			PushPfxs(allowed, "");
+			PushPfxs(allowed, "", 0);
 			GetObj().setName(cs);
 			break;
 		}
@@ -959,7 +974,7 @@ void Compiler::StrPayload(){
 					//TODO: could cache func obj index later
 					if (obj.getType() == Op::FuncSigComplete) {
 						if (obj.func.retType != Op::Void) {
-							PushPfxs({Op::Value},"");
+							PushPfxs({Op::Value},"", 0);
 							SetTaskType(Op::FuncNeedRetVal);
 						}else {
 							SetTaskType(Op::Func);
@@ -985,7 +1000,7 @@ void Compiler::StrPayload(){
 			case Op::FuncHasName:
 				SetObjType(Op::FuncNeedsRetValType);
 				//PopPfxs();
-				PushPfxs({ Op::VarType },"");
+				PushPfxs({ Op::VarType },"", 0);
 				break;
 			default:
 				Err(Op::ErrUnexpectedOp, "");
@@ -999,7 +1014,7 @@ void Compiler::StrPayload(){
 			SetObjType(m_NameOp);
 			GetObj().func.retType = Op::Void;
 			GetObj().func.retTypeMod = Op::NotSet;
-			PushPfxs({Op::Name}, "");
+			PushPfxs({Op::Name}, "",0);
 			pushTask(Op::FuncNeedName);
 			break;
 		case Op::Public:
