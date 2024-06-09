@@ -1363,6 +1363,7 @@ int main(int argc, char** argv) {
 			if (ch == 0xffffffff) break;
 			Compiler_Char(&c, ch);
 		}
+		Compiler_Free(&c);
 		fclose(f);
 		return 0;
 	}

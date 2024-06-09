@@ -1,6 +1,2 @@
-@func $num @ret %i32
-@@ =20
-
 @func $main
-	~%i32 $r =@call $num
 @@
