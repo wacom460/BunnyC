@@ -111,36 +111,36 @@ public:
 	void setStr(const char* Str);
 	void print();
 } Obj;
-struct AllowedPfxs {
+typedef struct AllowedPfxs {
 	std::vector<Op> pfxs = {};
 	const char* err = NULL;
 	int life=0;
-};
-struct Task {
+} AllowedPfxs;
+typedef struct Task {
 	Op type = OP_NotSet;
 	std::vector<Obj> working = {};
 	std::string code = {};
 	std::string codePart1 = {};
 	std::string codePart2 = {};
-};
-class Compiler {
-public:
+} Task;
+typedef struct  Compiler {
 	int m_Line = 1, m_Column = 1;
 	Op m_Pfx = OP_Null;
 	std::string m_Str = {}, m_cOutput = {};
 	std::stack<Obj> m_ObjStack = {};
 	std::stack<AllowedPfxs> m_AllowedNextPfxsStack = {};
+	std::stack<Op> m_ModeStack;
+	std::stack<Task> m_TaskStack;
+	std::stack<bool> m_StrReadPtrsStack;
 	Op m_Pointer = OP_NotSet;
 	Op m_NameOp = OP_Null;
 	char m_Ch = '\0';
-	std::stack<bool> m_StrReadPtrsStack;
 	bool m_StringMode = false;
-	std::stack<Op> m_ModeStack;
-	std::stack<Task> m_TaskStack;
 	bool m_StrAllowSpace = false;
 	Op m_CommentMode = OP_NotSet;
 	int m_MultiLineOffCount = 0;
 	NameInfoDB m_NameTypeCtx = {};
+
 	Obj& GetObj();
 	Compiler();
 	~Compiler();
@@ -151,7 +151,7 @@ public:
 	void push(Op mode, bool strAllowSpace = false);
 	Op pop();
 	//life:0 = infinite, -1 life each pfx
-	void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err = NULL, int life = 0);
+	void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life);
 	void popAllowedNextPfxs();
 	bool isPfxExpected(Op pfx);
 	//NO NEWLINES AT END OF STR
@@ -162,7 +162,7 @@ public:
 	void Str();
 	void StrPayload();
 	void ExplainErr(Op code);
-};
+} Compiler;
 #define Err(code, msg){\
 	PRINT_LINE_INFO();\
 	printf(":%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, m_Line, m_Column, GetOpName(code), (int)code);\
@@ -933,7 +933,8 @@ void Compiler::StrPayload(){
 		case OP_CallNeedName: {
 			SetObjType(OP_CallWantArgs);
 			PopPfxs();
-			PushPfxs({OP_VarType, OP_LineEnd}, "expected var type or line end after func name");
+			auto allowed = { OP_VarType, OP_LineEnd };
+			PushPfxs(allowed, "expected var type or line end after func name", 0);
 
 		}
 		case OP_Func: {
@@ -957,7 +958,8 @@ void Compiler::StrPayload(){
 			m_NameTypeCtx.add(cs, GetObj().var.type);
 			SetObjType(OP_VarWantValue);
 			PopPfxs();
-			PushPfxs({ OP_Value, OP_LineEnd }, "expected value or line end after var name");
+			auto allowed = { OP_Value, OP_LineEnd };
+			PushPfxs(allowed, "expected value or line end after var name", 0);
 			break;
 		}
 		break;
