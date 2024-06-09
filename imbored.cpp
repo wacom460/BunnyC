@@ -4,9 +4,6 @@
 #include <assert.h>
 #include <stdarg.h>
 
-//#include <vector>
-#include <stack>
-
 //not actually a compiler
 //ascii only, maybe utf8 later...
 //transpile to C99
@@ -212,17 +209,18 @@ void ObjInit(Obj* o) {
 	o->arg.mod = OP_NotSet;
 }
 typedef struct AllowedPfxs {
-	IBVector pfxs;
+	IBVector pfxs;//Op
 	const char* err;
 	int life;
 } AllowedPfxs;
 void AllowedPfxsInit(AllowedPfxs* ap, int count, ...) {
 	va_list args;
+	Op o;
+	IBVectorInit(&ap->pfxs, sizeof(Op));
 	ap->err=NULL;
 	ap->life=0;
 	va_start(args, count);
 	while (count--) {
-		Op o;
 		o = va_arg(args, Op);
 		IBVectorCopyPushOp(&ap->pfxs, o);
 	}
