@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 //not actually a compiler
 //ascii only, maybe utf8 later...
@@ -155,19 +156,19 @@ void NameInfoDBFree(NameInfoDB* db) {
 	IBVectorFree(&db->pairs);
 }
 typedef struct FuncObj {
-	Val retVal = {};
-	Op retType = OP_NotSet;
-	Op retTypeMod = OP_NotSet;
+	Val retVal;
+	Op retType;
+	Op retTypeMod;
 } FuncObj;
 typedef struct ArgObj {
-	Op type = OP_Null;
-	Op mod = OP_NotSet;
+	Op type;
+	Op mod;
 } ArgObj;
 typedef struct VarObj {
-	Val val = {};
-	bool valSet = false;
-	Op type = OP_NotSet;
-	Op mod = OP_NotSet;
+	Val val;
+	bool valSet;
+	Op type;
+	Op mod;
 } VarObj;
 const char* GetOpName(Op op);
 typedef struct Obj {
@@ -259,8 +260,8 @@ void Compiler_Free(Compiler* compiler);
 void Compiler_pushTask(Compiler* compiler, Op task);
 void Compiler_popTask(Compiler* compiler);
 Obj* Compiler_pushObj(Compiler* compiler);
-Obj* Compiler_popObj(Compiler* compiler, bool pushToWorking = true);
-void Compiler_push(Compiler* compiler, Op mode, bool strAllowSpace = false);
+Obj* Compiler_popObj(Compiler* compiler, bool pushToWorking);
+void Compiler_push(Compiler* compiler, Op mode, bool strAllowSpace);
 Op Compiler_pop(Compiler* compiler);
 //life:0 = infinite, -1 life each pfx
 //void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life);
@@ -367,23 +368,31 @@ OpNamePair cEquivelents[] = {
 	{"extern", OP_Imaginary},
 };
 const char* GetCEqu(Op op) {
-	for (auto& opN : cEquivelents)
-		if (op == opN.op) return opN.name;
+	int sz=sizeof(cEquivelents)/sizeof(cEquivelents[0]);
+	for (int i = 0; i < sz; i++) {
+		if (op == cEquivelents[i].op) return cEquivelents[i].name;
+	}
 	return "?";
 }
 const char* GetOpName(Op op) {
-	for (auto& opN : opNames)
-		if (op == opN.op) return opN.name;
+	int sz = sizeof(opNames) / sizeof(opNames[0]);
+	for (int i = 0; i < sz; i++) {
+		if (op == opNames[i].op) return opNames[i].name;
+	}
 	return "?";
 }
 const char* GetPfxName(Op op) {
-	for (auto& opN : pfxNames)
-		if (op == opN.op) return opN.name;
+	int sz = sizeof(pfxNames) / sizeof(pfxNames[0]);
+	for (int i = 0; i < sz; i++) {
+		if (op == pfxNames[i].op) return pfxNames[i].name;
+	}
 	return "?";
 }
 Op GetOpFromName(const char* name) {
-	for (auto& op : opNames)
-		if (!strcmp(op.name, name)) return op.op;
+	int sz = sizeof(opNames) / sizeof(opNames[0]);
+	for (int i = 0; i < sz; i++) {
+		if (!strcmp(opNames[i].name, name)) return opNames[i].op;
+	}
 	return OP_Error;
 }
 Op fromPfxCh(char ch) {
@@ -431,7 +440,7 @@ void Compiler_Init(Compiler* compiler){
 	IBVectorInit(&compiler->m_StrReadPtrsStack, sizeof(bool));
 	IBVectorInit(&compiler->m_TaskStack, sizeof(Task));
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
-	Compiler_push(compiler, OP_ModePrefixPass);
+	Compiler_push(compiler, OP_ModePrefixPass, false);
 	Compiler_pushObj(compiler);
 }
 void Compiler_Free(Compiler* compiler) {
@@ -605,12 +614,12 @@ void Compiler_Char(Compiler* compiler, char ch){
 		switch (compiler->m_CommentMode) {
 		case OP_NotSet: {
 			compiler->m_CommentMode = OP_Comment;
-			Compiler_push(compiler, OP_ModeComment);
+			Compiler_push(compiler, OP_ModeComment, false);
 			break;
 		}
 		case OP_Comment: {
 			Compiler_pop(compiler);
-			Compiler_push(compiler, OP_ModeMultiLineComment);
+			Compiler_push(compiler, OP_ModeMultiLineComment, false);
 			compiler->m_CommentMode = OP_MultiLineComment;
 			break;
 		}
@@ -751,9 +760,12 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 	case OP_FuncSigComplete:
 	case OP_FuncHasName:
 	case OP_Func: {
-		char cFuncModsTypeName[CODE_STR_MAX] = {};
-		char cFuncArgs[CODE_STR_MAX] = {};
-		char cFuncCode[CODE_STR_MAX] = {};
+		char cFuncModsTypeName[CODE_STR_MAX];
+		cFuncModsTypeName[0] = '\0';
+		char cFuncArgs[CODE_STR_MAX];
+		cFuncArgs[0] = '\0';
+		char cFuncCode[CODE_STR_MAX];
+		cFuncCode[0] = '\0';
 		bool imaginary = false;
 		Obj* funcObj=NULL;
 		for (int i = 0; i < GetTaskWorkingObjs.elemCount; ++i) {
@@ -920,7 +932,8 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 		switch (GetTaskType) {
 		case OP_CPrintfHaveFmtStr: {
 			if (compiler->m_TaskStack.elemCount - 2 >= 0) {
-				char theCode[CODE_STR_MAX] = {};
+				char theCode[CODE_STR_MAX];
+				theCode[0] = '\0';
 				strcpy_s(theCode, CODE_STR_MAX, GetTaskCode);
 				Compiler_popTask(compiler);
 				switch (GetTaskType) {
@@ -952,7 +965,7 @@ void Compiler_Prefix(Compiler* compiler){
 	switch (compiler->m_Pfx) {
 	case OP_String: { //"
 		compiler->m_StringMode = true;
-		Compiler_push(compiler, OP_ModeStrPass);
+		Compiler_push(compiler, OP_ModeStrPass, false);
 		break;
 	}
 	case OP_VarType:
@@ -962,7 +975,7 @@ void Compiler_Prefix(Compiler* compiler){
 	case OP_Op:
 	case OP_Name:
 		//getchar();
-		Compiler_push(compiler, OP_ModeStrPass);
+		Compiler_push(compiler, OP_ModeStrPass, false);
 		break;
 	case OP_Comment:
 		break;
@@ -1036,7 +1049,7 @@ void Compiler_Str(Compiler* compiler){
 }
 void Compiler_StrPayload(Compiler* compiler){
 	printf("Doing Str payload\n");
-	Val strVal = {};
+	Val strVal;
 	strVal.i32=atoi(compiler->m_Str);
 	compiler->m_NameOp = GetOpFromName(compiler->m_Str);
 	printf("Str: %s\n", compiler->m_Str);
