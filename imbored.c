@@ -430,6 +430,7 @@ Obj* Compiler_GetObj(Compiler* compiler) {
 	return (Obj*)IBVectorTop(&compiler->m_ObjStack);
 }
 void Compiler_Init(Compiler* compiler){
+	Obj* o;
 	AllowedPfxs ap;
 	compiler->m_Line = 1;
 	compiler->m_Column = 1;
@@ -556,7 +557,6 @@ void ObjSetStr(Obj* obj, const char* Str) {
 	owStr(&obj->str, Str);
 }
 void ObjPrint(Obj* obj) {
-	unsigned __int64 u64 = obj->val.u64;
 	printf("[");
 	if (obj->type != OP_NotSet) {
 		printf("Type:%s(%d),", GetOpName(obj->type), (int)obj->type);
@@ -566,7 +566,7 @@ void ObjPrint(Obj* obj) {
 	if (obj->modifier != OP_NotSet) {
 		printf("Mod:%s,", GetOpName(obj->modifier));
 	}
-	/*if(u64)*/printf("Val:%I64u", u64);
+	/*if(u64)*/printf("Val:%d", obj->val.i32);
 	printf("]");
 }
 //void Compiler_pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life) {
@@ -592,7 +592,7 @@ void Compiler_pushAllowedPfxs(Compiler* compiler, int life, const char* err, int
 		o = va_arg(args, Op);
 		IBVectorCopyPushOp(&ap.pfxs, o);
 	}
-
+	IBVectorCopyPush(&compiler->m_AllowedNextPfxsStack, &ap);
 }
 void Compiler_popAllowedNextPfxs(Compiler* compiler) {
 	if (GetAllowedPfxsTop->pfxs.elemCount) {
