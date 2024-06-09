@@ -753,8 +753,10 @@ void Compiler::Prefix(){
 	case Op::Comment:
 		break;
 	}
-	auto& aps=m_AllowedNextPfxsStack.top();
-	if ((--aps.life) <= 0)m_AllowedNextPfxsStack.pop();
+	if (m_Pfx == Op::Op) {
+		auto& aps = m_AllowedNextPfxsStack.top();
+		if (aps.life && --aps.life <= 0) m_AllowedNextPfxsStack.pop();
+	}
 }
 void Compiler::Str(){
 	if (m_StringMode) {
@@ -952,6 +954,10 @@ void Compiler::StrPayload(){
 	}
 	case Op::Op: //@
 		switch (m_NameOp) {
+		case Op::Call:{
+			printf("Call\n");
+			break;
+		}
 		case Op::dbgBreak: {
 			__debugbreak();
 			m_TaskStack;
