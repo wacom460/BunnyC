@@ -28,6 +28,7 @@ enum class Op { //multiple uses
 	CompletedFunction,
 
 	VarNeedName,VarWantValue,VarComplete,
+	CallNeedName,CallWantArgs,CallComplete,
 
 	Op,Value,Done,Return,NoChange,Struct,VarType,LineEnd,
 	Comment,MultiLineComment,Public,Private,Imaginary,Void,
@@ -726,8 +727,9 @@ void Compiler::PopAndDoTask()	{
 	else popTask();
 }
 void Compiler::Prefix(){
+	//for assigning func call ret val to var
 	if (m_Pfx == Op::Value && m_Ch == '@' && m_Str.empty()) {
-		PushPfxs({Op::Op},"",1);
+		PushPfxs({ Op::Op }, "", 1);
 	}
 	m_Pfx = fromPfxCh(m_Ch);
 	auto& obj = GetObj();
@@ -955,10 +957,14 @@ void Compiler::StrPayload(){
 	case Op::Op: //@
 		switch (m_NameOp) {
 		case Op::Call:{
-			printf("Call\n");
 			switch (GetObjType) {
 			case Op::VarWantValue: {
-
+				/*auto& tst = m_TaskStack.top();
+				auto& ost = m_ObjStack.top();
+				auto& pfxs=m_AllowedNextPfxsStack.top().pfxs;*/
+				auto&o=pushObj({});
+				o.setType(Op::CallNeedName);
+				PushPfxs({Op::Name}, "expected function name", 0);
 			}
 			}
 			break;
