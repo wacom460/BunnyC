@@ -150,14 +150,24 @@ typedef union Val {
 	double d64;
 } Val;
 typedef struct NameInfo {
-	Op type = OP_NotSet;
-	const char* name = NULL;
+	Op type;
+	const char* name;
 } NameInfo;
+void NameInfoInit(NameInfo* info){
+	info->type=OP_NotSet;
+	info->name=NULL;
+}
 typedef struct NameInfoDB {
 	IBVector pairs;
 	void add(const char* name, Op type);
 	Op findType(const char* name);
 } NameInfoDB;
+void NameInfoDBInit(NameInfoDB* db) {
+	IBVectorInit(&db->pairs, sizeof(NameInfo));
+}
+void NameInfoDBFree(NameInfoDB* db) {
+	IBVectorFree(&db->pairs);
+}
 typedef struct FuncObj {
 	Val retVal = {};
 	Op retType = OP_NotSet;
@@ -175,17 +185,16 @@ typedef struct VarObj {
 } VarObj;
 const char* GetOpName(Op op);
 typedef struct Obj {
-//private:
-	Op type = OP_NotSet;
-	Op modifier = OP_NotSet;
-//public:
-	Op privacy = OP_NoChange;
-	char* name = NULL;
-	char* str = NULL;
+	Op type;
+	Op modifier;
+	Op privacy;
+	char* name;
+	char* str;
 	FuncObj func;
 	VarObj var;
-	ArgObj arg = {};
-	Val val = {};
+	ArgObj arg;
+	Val val;
+
 	const Op getType();
 	void setType(Op type);
 	Op getMod();
@@ -227,7 +236,7 @@ void AllowedPfxsInit(AllowedPfxs* ap, int count, ...) {
 	va_end(args);
 }
 typedef struct Task {
-	Op type = OP_NotSet;
+	Op type;
 	IBVector working;//Obj
 	char code1[CODE_STR_MAX];
 	char code2[CODE_STR_MAX];
@@ -239,10 +248,10 @@ void TaskInit(Task* t, Op type) {
 	t->code2[0] = '\0';
 }
 typedef struct  Compiler {
-	int m_Line = 1, m_Column = 1;
-	Op m_Pfx = OP_Null;
-	char m_Str[COMPILER_STR_MAX] = {};
-	char m_cOutput[CODE_STR_MAX] = {};
+	int m_Line, m_Column;
+	Op m_Pfx;
+	char m_Str[COMPILER_STR_MAX];
+	char m_cOutput[CODE_STR_MAX];
 
 	IBVector m_ObjStack; //Obj
 	IBVector m_AllowedNextPfxsStack; //AllowedPfxs
@@ -415,11 +424,17 @@ Obj* Compiler::GetObj() {
 }
 Compiler::Compiler(){
 	AllowedPfxs ap;
+	m_Line = 1;
+	m_Column = 1;
+	m_Pfx = OP_Null;
+	m_Str[0] = '\0';
+	m_cOutput[0] = '\0';
 	IBVectorInit(&m_AllowedNextPfxsStack, sizeof(AllowedPfxs));
 	AllowedPfxsInit(&ap, 1, OP_Op);
 	IBVectorCopyPush(&m_AllowedNextPfxsStack, &ap);
 	
-	IBVectorInit(&m_NameTypeCtx.pairs, sizeof(NameInfo));
+	//IBVectorInit(&m_NameTypeCtx.pairs, sizeof(NameInfo));
+	NameInfoDBInit(&m_NameTypeCtx);
 	IBVectorInit(&m_ObjStack, sizeof(Obj));
 	IBVectorInit(&m_ModeStack, sizeof(Op));
 	IBVectorInit(&m_StrReadPtrsStack, sizeof(bool));
