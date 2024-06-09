@@ -3,7 +3,9 @@
 #include <string.h>
 #include <assert.h>
 #include <stdarg.h>
-#include <stdbool.h>
+#define bool char
+#define true 1
+#define false 0
 
 //not actually a compiler
 //ascii only, maybe utf8 later...
@@ -61,17 +63,22 @@ size_t ClampSizeT(size_t val, size_t min, size_t max) {
 	if (val > max) return max;
 	return val;
 }
+typedef union {
+	void* data;
+	struct Obj* obj;
+	struct Task* task;
+	Op* op;
+	struct AllowedPfxs* apfxs;
+	struct NameInfoDB* niDB;
+} IBVecData;
 typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
 	int slotCount;
 	size_t dataSize;
 	size_t iterIdx;
-	union {
-		void* data;
-		struct AllowedPfxs *apfxs;
-		struct Task *task;
-	};
+	IBVecData;
+	IBVecData VEC_TOP;
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->elemSize = elemSize;
@@ -94,13 +101,16 @@ void* IBVectorIterNext(IBVector* vec) {
 	return (char*)vec->data + vec->elemSize * vec->iterIdx++;
 }
 void IBVectorCopyPush(IBVector* vec, void* elem) {
+	void* topPtr;
 	assert(vec->elemCount <= vec->slotCount);
 	if (vec->elemCount >= vec->slotCount) {
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
 		vec->data = realloc(vec->data, vec->dataSize);
 	}
-	memcpy((char*)vec->data + vec->elemSize * vec->elemCount, elem, vec->elemSize);
+	topPtr = (char*)vec->data + vec->elemSize * vec->elemCount;
+	memcpy(topPtr, elem, vec->elemSize);
+	vec->VEC_TOP.data = topPtr;
 	vec->elemCount++;
 }
 void IBVectorCopyPushBool(IBVector* vec, bool val) {
@@ -954,13 +964,14 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 	else Compiler_popTask(compiler);
 }
 void Compiler_Prefix(Compiler* compiler){
+	Obj* obj;
 	//for assigning func call ret val to var
 	if (compiler->m_Pfx == OP_Value && compiler->m_Ch == '@' && !compiler->m_Str[0]) {
 		//PushPfxs({ OP_Op }, "", 1);
 		Compiler_pushAllowedPfxs(compiler, 1, "", 1, OP_Op);
 	}
 	compiler->m_Pfx = fromPfxCh(compiler->m_Ch);
-	Obj* obj = Compiler_GetObj(compiler);
+	Compiler_GetObj(compiler);
 	if (compiler->m_Pfx != OP_Unknown 
 		&& GetAllowedPfxsTop->pfxs.elemCount
 		&& !Compiler_isPfxExpected(compiler, compiler->m_Pfx))
@@ -1143,15 +1154,17 @@ void Compiler_StrPayload(Compiler* compiler){
 			PushPfxs(allowed, "expected operator, print statement, or variable declaration");*/
 			break;
 		}
-		case OP_FuncHasName:
-			Obj*o=Compiler_pushObj(compiler);
+		case OP_FuncHasName: {
+			Obj* o;
+			o=Compiler_pushObj(compiler);
 			SetObjType(OP_FuncArgNameless);
-			o->arg.type= compiler->m_NameOp;
+			o->arg.type = compiler->m_NameOp;
 			o->arg.mod = compiler->m_Pointer;
 			//PopPfxs();
 			//PushPfxs({OP_Name}, "Expected func arg name", 0);
-			Compiler_pushAllowedPfxs(compiler, 0,"Expected func arg name", 1, OP_Name);
+			Compiler_pushAllowedPfxs(compiler, 0, "Expected func arg name", 1, OP_Name);
 			break;
+		}
 		}
 		break;
 	case OP_Name: { //$
