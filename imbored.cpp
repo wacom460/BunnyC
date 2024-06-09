@@ -229,7 +229,9 @@ OpNamePair opNames[] = {
 	{"CompletedFunction",OP_CompletedFunction},{"ErrUnknownOpStr",OP_ErrUnknownOpStr},
 	{"ErrNOT_GOOD", OP_ErrNOT_GOOD},{"FuncNeedName",OP_FuncNeedName},{"String", OP_String},
 	{"VarComplete", OP_VarComplete},{"VarWantValue",OP_VarWantValue},{"LineEnd", OP_LineEnd},
-	{"CPrintfHaveFmtStr",OP_CPrintfHaveFmtStr},{"FuncWantCode",OP_FuncWantCode},{"dbgBreak", OP_dbgBreak}
+	{"CPrintfHaveFmtStr",OP_CPrintfHaveFmtStr},{"FuncWantCode",OP_FuncWantCode},
+	{"dbgBreak", OP_dbgBreak},{"CallNeedName",OP_CallNeedName},
+	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete}
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -469,10 +471,13 @@ void Compiler::Char(char ch){
 		}
 		}
 		switch (GetObjType) {
+		case OP_CallWantArgs: {
+			popObj(true);
+			break;
+		}
 		case OP_VarWantValue: 
 		case OP_VarComplete: {
 			popObj(true);
-			//PopPfxs();
 			break;
 		}
 		}
@@ -922,18 +927,18 @@ void Compiler::StrPayload(){
 	case OP_Name: { //$
 		SwitchTaskStackStart
 		case OP_CPrintfHaveFmtStr: {
-			pushObj({});
-			GetObj().setName(cs);
-			GetObj().setType(OP_Name);
+			auto&o=pushObj({});
+			o.setName(cs);
+			o.setType(OP_Name);
 			popObj(true);
 			break;
 		}
 		SwitchTaskStackEnd
 		switch (GetObjType) {
-		case OP_CallNeedName: {
+		case OP_CallNeedName: { //=@call
 			SetObjType(OP_CallWantArgs);
 			PopPfxs();
-			auto allowed = { OP_VarType, OP_LineEnd };
+			auto allowed = { OP_Name, OP_Value, OP_LineEnd };
 			PushPfxs(allowed, "expected var type or line end after func name", 0);
 
 		}
@@ -1111,11 +1116,9 @@ int main(int argc, char** argv) {
 	}
 	return 1;
 }
-
 void NameInfoDB::add(const char* name, Op type){
 	pairs.push_back({ type, _strdup(name) });
 }
-
 Op NameInfoDB::findType(const char* name){
 	for (auto& p : pairs)
 		if (!strcmp(p.name, name))
