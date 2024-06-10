@@ -573,16 +573,12 @@ void ALlowedPfxsPrint(AllowedPfxs* ap) {
 	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
 		printf("%s ", GetPfxName(*oi));
 }
-void _CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs *initialAPfxs) {
+void CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs *initialAPfxs) {
 	Task t;
 	printf("Push task %s(%d)\n", GetOpName(task),(int)task);
 	TaskInit(&t, task);
 	IBVectorCopyPush(&t.apfxsStack, initialAPfxs);
 	IBVectorCopyPush(&compiler->m_TaskStack, &t);
-}
-#define CompilerPushTask(compiler, task, apfxs){\
-	PRINT_LINE_INFO();\
-	_CompilerPushTask(compiler, task, apfxs);\
 }
 void CompilerPopTask(Compiler* compiler) {
 	printf("Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
