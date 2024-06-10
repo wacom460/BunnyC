@@ -84,7 +84,7 @@ DEBUGGING ONLY
 	struct Obj* obj;
 	struct Task* task;
 	Op* op;
-	int* boolean;
+	unsigned char *boolean;
 	struct AllowedPfxs* apfxs;
 	struct NameInfoDB* niDB;
 #endif
@@ -172,6 +172,7 @@ void IBVectorCopyPushOp(IBVector* vec, Op val) {
 	IBVectorCopyPush(vec, &val);
 }
 IBVecData* IBVectorTop(IBVector* vec) {
+	assert(vec);
 	if (vec->elemCount <= 0) {
 		__debugbreak();
 		return NULL;
@@ -443,16 +444,20 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 }
 Task* _GetTask(Compiler *compiler){
 	Task* ret;
-	assert(compiler->m_TaskStack.elemCount);
-	ret = (Task*)IBVectorTop(&compiler->m_TaskStack);
-	assert(ret);
+	ret = NULL;
+	if (compiler->m_TaskStack.elemCount) {
+		ret = (Task*)IBVectorTop(&compiler->m_TaskStack);
+		assert(ret);
+	}
 	return ret;
 }
 #define GetTask _GetTask(compiler)
-#define GetAPfxsStack (&GetTask->apfxsStack)
-#define GetAllowedPfxsTop ((AllowedPfxs*)IBVectorTop(GetAPfxsStack))
+#define GetAPfxsStack (!GetTask ? NULL : &GetTask->apfxsStack)
+#define GetAllowedPfxsTop\
+	((!GetTask || !(GetTask->apfxsStack.elemCount))\
+	? NULL : ((AllowedPfxs*)IBVectorTop(GetAPfxsStack)))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
-#define GetTaskType ((compiler->m_TaskStack.elemCount) ? GetTask->type\
+#define GetTaskType ((GetTask && compiler->m_TaskStack.elemCount) ? GetTask->type\
 	: OP_TaskStackEmpty)
 #define GetTaskCode   (GetTask->code1)
 #define GetTaskCodeP1 (GetTask->code2)
@@ -578,8 +583,8 @@ Obj* CompilerGetObj(Compiler* compiler) {
 }
 void CompilerInit(Compiler* compiler){
 	Obj* o;
-	Task* rootTask;
-	AllowedPfxs* ap;
+	//Task* rootTask;
+	//AllowedPfxs* ap;
 	compiler->m_Line = 1;
 	compiler->m_Column = 1;
 	compiler->m_Pfx = OP_Null;
@@ -598,10 +603,10 @@ void CompilerInit(Compiler* compiler){
 	IBVectorInit(&compiler->m_StrReadPtrsStack, sizeof(bool));
 	IBVectorInit(&compiler->m_TaskStack, sizeof(Task));
 	compiler->m_TaskStack.protectedSlotCount = 1;
-	rootTask = (Task*)IBVectorPush(&compiler->m_TaskStack);
+	/*rootTask = (Task*)IBVectorPush(&compiler->m_TaskStack);
 	TaskInit(rootTask, OP_RootTask);
 	ap = (AllowedPfxs*)IBVectorPush(&rootTask->apfxsStack);
-	AllowedPfxsInit(ap, 0, "root task. only Op(@) allowed", 1, OP_Op);
+	AllowedPfxsInit(ap, 0, "root task. only Op(@) allowed", 1, OP_Op);*/
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
 	CompilerPush(compiler, OP_ModePrefixPass, false);
 	CompilerPushObj(compiler, &o);
@@ -736,7 +741,7 @@ void CompilerPushAllowedPfxs(Compiler* compiler, int life, char* err, int count,
 	va_start(args, count);
 	printf(" apfxs PUSH: { ");
 	idx = 0;
-	assert(GetAllowedPfxsTop->pfxs.elemCount);
+	assert(GetTask && GetAllowedPfxsTop && GetAllowedPfxsTop->pfxs.elemCount);
 	while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs, &idx))
 		printf("%s ", GetPfxName(*oi));
 	printf("} -> { ");
@@ -774,9 +779,13 @@ void CompilerPopAllowedNextPfxs(Compiler* compiler) {
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	Op* oi;
 	int idx;
+	if(!GetTask || !GetAPfxsStack->elemCount) return pfx == OP_Op;
 	idx = 0;
+	oi = NULL;
 	while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs,&idx)) {
-		if (*oi == pfx) return true;
+		assert(oi);
+		if (oi && *oi == pfx) 
+			return true;
 	}
 	return false;
 }
@@ -1158,10 +1167,13 @@ void CompilerPrefix(Compiler* compiler){
 	compiler->m_Pfx = fromPfxCh(compiler->m_Ch);
 	if(compiler->m_Pfx == OP_SpaceChar) return;
 	obj=CompilerGetObj(compiler);
-	if (compiler->m_Pfx != OP_Unknown 
-		&& GetAllowedPfxsTop->pfxs.elemCount
-		&& !CompilerIsPfxExpected(compiler, compiler->m_Pfx))
+	if (compiler->m_Pfx != OP_Unknown
+		&& (!GetTask || GetAllowedPfxsTop->pfxs.elemCount)
+		&& !CompilerIsPfxExpected(compiler, compiler->m_Pfx)
+	)
+	{
 		Err(OP_ErrUnexpectedNextPfx, "");
+	}
 	printf("PFX:%s(%d)\n", GetPfxName(compiler->m_Pfx), (int)compiler->m_Pfx);
 	switch (compiler->m_Pfx) {
 	case OP_String: { /* " */
@@ -1185,7 +1197,7 @@ void CompilerPrefix(Compiler* compiler){
 	if (compiler->m_Pfx == OP_Op) {
 		AllowedPfxs* aps;
 		aps = GetAllowedPfxsTop;
-		if (aps->life && --aps->life <= 0) {
+		if (aps && aps->life && --aps->life <= 0) {
 			IBVectorPop(GetAPfxsStack);
 		}
 	}
@@ -1463,12 +1475,11 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_Func: {
 			AllowedPfxs ap;
+			AllowedPfxsInit(&ap, 0, "", 1, OP_Name);
+			CompilerPushTask(compiler, OP_FuncNeedName, &ap);
 			SetObjType(compiler->m_NameOp);
 			CompilerGetObj(compiler)->func.retType = OP_Void;
 			CompilerGetObj(compiler)->func.retTypeMod = OP_NotSet;
-			CompilerPushAllowedPfxs(compiler, 0, "", 1, OP_Name);
-			AllowedPfxsInit(&ap, 0, "", 1, OP_Name);
-			CompilerPushTask(compiler, OP_FuncNeedName, &ap);
 			break;
 		}
 		case OP_Public:
@@ -1532,16 +1543,15 @@ int main(int argc, char** argv) {
 	char* fname = /*argv[1]*/"main.txt";
 	f = fopen(fname, "r");
 	if (f){
-		Compiler *comp = (Compiler*)malloc(sizeof(Compiler));
+		Compiler comp;
 		char ch;
-		CompilerInit(comp);
+		CompilerInit(&comp);
 		while ((ch = fgetc(f)) != EOF) {
 			if (ch == 0xffffffff) break;
-			CompilerChar(comp, ch);
+			CompilerChar(&comp, ch);
 		}
 		printf("Exiting\n");
-		CompilerFree(comp);
-		free(comp);
+		CompilerFree(&comp);
 		fclose(f);
 		return 0;
 	}
