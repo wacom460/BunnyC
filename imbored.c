@@ -33,7 +33,7 @@ typedef enum Op { //multiple uses
 	OP_CompletedFunction,
 
 	OP_VarNeedName, OP_VarWantValue, OP_VarComplete,
-	OP_CallNeedName, OP_CallWantArgs, OP_CallComplete,
+	OP_CallNeedName, OP_CallWantArgs, OP_CallComplete,	
 
 	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct, OP_VarType, OP_LineEnd,
 	OP_Comment, OP_MultiLineComment, OP_Public, OP_Private, OP_Imaginary, OP_Void,
@@ -42,7 +42,7 @@ typedef enum Op { //multiple uses
 	OP_GreaterThan, OP_LessThanOrEquals, OP_GreaterThanOrEquals,
 	OP_ScopeOpen, OP_ScopeClose, OP_ParenthesisOpen, OP_ParenthesisClose,
 	OP_BracketOpen, OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
-	OP_CPrintfHaveFmtStr,
+	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -88,7 +88,6 @@ typedef struct IBVector {
 	IBLLNode* start;
 	IBLLNode* end;
 	IBVecData;//DATA BLOCK
-	IBVecData VEC_TOP;//ptr to end element
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->elemSize = elemSize;
@@ -127,7 +126,6 @@ IBVecData* IBVectorPush(IBVector* vec) {
 		vec->start = ra;
 	}
 	topPtr = vec->data + vec->elemSize * vec->elemCount;
-	vec->VEC_TOP.data = topPtr;
 	if (vec->elemCount > 0) {
 		vec->start[vec->elemCount - 1].next = &vec->start[vec->elemCount];
 		vec->start[vec->elemCount].prev = &vec->start[vec->elemCount - 1];
@@ -201,8 +199,22 @@ typedef struct NameInfoDB {
 void NameInfoDBInit(NameInfoDB* db) {
 	IBVectorInit(&db->pairs, sizeof(NameInfo));
 }
-void NameInfoDBAdd(NameInfoDB* db, const char* name, Op type);
-Op NameInfoDBFindType(NameInfoDB* db, const char* name);
+void NameInfoDBAdd(NameInfoDB* db, const char* name, Op type) {
+	NameInfo info;
+	info.type = type;
+	info.name = _strdup(name);
+	IBVectorCopyPush(&db->pairs, &info);
+}
+Op NameInfoDBFindType(NameInfoDB* db, const char* name) {
+	NameInfo* pair;
+	int idx;
+	idx = 0;
+	while (pair = (NameInfo*)IBVectorIterNext(&db->pairs, &idx)) {
+		if (!strcmp(pair->name, name))
+			return pair->type;
+	}
+	return OP_NotFound;
+}
 void NameInfoDBFree(NameInfoDB* db) {
 	IBVectorFree(&db->pairs);
 }
@@ -349,7 +361,7 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 #define GetAllowedPfxsTop ((AllowedPfxs*)IBVectorTop(&compiler->m_AllowedNextPfxsStack))
 #define GetTask ((Task*)IBVectorTop(&compiler->m_TaskStack))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
-#define GetTaskType   (GetTask->type)
+#define GetTaskType   ((compiler->m_TaskStack.elemCount) ? GetTask->type : OP_TaskStackEmpty)
 #define GetTaskCode   (GetTask->code1)
 #define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
@@ -358,10 +370,6 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 	GetTask->type = tt;\
 }
 #define GetTaskWorkingObjs (GetTask->working)
-#define SwitchTaskStackStart if (compiler->m_TaskStack.elemCount) {\
-	switch (GetTaskType) {
-#define SwitchTaskStackEnd }\
-	}
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -395,7 +403,8 @@ OpNamePair opNames[] = {
 	{"VarComplete", OP_VarComplete},{"VarWantValue",OP_VarWantValue},{"LineEnd", OP_LineEnd},
 	{"CPrintfHaveFmtStr",OP_CPrintfHaveFmtStr},{"FuncWantCode",OP_FuncWantCode},
 	{"dbgBreak", OP_dbgBreak},{"CallNeedName",OP_CallNeedName},
-	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete}
+	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
+	{"TaskStackEmpty", OP_TaskStackEmpty}
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -622,7 +631,7 @@ void CompilerPushAllowedPfxs(Compiler* compiler, int life, const char* err, int 
 		printf("%s ", GetPfxName(*oi));
 	printf("} -> { ");
 	ap = IBVectorPush(&compiler->m_AllowedNextPfxsStack)->apfxs;
-	AllowedPfxsInit(&ap, 0);
+	AllowedPfxsInit(ap, 0);
 	while (count--) {
 		o = va_arg(args, Op);
 		IBVectorCopyPushOp(&ap->pfxs, o);
@@ -722,7 +731,7 @@ void CompilerChar(Compiler* compiler, char ch){
 			break;
 		}
 		}
-		SwitchTaskStackStart
+		switch(GetTaskType){
 			case OP_CPrintfHaveFmtStr: {
 				CompilerPopAndDoTask(compiler);
 				break;
@@ -754,7 +763,7 @@ void CompilerChar(Compiler* compiler, char ch){
 				}
 				break;
 			}
-		SwitchTaskStackEnd
+		}
 		break;
 	}
 	}
@@ -1115,7 +1124,7 @@ void CompilerStrPayload(Compiler* compiler){
 	switch (compiler->m_Pfx)
 	{
 	case OP_String: { //"
-		SwitchTaskStackStart
+		switch(GetTaskType){
 		case OP_FuncWantCode: { //printf
 			CompilerPushTask(compiler, OP_CPrintfHaveFmtStr);
 			Obj*o=CompilerPushObj(compiler);
@@ -1125,7 +1134,7 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerPushAllowedPfxs(compiler, 0, "expected fmt args or line end", 4, OP_Value, OP_Name, OP_String, OP_LineEnd);
 			break;
 		}
-		SwitchTaskStackEnd
+		}
 		break;
 	}
 	case OP_Value: { //=
@@ -1198,7 +1207,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		break;
 	case OP_Name: { //$
-		SwitchTaskStackStart
+		switch(GetTaskType){
 		case OP_CPrintfHaveFmtStr: {
 			Obj*o=CompilerPushObj(compiler);
 			ObjSetName(o, compiler->m_Str);
@@ -1206,7 +1215,7 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerPopObj(compiler, true);
 			break;
 		}
-		SwitchTaskStackEnd
+		}
 		switch (GetObjType) {
 		case OP_CallNeedName: { //=@call
 			SetObjType(OP_CallWantArgs);
@@ -1374,15 +1383,16 @@ int main(int argc, char** argv) {
 	const char* fname = /*argv[1]*/"main.txt";
 	f = fopen(fname, "r");
 	if (f){
-		Compiler c;
+		Compiler *comp = (Compiler*)malloc(sizeof(Compiler));
 		char ch;
-		CompilerInit(&c);
+		CompilerInit(comp);
 		while ((ch = fgetc(f)) != EOF) {
 			if (ch == 0xffffffff) break;
-			CompilerChar(&c, ch);
+			CompilerChar(comp, ch);
 		}
 		printf("Exiting\n");
-		CompilerFree(&c);
+		CompilerFree(comp);
+		free(comp);
 		fclose(f);
 		return 0;
 	}
@@ -1390,20 +1400,4 @@ int main(int argc, char** argv) {
 		printf("Error opening file\n");
 	}
 	return 1;
-}
-void NameInfoDBAdd(NameInfoDB *db, const char* name, Op type){
-	NameInfo info;
-	info.type = type;
-	info.name = _strdup(name);
-	IBVectorCopyPush(&db->pairs, &info);
-}
-Op NameInfoDBFindType(NameInfoDB* db, const char* name){
-	NameInfo* pair;
-	int idx;
-	idx = 0;
-	while (pair = (NameInfo*)IBVectorIterNext(&db->pairs,&idx)) {
-		if (!strcmp(pair->name, name))
-			return pair->type;
-	}
-	return OP_NotFound;
 }
