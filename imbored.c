@@ -102,11 +102,12 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	assert(vec->start);
 	memset(vec->start, 0, vec->slotCount * sizeof(IBLLNode));
 }
-void* IBVectorGet(IBVector* vec, int idx) {
+IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
 	return (char*)vec->data + vec->elemSize * idx;
 }
 void* IBVectorIterNext(IBVector* vec, int* idx) {
+	if (!vec) return NULL;
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (char*)vec->data + vec->elemSize * (*idx)++;
 }
@@ -125,7 +126,7 @@ IBVecData* IBVectorPush(IBVector* vec) {
 		assert(ra);
 		vec->start = ra;
 	}
-	topPtr = (char*)vec->data + vec->elemSize * vec->elemCount;
+	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
 	if (vec->elemCount > 0) {
 		vec->start[vec->elemCount - 1].next = &vec->start[vec->elemCount];
 		vec->start[vec->elemCount].prev = &vec->start[vec->elemCount - 1];
@@ -146,11 +147,11 @@ void IBVectorCopyPushBool(IBVector* vec, bool val) {
 void IBVectorCopyPushOp(IBVector* vec, Op val) {
 	IBVectorCopyPush(vec, &val);
 }
-void* IBVectorTop(IBVector* vec) {
+IBVecData* IBVectorTop(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
-	return vec->end->data;
+	return (IBVecData*)((char*)vec->data + (vec->elemCount - 1) * vec->elemSize);
 }
-void* IBVectorFront(IBVector* vec) {
+IBVecData* IBVectorFront(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
 	return (char*)vec->data;
 }
@@ -164,6 +165,8 @@ void IBVectorPop(IBVector* vec) {
 	ra = realloc(vec->data, vec->dataSize);
 	if (ra) vec->data = ra;
 	assert(vec->data);
+	vec->end = &vec->start[vec->elemCount - 1];
+	vec->end->next = NULL;
 }
 void IBVectorFree(IBVector* vec) {
 	free(vec->start);
@@ -369,7 +372,7 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 	printf("SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
-#define GetTaskWorkingObjs (GetTask->working)
+#define GetTaskWorkingObjs (GetTask ? (&GetTask->working) : NULL)
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -404,7 +407,7 @@ OpNamePair opNames[] = {
 	{"CPrintfHaveFmtStr",OP_CPrintfHaveFmtStr},{"FuncWantCode",OP_FuncWantCode},
 	{"dbgBreak", OP_dbgBreak},{"CallNeedName",OP_CallNeedName},
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
-	{"TaskStackEmpty", OP_TaskStackEmpty}
+	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -522,7 +525,6 @@ void CompilerFree(Compiler* compiler) {
 	
 	}
 	printf("-> Compilation complete <-\nResulting C code:\n\n");
-	//printf("%s", compiler->m_cOutput.c_str());
 	printf("%s", compiler->m_cOutput);
 }
 void CompilerPushTask(Compiler* compiler, Op task) {
@@ -554,8 +556,7 @@ Obj* CompilerPopObj(Compiler* compiler, bool pushToWorking) {
 		printf("To working: ");
 		ObjPrint(CompilerGetObj(compiler));
 		printf("\n");
-		//GetTaskWorkingObjs.push_back(CompilerGetObj(compiler));
-		IBVectorCopyPush(&GetTaskWorkingObjs, CompilerGetObj(compiler));
+		IBVectorCopyPush(GetTaskWorkingObjs, CompilerGetObj(compiler));
 	}
 	printf("Pop obj: ");
 	ObjPrint(CompilerGetObj(compiler));
@@ -576,13 +577,12 @@ Obj* CompilerPopObj(Compiler* compiler, bool pushToWorking) {
 }
 void CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
 	compiler->m_StrAllowSpace = strAllowSpace;
-	//compiler->m_ModeStack.push(mode);
 	IBVectorCopyPushOp(&compiler->m_ModeStack, mode);
-	printf("push: to %s\n", GetOpName(GetMode));
+	printf("push: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
 }
 Op CompilerPop(Compiler* compiler) {
 	IBVectorPop(&compiler->m_ModeStack);
-	printf("pop: to %s\n", GetOpName(GetMode));
+	printf("pop: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
 	return GetMode;
 }
 const Op ObjGetType(Obj* obj) { return obj->type; }
@@ -782,6 +782,8 @@ void CompilerChar(Compiler* compiler, char ch){
 		case OP_ModeStrPass:
 			CompilerStr(compiler);
 			break;
+		default: Err(OP_ErrNOT_GOOD, "unknown mode %d", m);
+			break;
 		}
 	}
 	if (nl) {
@@ -821,7 +823,7 @@ void Val2Str(char *dest, int destSz, Val v, Op type) {
 void CompilerPopAndDoTask(Compiler* compiler)	{
 	printf("PopAndDoTask()\n");
 	if(!compiler->m_TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
-	if(!GetTaskWorkingObjs.elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
+	if(!GetTaskWorkingObjs->elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
 	bool subTask = false;
 	switch (GetTaskType) {
 	case OP_FuncWantCode: break;
@@ -841,8 +843,8 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		cFuncArgs[0] = '\0';
 		cFuncCode[0] = '\0';
 		funcObj = NULL;
-		for (int i = 0; i < GetTaskWorkingObjs.elemCount; ++i) {
-			Obj* o = (Obj*)IBVectorGet(&GetTaskWorkingObjs, i);
+		for (int i = 0; i < GetTaskWorkingObjs->elemCount; ++i) {
+			Obj* o = (Obj*)IBVectorGet(GetTaskWorkingObjs, i);
 			switch (ObjGetType(o)) {
 			case OP_FuncArgComplete: {//multiple allowed
 				auto at = o->arg.type;
@@ -881,7 +883,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 		}
 		idx = 0;
-		while (o= (Obj*)IBVectorIterNext(&GetTaskWorkingObjs,&idx)) {
+		while (o= (Obj*)IBVectorIterNext(GetTaskWorkingObjs,&idx)) {
 			switch (ObjGetType(o)) {
 			case OP_VarComplete: {
 				char valBuf[32];
@@ -925,7 +927,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 	}
 	case OP_CPrintfHaveFmtStr: {
 		subTask = true;
-		Obj* fmtObj = GetTaskWorkingObjs.start->obj;
+		Obj* fmtObj = GetTaskWorkingObjs->start->obj;
 		StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 		bool firstPercent = false;
 		int varIdx = 1;
@@ -938,7 +940,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 						firstPercent = true;
 					}
 					else {
-						Obj* vo = (Obj*)IBVectorGet(&GetTaskWorkingObjs, varIdx);
+						Obj* vo = (Obj*)IBVectorGet(GetTaskWorkingObjs, varIdx);
 						switch (ObjGetType(vo)) {
 						case OP_Name:{
 							Op type = NameInfoDBFindType(&compiler->m_NameTypeCtx, vo->name);
@@ -965,11 +967,11 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 		}
 		StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
-		if (GetTaskWorkingObjs.elemCount > 1) {
+		if (GetTaskWorkingObjs->elemCount > 1) {
 			StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
 		}
-		for (int i = 1; i < GetTaskWorkingObjs.elemCount; ++i) {
-			Obj* o = (Obj*)IBVectorGet(&GetTaskWorkingObjs, i);
+		for (int i = 1; i < GetTaskWorkingObjs->elemCount; ++i) {
+			Obj* o = (Obj*)IBVectorGet(GetTaskWorkingObjs, i);
 			switch (ObjGetType(o)) {
 			case OP_Name: {
 				StrConcat(GetTaskCode, CODE_STR_MAX, o->name);
@@ -988,7 +990,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				StrConcat(GetTaskCode, 32, valBuf);
 			}
 			}
-			if (i < GetTaskWorkingObjs.elemCount - 1) {
+			if (i < GetTaskWorkingObjs->elemCount - 1) {
 				StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
 			}
 		}
@@ -1160,7 +1162,7 @@ void CompilerStrPayload(Compiler* compiler){
 				Obj* o;
 				int idx;
 				idx = 0;
-				while (o = (Obj*)IBVectorIterNext(&GetTaskWorkingObjs,&idx)) {
+				while (o = (Obj*)IBVectorIterNext(GetTaskWorkingObjs,&idx)) {
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						printf("Finishing func got ret value\n");
 						o->func.retVal = strVal;
@@ -1279,7 +1281,7 @@ void CompilerStrPayload(Compiler* compiler){
 				PRINT_LINE_INFO();
 				printf(" Finishing function\n");
 				idx = 0;
-				while (o = (Obj*)IBVectorIterNext(&GetTaskWorkingObjs,&idx)) {
+				while (o = (Obj*)IBVectorIterNext(GetTaskWorkingObjs,&idx)) {
 					//TODO: could cache func obj index later
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						if (o->func.retType != OP_Void) {
