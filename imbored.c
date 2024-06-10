@@ -1009,6 +1009,8 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		int varIdx;
 		int i;
 		subTask = true;
+		assert(GetTaskWorkingObjs);
+		assert(GetTaskWorkingObjs->elemCount);
 		fmtObj = (Obj*)GetTaskWorkingObjs->start;
 		StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 		firstPercent = false;
@@ -1314,13 +1316,14 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_CallNeedName: { /* =@call */
 			SetObjType(OP_CallWantArgs);
 			PopPfxs();
-			CompilerPushAllowedPfxs(compiler, 0,"expected var type or line end after func name", 3, OP_Name, OP_Value, OP_LineEnd);
-
+			CompilerPushAllowedPfxs(compiler, 0,
+				"expected var type or line end after func name", 
+				3, OP_Name, OP_Value, OP_LineEnd);
 		}
 		case OP_Func: {
 			SetObjType(OP_FuncHasName);
 			SetTaskType(OP_FuncHasName);
-			PopPfxs();
+			//PopPfxs();
 			CompilerPushAllowedPfxs(compiler, 0,"", 3, OP_VarType, OP_Op, OP_LineEnd/*means allowed pfx will be cleared on newline*/);
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
 			break;

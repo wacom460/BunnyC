@@ -165,6 +165,10 @@
 				RelativePath=".\imbored.c"
 				>
 			</File>
+			<File
+				RelativePath=".\main.txt"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
