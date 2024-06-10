@@ -85,7 +85,6 @@ typedef struct IBVector {
 	int elemCount;
 	int slotCount;
 	size_t dataSize;
-	//size_t iterIdx;
 	IBLLNode* start;
 	IBLLNode* end;
 	IBVecData;//DATA BLOCK
@@ -96,7 +95,6 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->elemCount = 0;
 	vec->slotCount = 1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
-	//vec->iterIdx = 0;
 	vec->data = malloc(vec->dataSize);
 	assert(vec->data);
 	memset(vec->data, 0, vec->dataSize);
@@ -1226,7 +1224,6 @@ void CompilerStrPayload(Compiler* compiler){
 			SetObjType(OP_FuncArgComplete);
 			PopPfxs();
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
-			//compiler->m_NameTypeCtx.add(compiler->m_Str, CompilerGetObj(compiler)->arg.type);
 			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->arg.type);
 			CompilerPopObj(compiler, true);
 			break;
@@ -1235,8 +1232,6 @@ void CompilerStrPayload(Compiler* compiler){
 			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->var.type);
 			SetObjType(OP_VarWantValue);
 			PopPfxs();
-			/*auto allowed = { OP_Value, OP_LineEnd };
-			PushPfxs(allowed, "expected value or line end after var name", 0);*/
 			CompilerPushAllowedPfxs(compiler, 0,"expected value or line end after var name", 2, OP_Value, OP_LineEnd);
 			break;
 		}
@@ -1247,12 +1242,8 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Call:{
 			switch (GetObjType) {
 			case OP_VarWantValue: {
-				/*auto& tst = compiler->m_TaskStack.top();
-				auto& ost = compiler->m_ObjStack.top();
-				auto& pfxs=compiler->m_AllowedNextPfxsStack.top().pfxs;*/
 				Obj*o=CompilerPushObj(compiler);
 				ObjSetType(o, OP_CallNeedName);
-				//PushPfxs({OP_Name}, "expected function name", 0);
 				CompilerPushAllowedPfxs(compiler, 0,"expected function name", 1, OP_Name);
 			}
 			}
@@ -1265,8 +1256,6 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_Imaginary:
 			ObjSetMod(CompilerGetObj(compiler), compiler->m_NameOp);
-			//setAllowedNextPfxs({});
-			//PopPfxs();
 			break;
 		case OP_Done:
 			if (!compiler->m_TaskStack.elemCount) Err(OP_ErrNoTask, "");
@@ -1283,7 +1272,6 @@ void CompilerStrPayload(Compiler* compiler){
 					//TODO: could cache func obj index later
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						if (o->func.retType != OP_Void) {
-							//PushPfxs({OP_Value},"", 0);
 							CompilerPushAllowedPfxs(compiler, 0,"", 1, OP_Value);
 							SetTaskType(OP_FuncNeedRetVal);
 						}
@@ -1311,8 +1299,6 @@ void CompilerStrPayload(Compiler* compiler){
 			}
 			case OP_FuncHasName:
 				SetObjType(OP_FuncNeedsRetValType);
-				//PopPfxs();
-				//PushPfxs({ OP_VarType },"", 0);
 				CompilerPushAllowedPfxs(compiler, 0,"", 1, OP_VarType);
 				break;
 			default:
@@ -1322,12 +1308,9 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		case OP_Func:
-			//if (GetObjType != OP_NotSet)Err(OP_ErrNOT_GOOD, "");
-			//pushObj({});
 			SetObjType(compiler->m_NameOp);
 			CompilerGetObj(compiler)->func.retType = OP_Void;
 			CompilerGetObj(compiler)->func.retTypeMod = OP_NotSet;
-			//PushPfxs({OP_Name}, "",0);
 			CompilerPushAllowedPfxs(compiler, 0,"", 1, OP_Name);
 			CompilerPushTask(compiler, OP_FuncNeedName);
 			break;
@@ -1339,7 +1322,6 @@ void CompilerStrPayload(Compiler* compiler){
 			Err(OP_ErrUnknownOpStr, "");
 		}
 	}
-	//compiler->m_Str.clear();
 	compiler->m_Str[0] = '\0';
 	printf("Str payload complete\n");
 	CompilerPop(compiler);
@@ -1366,7 +1348,9 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 	case OP_ErrUnexpectedNextPfx: {
 		Op* oi;
 		int idx;
-		printf("%s Unexpected next prefix %s. Pfx stack idx:%d Allowed:", GetAllowedPfxsTop->err, GetPfxName(compiler->m_Pfx), compiler->m_AllowedNextPfxsStack.elemCount - 1);
+		printf("%s Unexpected next prefix %s. Pfx stack idx:%d Allowed:", 
+			GetAllowedPfxsTop->err, GetPfxName(compiler->m_Pfx), 
+				compiler->m_AllowedNextPfxsStack.elemCount - 1);
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs,&idx)) {
 			printf("%s,", GetPfxName(*oi));
