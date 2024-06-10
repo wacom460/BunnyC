@@ -20,6 +20,9 @@
 #define COMMENT_CHAR ('~')
 #define CODE_STR_MAX 1024
 #define COMPILER_STR_MAX 256
+#ifdef __TINYC__
+#define __debugbreak() assert(0)
+#endif
 
 typedef enum Op { //multiple uses
 	OP_Null, OP_False, OP_True, OP_Unknown, OP_NotSet, OP_Any, OP_Use, OP_Build, OP_Space,
@@ -68,6 +71,7 @@ typedef union {
 	struct Obj* obj;
 	struct Task* task;
 	Op* op;
+	int* boool;
 	struct AllowedPfxs* apfxs;
 	struct NameInfoDB* niDB;
 } IBVecData;
@@ -107,6 +111,7 @@ void IBVectorCopyPush(IBVector* vec, void* elem) {
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
 		vec->data = realloc(vec->data, vec->dataSize);
+		assert(vec->data);
 	}
 	topPtr = (char*)vec->data + vec->elemSize * vec->elemCount;
 	memcpy(topPtr, elem, vec->elemSize);
@@ -130,12 +135,16 @@ void* IBVectorFront(IBVector* vec) {
 void IBVectorPop(IBVector* vec) {
 	if(vec->elemCount <= 0) return;
 	vec->elemCount--;
-	vec->slotCount = ClampSizeT(vec->slotCount, 1, vec->elemCount);
+	vec->slotCount = ClampInt(vec->slotCount, 1, vec->elemCount);
 	vec->dataSize = vec->elemSize * vec->slotCount;
-	realloc(vec->data, vec->dataSize);
+	vec->data = realloc(vec->data, vec->dataSize);
+	assert(vec->data);
 }
 void IBVectorFree(IBVector* vec) {
 	free(vec->data);
+}
+char* StrConcat(char* dest, int count, const char* src) {
+	return strcat(dest, src);
 }
 typedef union Val {
 	unsigned char u8;
@@ -207,9 +216,7 @@ void ObjInit(Obj* o) {
 	o->type=OP_NotSet;
 	o->modifier=OP_NotSet;
 	o->privacy=OP_NoChange;
-	//if(o->name) free(o->name);
 	o->name=NULL;
-	//if(o->str) free(o->str);
 	o->str=NULL;
 	o->val.i32 = 0;
 	memset(&o->func, 0, sizeof(FuncObj));
@@ -456,7 +463,7 @@ void Compiler_Init(Compiler* compiler){
 	IBVectorInit(&compiler->m_TaskStack, sizeof(Task));
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
 	Compiler_push(compiler, OP_ModePrefixPass, false);
-	Compiler_pushObj(compiler);
+	o=Compiler_pushObj(compiler);
 }
 void Compiler_Free(Compiler* compiler) {
 	if (compiler->m_StringMode)Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
@@ -515,11 +522,13 @@ Obj* Compiler_popObj(Compiler* compiler, bool pushToWorking) {
 	printf("Pop obj: ");
 	ObjPrint(Compiler_GetObj(compiler));
 	if (compiler->m_ObjStack.elemCount == 1) {
-		//Compiler_GetObj(compiler) = {};
+		Obj* o;
+		o=Compiler_GetObj(compiler);
+		if (o->name)free(o->name);
+		if (o->str)free(o->str);
 		ObjInit(Compiler_GetObj(compiler));
 	}
 	else {
-		//compiler->m_ObjStack.Compiler_pop(compiler);
 		IBVectorPop(&compiler->m_ObjStack);
 	}
 	printf(" -> ");
@@ -791,13 +800,13 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 				auto at = o->arg.type;
 				if (at == OP_Null)Err(OP_ErrNOT_GOOD, "arg type NULL");
 				if (cFuncArgs[0] != '\0') {
-					strcat_s(cFuncArgs, CODE_STR_MAX, ", ");
+					StrConcat(cFuncArgs, CODE_STR_MAX, ", ");
 				}
-				strcat_s(cFuncArgs, CODE_STR_MAX, GetCEqu(o->arg.type));
-				strcat_s(cFuncArgs, CODE_STR_MAX, GetCEqu(o->arg.mod));
-				strcat_s(cFuncArgs, CODE_STR_MAX, " ");
+				StrConcat(cFuncArgs, CODE_STR_MAX, GetCEqu(o->arg.type));
+				StrConcat(cFuncArgs, CODE_STR_MAX, GetCEqu(o->arg.mod));
+				StrConcat(cFuncArgs, CODE_STR_MAX, " ");
 				if (!o->name)Err(OP_ErrNOT_GOOD, "arg name NULL");
-				strcat_s(cFuncArgs, CODE_STR_MAX, o->name);
+				StrConcat(cFuncArgs, CODE_STR_MAX, o->name);
 				break;
 			}
 			case OP_FuncSigComplete: {
@@ -810,15 +819,15 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 				funcObj = o;
 				Op mod = ObjGetMod(o);
 				if (mod != OP_NotSet) {
-					strcat_s(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(mod));
-					strcat_s(cFuncModsTypeName, CODE_STR_MAX, " ");
+					StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(mod));
+					StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");
 				}
-				strcat_s(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retType));
-				strcat_s(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retTypeMod));
-				strcat_s(cFuncModsTypeName, CODE_STR_MAX, " ");
+				StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retType));
+				StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retTypeMod));
+				StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");
 				if (!o->name)Err(OP_ErrNOT_GOOD, "func name NULL");
-				strcat_s(cFuncModsTypeName, CODE_STR_MAX, o->name);
-				strcat_s(cFuncModsTypeName, CODE_STR_MAX, "(");
+				StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
+				StrConcat(cFuncModsTypeName, CODE_STR_MAX, "(");
 				break;
 			}
 			}
@@ -829,48 +838,48 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 			case OP_VarComplete: {
 				char valBuf[32];
 				valBuf[0] = '\0';
-				strcat_s(cFuncCode, CODE_STR_MAX, "\t");
-				strcat_s(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.type));
-				strcat_s(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.mod));
-				strcat_s(cFuncCode, CODE_STR_MAX, " ");
+				StrConcat(cFuncCode, CODE_STR_MAX, "\t");
+				StrConcat(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.type));
+				StrConcat(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.mod));
+				StrConcat(cFuncCode, CODE_STR_MAX, " ");
 				if(!o->name)Err(OP_ErrNOT_GOOD, "var name NULL");
-				strcat_s(cFuncCode, CODE_STR_MAX, o->name);
-				strcat_s(cFuncCode, CODE_STR_MAX, "=");
+				StrConcat(cFuncCode, CODE_STR_MAX, o->name);
+				StrConcat(cFuncCode, CODE_STR_MAX, "=");
 				snprintf(valBuf, 32, "%I64u", o->var.val.i64);
-				strcat_s(cFuncCode, 32, valBuf);
-				strcat_s(cFuncCode, CODE_STR_MAX, ";\n");
+				StrConcat(cFuncCode, 32, valBuf);
+				StrConcat(cFuncCode, CODE_STR_MAX, ";\n");
 				break;
 			}
 			}
 		}
 		if (imaginary) {
-			strcat_s(cFuncArgs, CODE_STR_MAX, ");\n\n");
+			StrConcat(cFuncArgs, CODE_STR_MAX, ");\n\n");
 		}
 		else {
-			strcat_s(cFuncArgs, CODE_STR_MAX, "){\n");
-			strcat_s(cFuncCode, CODE_STR_MAX, GetTaskCodeP1);
+			StrConcat(cFuncArgs, CODE_STR_MAX, "){\n");
+			StrConcat(cFuncCode, CODE_STR_MAX, GetTaskCodeP1);
 			if(!funcObj)Err(OP_ErrNOT_GOOD, "funcObj NULL");
 			if (funcObj->func.retType != OP_Void) {
-				strcat_s(cFuncCode, CODE_STR_MAX, "\treturn ");
+				StrConcat(cFuncCode, CODE_STR_MAX, "\treturn ");
 				char valBuf[32];
 				valBuf[0] = '\0';
 				Val2Str(valBuf, 32, funcObj->func.retVal, funcObj->func.retType);
-				strcat_s(cFuncCode, 32, valBuf);
-				strcat_s(cFuncCode, CODE_STR_MAX, ";\n");
+				StrConcat(cFuncCode, 32, valBuf);
+				StrConcat(cFuncCode, CODE_STR_MAX, ";\n");
 			}
-			strcat_s(cFuncCode, CODE_STR_MAX, "}\n\n");
+			StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
 		}
 		compiler->m_cOutput[0]='\0';
-		strcat_s(compiler->m_cOutput, CODE_STR_MAX, cFuncModsTypeName);
-		strcat_s(compiler->m_cOutput, CODE_STR_MAX, cFuncArgs);
-		strcat_s(compiler->m_cOutput, CODE_STR_MAX, cFuncCode);
+		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncModsTypeName);
+		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncArgs);
+		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncCode);
 		break;
 	}
 	case OP_CPrintfHaveFmtStr: {
 		subTask = true;
 		//Obj& fmtObj = GetTaskWorkingObjs.front();
 		Obj* fmtObj = (Obj*)IBVectorFront(&GetTaskWorkingObjs);
-		strcat_s(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
+		StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 		bool firstPercent = false;
 		int varIdx = 1;
 		for (int i = 0; i < strlen(fmtObj->str); ++i) {
@@ -878,7 +887,7 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 			switch (c) {
 			case '%':{
 					if (!firstPercent) {
-						strcat_s(GetTaskCode, CODE_STR_MAX, "%");
+						StrConcat(GetTaskCode, CODE_STR_MAX, "%");
 						firstPercent = true;
 					}
 					else {
@@ -888,11 +897,11 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 						case OP_Name:{
 							//auto type = compiler->m_NameTypeCtx.findType(vo->name);
 							Op type = NameInfoDBFindType(&compiler->m_NameTypeCtx, vo->name);
-							strcat_s(GetTaskCode, CODE_STR_MAX, Compiler_GetCPrintfFmtForType(compiler, type));
+							StrConcat(GetTaskCode, CODE_STR_MAX, Compiler_GetCPrintfFmtForType(compiler, type));
 							break;
 						}
 						case OP_Value:{
-							strcat_s(GetTaskCode, CODE_STR_MAX, Compiler_GetCPrintfFmtForType(compiler, vo->var.type));
+							StrConcat(GetTaskCode, CODE_STR_MAX, Compiler_GetCPrintfFmtForType(compiler, vo->var.type));
 							break;
 						}
 						}
@@ -905,27 +914,27 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 				char chBuf[2];
 				chBuf[0] = c;
 				chBuf[1] = '\0';
-				strcat_s(GetTaskCode, CODE_STR_MAX, chBuf);
+				StrConcat(GetTaskCode, CODE_STR_MAX, chBuf);
 				break;
 			}
 			}
 		}
-		strcat_s(GetTaskCode, CODE_STR_MAX, "\"");
+		StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
 		if (GetTaskWorkingObjs.elemCount > 1) {
-			strcat_s(GetTaskCode, CODE_STR_MAX, ", ");
+			StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
 		}
 		for (int i = 1; i < GetTaskWorkingObjs.elemCount; ++i) {
 			//Obj& o = GetTaskWorkingObjs[i];
 			Obj* o = (Obj*)IBVectorGet(&GetTaskWorkingObjs, i);
 			switch (ObjGetType(o)) {
 			case OP_Name: {
-				strcat_s(GetTaskCode, CODE_STR_MAX, o->name);
+				StrConcat(GetTaskCode, CODE_STR_MAX, o->name);
 				break;
 			}
 			case OP_String: {
-				strcat_s(GetTaskCode, CODE_STR_MAX, "\"");
-				strcat_s(GetTaskCode, CODE_STR_MAX, o->str);
-				strcat_s(GetTaskCode, CODE_STR_MAX, "\"");
+				StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
+				StrConcat(GetTaskCode, CODE_STR_MAX, o->str);
+				StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
 				break;
 			}
 			case OP_Value: {
@@ -933,14 +942,14 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 				char valBuf[32];
 				valBuf[0] = '\0';
 				Val2Str(valBuf, 32, o->val, o->var.type);
-				strcat_s(GetTaskCode, 32, valBuf);
+				StrConcat(GetTaskCode, 32, valBuf);
 			}
 			}
 			if (i < GetTaskWorkingObjs.elemCount - 1) {
-				strcat_s(GetTaskCode, CODE_STR_MAX, ", ");
+				StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
 			}
 		}
-		strcat_s(GetTaskCode, CODE_STR_MAX, ");\n");
+		StrConcat(GetTaskCode, CODE_STR_MAX, ");\n");
 		break;
 	}
 	}
@@ -950,11 +959,11 @@ void Compiler_PopAndDoTask(Compiler* compiler)	{
 			if (compiler->m_TaskStack.elemCount - 2 >= 0) {
 				char theCode[CODE_STR_MAX];
 				theCode[0] = '\0';
-				strcpy_s(theCode, CODE_STR_MAX, GetTaskCode);
+				strcpy(theCode, GetTaskCode);
 				Compiler_popTask(compiler);
 				switch (GetTaskType) {
 				case OP_FuncWantCode: {
-					strcat_s(GetTaskCodeP1, CODE_STR_MAX, theCode);
+					StrConcat(GetTaskCodeP1, CODE_STR_MAX, theCode);
 					break;
 				}
 				}
@@ -1062,7 +1071,7 @@ void Compiler_Str(Compiler* compiler){
 		}
 		}
 	}
-	strcat_s(compiler->m_Str, COMPILER_STR_MAX, chBuf);
+	StrConcat(compiler->m_Str, COMPILER_STR_MAX, chBuf);
 }
 void Compiler_StrPayload(Compiler* compiler){
 	printf("Doing Str payload\n");
@@ -1355,20 +1364,22 @@ void Compiler_ExplainErr(Compiler* compiler, Op code) {
 int main(int argc, char** argv) {
 	FILE* f;
 	const char* fname = /*argv[1]*/"main.txt";
-	if (!fopen_s(&f, fname, "r")){
+	f = fopen(fname, "r");
+	if (f){
 		Compiler c;
+		char ch;
 		Compiler_Init(&c);
-		while (!feof(f)) {
-			char ch = fgetc(f);
+		while ((ch = fgetc(f)) != EOF) {
 			if (ch == 0xffffffff) break;
 			Compiler_Char(&c, ch);
 		}
+		printf("Exiting\n");
 		Compiler_Free(&c);
 		fclose(f);
 		return 0;
 	}
 	else{
-		printf("Error\n");
+		printf("Error opening file\n");
 	}
 	return 1;
 }
