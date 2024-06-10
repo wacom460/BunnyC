@@ -1,5 +1,5 @@
-#include <stdio.h>
 #define _CRT_SECURE_NO_WARNINGS 1
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -17,7 +17,7 @@ compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
 */
 
-#define PRINT_LINE_INFO() printf("LINE:%d", __LINE__)
+#define PRINT_LINE_INFO() printf("[%d]", __LINE__)
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 32
 #define COMMENT_CHAR ('~')
@@ -28,7 +28,8 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #endif
 
 typedef enum Op { /* multiple uses */
-	OP_Null, OP_False, OP_True, OP_Unknown, OP_NotSet, OP_Any, OP_Use, OP_Build, OP_Space,
+	OP_Null, OP_False, OP_True, OP_Unknown, OP_NotSet, OP_Any, OP_Use, 
+	OP_Build, OP_Space,
 
 	OP_Func, OP_FuncHasName, OP_FuncNeedName, OP_FuncNeedsRetValType,
 	OP_FuncArgsVarNeedsName, OP_FuncArgNameless, OP_FuncArgComplete,
@@ -38,10 +39,11 @@ typedef enum Op { /* multiple uses */
 	OP_VarNeedName, OP_VarWantValue, OP_VarComplete,
 	OP_CallNeedName, OP_CallWantArgs, OP_CallComplete,	
 
-	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct, OP_VarType, OP_LineEnd,
-	OP_Comment, OP_MultiLineComment, OP_Public, OP_Private, OP_Imaginary, OP_Void,
-	OP_Set, OP_SetAdd, OP_Call, OP_Colon, OP_Dot, OP_Add, OP_Subtract, OP_Multiply, OP_Divide,
-	OP_AddEq, OP_SubEq, OP_MultEq, OP_DivEq, OP_Equals, OP_NotEquals, OP_LessThan,
+	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct, OP_VarType, 
+	OP_LineEnd,	OP_Comment, OP_MultiLineComment, OP_Public, OP_Private, 
+	OP_Imaginary, OP_Void, OP_Set, OP_SetAdd, OP_Call, OP_Colon, OP_Dot, 
+	OP_Add, OP_Subtract, OP_Multiply, OP_Divide, OP_AddEq, OP_SubEq, 
+	OP_MultEq, OP_DivEq, OP_Equals, OP_NotEquals, OP_LessThan,
 	OP_GreaterThan, OP_LessThanOrEquals, OP_GreaterThanOrEquals,
 	OP_ScopeOpen, OP_ScopeClose, OP_ParenthesisOpen, OP_ParenthesisClose,
 	OP_BracketOpen, OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
@@ -318,7 +320,9 @@ typedef struct AllowedPfxs {
 	char* err;
 	int life;
 } AllowedPfxs;
-void AllowedPfxsInit(AllowedPfxs* ap, int life, char *err, int count, ...) {
+void AllowedPfxsInit(AllowedPfxs* ap, int life, 
+	char *err, int count, ...)
+{
 	va_list args;
 	Op o;
 	IBVectorInit(&ap->pfxs, sizeof(Op));
@@ -396,8 +400,16 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj **objDP);
 	PRINT_LINE_INFO();\
 	_CompilerPopObj(compiler, p2w, objDP);\
 }
-void CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace);
-Op CompilerPop(Compiler* compiler);
+void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace);
+#define CompilerPush(compiler, mode, strAllowSpace){\
+	PRINT_LINE_INFO();\
+	_CompilerPush(compiler, mode, strAllowSpace);\
+}
+void _CompilerPop(Compiler* compiler);
+#define CompilerPop(compiler){\
+	PRINT_LINE_INFO();\
+	_CompilerPop(compiler);\
+}
 /*life:0 = infinite, -1 life each pfx*/
 void CompilerPushAllowedPfxs(Compiler* compiler, int life, char* err, int count, ...);
 void CompilerPopAllowedNextPfxs(Compiler* compiler);
@@ -419,10 +431,7 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 	__debugbreak();\
 	exit(-1);\
 }
-#define SetObjType(type){\
-	PRINT_LINE_INFO();\
-	ObjSetType(CompilerGetObj(compiler), type);\
-}
+#define SetObjType(type) ObjSetType(CompilerGetObj(compiler), type)
 #define GetObjType (ObjGetType(CompilerGetObj(compiler)))
 #define PushPfxs(pfxs, msg, life){\
 	PRINT_LINE_INFO();\
@@ -432,11 +441,19 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 	PRINT_LINE_INFO();\
 	CompilerPopAllowedNextPfxs(compiler);\
 }
-#define GetTask ((Task*)IBVectorTop(&compiler->m_TaskStack))
+Task* _GetTask(Compiler *compiler){
+	Task* ret;
+	assert(compiler->m_TaskStack.elemCount);
+	ret = (Task*)IBVectorTop(&compiler->m_TaskStack);
+	assert(ret);
+	return ret;
+}
+#define GetTask _GetTask(compiler)
 #define GetAPfxsStack (&GetTask->apfxsStack)
 #define GetAllowedPfxsTop ((AllowedPfxs*)IBVectorTop(GetAPfxsStack))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
-#define GetTaskType   ((compiler->m_TaskStack.elemCount) ? GetTask->type : OP_TaskStackEmpty)
+#define GetTaskType ((compiler->m_TaskStack.elemCount) ? GetTask->type\
+	: OP_TaskStackEmpty)
 #define GetTaskCode   (GetTask->code1)
 #define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
@@ -481,6 +498,7 @@ OpNamePair opNames[] = {
 	{"dbgBreak", OP_dbgBreak},{"CallNeedName",OP_CallNeedName},
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
+	{"SpaceChar",OP_SpaceChar},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -666,15 +684,14 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 	printf("\n");
 	if(objDP) (*objDP) = CompilerGetObj(compiler);
 }
-void CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
+void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
 	compiler->m_StrAllowSpace = strAllowSpace;
 	IBVectorCopyPushOp(&compiler->m_ModeStack, mode);
-	printf("push: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
+	printf(" push: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
 }
-Op CompilerPop(Compiler* compiler) {
+void _CompilerPop(Compiler* compiler) {
 	IBVectorPop(&compiler->m_ModeStack);
-	printf("pop: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
-	return GetMode;
+	printf(" pop: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
 }
 Op ObjGetType(Obj* obj) { return obj->type; }
 void _ObjSetType(Obj* obj, Op type) {
@@ -1139,6 +1156,7 @@ void CompilerPrefix(Compiler* compiler){
 		CompilerPushAllowedPfxs(compiler, 1, "", 1, OP_Op);
 	}
 	compiler->m_Pfx = fromPfxCh(compiler->m_Ch);
+	if(compiler->m_Pfx == OP_SpaceChar) return;
 	obj=CompilerGetObj(compiler);
 	if (compiler->m_Pfx != OP_Unknown 
 		&& GetAllowedPfxsTop->pfxs.elemCount
@@ -1146,7 +1164,7 @@ void CompilerPrefix(Compiler* compiler){
 		Err(OP_ErrUnexpectedNextPfx, "");
 	printf("PFX:%s(%d)\n", GetPfxName(compiler->m_Pfx), (int)compiler->m_Pfx);
 	switch (compiler->m_Pfx) {
-	case OP_String: { /*"*/
+	case OP_String: { /* " */
 		compiler->m_StringMode = true;
 		CompilerPush(compiler, OP_ModeStrPass, false);
 		break;
@@ -1158,6 +1176,8 @@ void CompilerPrefix(Compiler* compiler){
 	case OP_Name:
 		/*getchar();*/
 		CompilerPush(compiler, OP_ModeStrPass, false);
+		break;
+	case OP_SpaceChar:
 		break;
 	case OP_Comment:
 		break;
@@ -1247,7 +1267,8 @@ void CompilerStrPayload(Compiler* compiler){
 			AllowedPfxsInit(&ap, 0, "expected fmt args or line end", 4, OP_Value, OP_Name, OP_String, OP_LineEnd);
 			CompilerPushTask(compiler, OP_CPrintfHaveFmtStr, &ap);
 			AllowedPfxsFree(&ap);
-			CompilerPushObj(compiler, &o);
+			//CompilerPushObj(compiler, &o);
+			o=CompilerGetObj(compiler);
 			ObjSetStr(o, compiler->m_Str);
 			ObjSetType(o, OP_CPrintfFmtStr);
 			CompilerPopObj(compiler, true, NULL);
@@ -1484,12 +1505,15 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 	case OP_ErrUnexpectedNextPfx: {
 		Op* oi;
 		int idx;
-		printf("%s Unexpected next prefix %s. Pfx stack idx:%d Allowed:", 
+		printf("%s Unexpected next prefix %s. PfxIdx:%d Allowed:", 
 			GetAllowedPfxsTop->err, GetPfxName(compiler->m_Pfx), 
 				GetAPfxsStack->elemCount - 1);
 		idx = 0;
+		assert(GetTask);
+		assert(GetAllowedPfxsTop);
+		assert(GetAllowedPfxsTop->pfxs.elemCount);
 		while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs,&idx)) {
-			printf("%s,", GetPfxName(*oi));
+			printf("%s(%d),", GetPfxName(*oi), (int)*oi);
 		}
 		break;
 	}
