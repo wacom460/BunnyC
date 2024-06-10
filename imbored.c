@@ -78,7 +78,7 @@ typedef union IBVecData {
 DO NOT USE THESE IN CODE, THEY DONT WORK IDK WHY
 DEBUGGING ONLY
 */
-#define DEBUGGING_ONLY_OBJ_DATA
+//#define DEBUGGING_ONLY_OBJ_DATA
 #ifdef DEBUGGING_ONLY_OBJ_DATA
 	/*put types to see in VS debugger*/
 	struct Obj* obj;
@@ -89,11 +89,13 @@ DEBUGGING ONLY
 	struct NameInfoDB* niDB;
 #endif
 } IBVecData;
+#ifdef DEBUGGING_ONLY_OBJ_DATA
 typedef struct IBLLNode {
 	struct IBLLNode* prev;
 	struct IBLLNode* next;
 	IBVecData;/*data ptr*/
 } IBLLNode;
+#endif
 typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
@@ -109,7 +111,7 @@ typedef struct IBVector {
 void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->elemSize = elemSize;
 	vec->elemCount = 0;
-	vec->slotCount = 1;
+	vec->slotCount = 10;
 	vec->protectedSlotCount = 0;
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	vec->data = malloc(vec->dataSize);
@@ -178,7 +180,7 @@ IBVecData* IBVectorTop(IBVector* vec) {
 		//__debugbreak();
 		return NULL;
 	}
-	return (IBVecData*)((char*)vec->data + (vec->elemCount - 1) * vec->elemSize);
+	return (IBVecData*)((char*)vec->data + ((vec->elemCount - 1) * vec->elemSize));
 }
 IBVecData* IBVectorFront(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
@@ -193,14 +195,20 @@ void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	if(vec->elemCount <= 0) return;
 	if(freeFunc) freeFunc((void*)IBVectorGet(vec, vec->elemCount - 1));
 	vec->elemCount--;
-	vec->slotCount = ClampInt(vec->slotCount, 1, vec->elemCount);
+	//vec->slotCount = ClampInt(vec->slotCount, 1, vec->elemCount);
+	vec->slotCount=vec->elemCount;
+	if(vec->slotCount<1)vec->slotCount=1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
-	assert(vec->data);
-	ra = realloc(vec->data, vec->dataSize);
-	if (ra) vec->data = ra;
-	assert(vec->data);
-	vec->en = &vec->sn[vec->elemCount - 1];
-	vec->en->next = NULL;
+	if(vec->elemCount){
+		assert(vec->data);
+		ra = realloc(vec->data, vec->dataSize);
+		if (ra) vec->data = ra;
+		assert(vec->data);
+#ifdef DEBUGGING_ONLY_OBJ_DATA
+		vec->en = &vec->sn[vec->elemCount - 1];
+		vec->en->next = NULL;
+#endif
+	}
 }
 void IBVectorFreeSimple(IBVector* vec) {
 #ifdef DEBUGGING_ONLY_OBJ_DATA
@@ -1564,6 +1572,7 @@ int main(int argc, char** argv) {
 		}
 		printf("Exiting\n");
 		CompilerFree(&comp);
+		getchar();
 		fclose(f);
 		return 0;
 	}
