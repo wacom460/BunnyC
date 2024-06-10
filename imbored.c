@@ -69,12 +69,18 @@ size_t ClampSizeT(size_t val, size_t min, size_t max) {
 }
 typedef union IBVecData {
 	union IBVecData* data;
+//DO NOT USE THESE IN CODE, THEY DONT WORK IDK WHY
+//DEBUGGING ONLY
+//#define DEBUGGING_ONLY_OBJ_DATA
+#ifdef DEBUGGING_ONLY_OBJ_DATA
+	//put types to see in VS debugger
 	struct Obj* obj;
 	struct Task* task;
 	Op* op;
 	int* boolean;
 	struct AllowedPfxs* apfxs;
 	struct NameInfoDB* niDB;
+#endif
 } IBVecData;
 typedef struct IBLLNode {
 	struct IBLLNode* prev;
@@ -151,7 +157,10 @@ void IBVectorCopyPushOp(IBVector* vec, Op val) {
 	IBVectorCopyPush(vec, &val);
 }
 IBVecData* IBVectorTop(IBVector* vec) {
-	if (vec->elemCount <= 0) return NULL;
+	if (vec->elemCount <= 0) {
+		__debugbreak();
+		return NULL;
+	}
 	return (IBVecData*)((char*)vec->data + (vec->elemCount - 1) * vec->elemSize);
 }
 IBVecData* IBVectorFront(IBVector* vec) {
@@ -288,12 +297,12 @@ typedef struct AllowedPfxs {
 	const char* err;
 	int life;
 } AllowedPfxs;
-void AllowedPfxsInit(AllowedPfxs* ap, int count, ...) {
+void AllowedPfxsInit(AllowedPfxs* ap, int life, const char *err, int count, ...) {
 	va_list args;
 	Op o;
 	IBVectorInit(&ap->pfxs, sizeof(Op));
-	ap->err=NULL;
-	ap->life=0;
+	ap->err=err;
+	ap->life=life;
 	va_start(args, count);
 	while (count--) {
 		o = va_arg(args, Op);
@@ -301,6 +310,7 @@ void AllowedPfxsInit(AllowedPfxs* ap, int count, ...) {
 	}
 	va_end(args);
 }
+void ALlowedPfxsPrint(AllowedPfxs* ap);
 void AllowedPfxsFree(AllowedPfxs* ap) {
 	IBVectorFreeSimple(&ap->pfxs);
 }
@@ -312,13 +322,8 @@ typedef struct Task {
 	char code2[CODE_STR_MAX];
 } Task;
 void TaskInit(Task* t, Op type) {
-	AllowedPfxs* ap;
 	IBVectorInit(&t->working, sizeof(Obj));
 	IBVectorInit(&t->apfxsStack, sizeof(AllowedPfxs));
-	t->apfxsStack.protectedSlotCount = 1;
-	ap = (AllowedPfxs*)IBVectorPush(&t->apfxsStack);
-	AllowedPfxsInit(ap, 1, OP_Op);
-	//IBVectorPop(&t->apfxsStack);//should fail
 	t->type = type;
 	t->code1[0] = '\0';
 	t->code2[0] = '\0';
@@ -350,7 +355,7 @@ typedef struct Compiler {
 Obj* CompilerGetObj(Compiler* compiler);
 void CompilerInit(Compiler* compiler);
 void CompilerFree(Compiler* compiler);
-void CompilerPushTask(Compiler* compiler, Op task);
+void CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs* initialAPfxs);
 void CompilerPopTask(Compiler* compiler);
 Obj* CompilerPushObj(Compiler* compiler);
 Obj* CompilerPopObj(Compiler* compiler, bool pushToWorking);
@@ -371,10 +376,12 @@ void CompilerStrPayload(Compiler* compiler);
 void CompilerExplainErr(Compiler* compiler, Op code);
 #define Err(code, msg){\
 	PRINT_LINE_INFO();\
-	printf(":%s At %u:%u \"%s\"(%d)\nExplanation: ", msg, compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code);\
+	printf(":%s At %u:%u \"%s\"(%d)\nExplanation: ", \
+		msg, compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code);\
 	CompilerExplainErr(compiler, code);\
 	printf("\n");\
 	__debugbreak();\
+	exit(-1);\
 }
 #define SetObjType(type){\
 	PRINT_LINE_INFO();\
@@ -398,7 +405,8 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 #define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
 	PRINT_LINE_INFO();\
-	printf(" SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
+	printf(" SetTaskType: %s(%d) -> %s(%d)\n", \
+		GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
 #define GetTaskWorkingObjs (GetTask ? (&GetTask->working) : NULL)
@@ -509,6 +517,7 @@ Obj* CompilerGetObj(Compiler* compiler) {
 void CompilerInit(Compiler* compiler){
 	Obj* o;
 	Task* rootTask;
+	AllowedPfxs* ap;
 	compiler->m_Line = 1;
 	compiler->m_Column = 1;
 	compiler->m_Pfx = OP_Null;
@@ -529,12 +538,15 @@ void CompilerInit(Compiler* compiler){
 	compiler->m_TaskStack.protectedSlotCount = 1;
 	rootTask = (Task*)IBVectorPush(&compiler->m_TaskStack);
 	TaskInit(rootTask, OP_RootTask);
+	ap = (AllowedPfxs*)IBVectorPush(&rootTask->apfxsStack);
+	AllowedPfxsInit(ap, 0, "root task. only Op(@) allowed", 1, OP_Op);
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
 	CompilerPush(compiler, OP_ModePrefixPass, false);
 	o=CompilerPushObj(compiler);
 }
 void CompilerFree(Compiler* compiler) {
-	if (compiler->m_StringMode)Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
+	if (compiler->m_StringMode)
+		Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
 	if(compiler->m_Str[0]) CompilerStrPayload(compiler);
 	if (compiler->m_TaskStack.elemCount) {
 		switch (((Task*)IBVectorTop(&compiler->m_TaskStack))->type) {
@@ -554,10 +566,18 @@ void CompilerFree(Compiler* compiler) {
 	printf("-> Compilation complete <-\nResulting C code:\n\n");
 	printf("%s", compiler->m_cOutput);
 }
-void CompilerPushTask(Compiler* compiler, Op task) {
+void ALlowedPfxsPrint(AllowedPfxs* ap) {
+	Op* oi;
+	int idx;
+	idx = 0;
+	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
+		printf("%s ", GetPfxName(*oi));
+}
+void CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs *initialAPfxs) {
 	Task t;
 	printf("Push task %s(%d)\n", GetOpName(task),(int)task);
 	TaskInit(&t, task);
+	IBVectorCopyPush(&t.apfxsStack, initialAPfxs);
 	IBVectorCopyPush(&compiler->m_TaskStack, &t);
 }
 void CompilerPopTask(Compiler* compiler) {
@@ -614,12 +634,14 @@ Op CompilerPop(Compiler* compiler) {
 }
 const Op ObjGetType(Obj* obj) { return obj->type; }
 void ObjSetType(Obj* obj, Op type) {
-	printf(" obj type: %s(%d) -> %s(%d)\n", GetOpName(obj->type), (int)obj->type, GetOpName(type), (int)type);
+	printf(" obj type: %s(%d) -> %s(%d)\n", 
+		GetOpName(obj->type), (int)obj->type, GetOpName(type), (int)type);
 	obj->type = type;
 }
 Op ObjGetMod(Obj* obj) { return obj->modifier; }
 void ObjSetMod(Obj* obj, Op mod) {
-	printf("obj mod: %s(%d) -> %s(%d)\n", GetOpName(obj->modifier), (int)obj->modifier, GetOpName(mod), (int)mod);
+	printf("obj mod: %s(%d) -> %s(%d)\n", 
+		GetOpName(obj->modifier), (int)obj->modifier, GetOpName(mod), (int)mod);
 	obj->modifier = mod;
 }
 void ObjSetName(Obj* obj, const char* name) {
@@ -658,7 +680,7 @@ void CompilerPushAllowedPfxs(Compiler* compiler, int life, const char* err, int 
 		printf("%s ", GetPfxName(*oi));
 	printf("} -> { ");
 	ap = (AllowedPfxs*)IBVectorPush(GetAPfxsStack);
-	AllowedPfxsInit(ap, 0);
+	AllowedPfxsInit(ap, 0, err, 0);
 	while (count--) {
 		o = va_arg(args, Op);
 		IBVectorCopyPushOp(&ap->pfxs, o);
@@ -780,7 +802,8 @@ void CompilerChar(Compiler* compiler, char ch){
 				Op mod = ObjGetMod(CompilerGetObj(compiler));
 				CompilerPopObj(compiler, true);
 				if (mod != OP_Imaginary) {
-					CompilerPushAllowedPfxs(compiler, 0, "expected operator, print statement, or variable declaration",
+					CompilerPushAllowedPfxs(compiler, 0, 
+						"expected operator, print statement, or variable declaration",
 						3,
 						OP_Op, OP_String, OP_VarType);
 					SetTaskType(OP_FuncWantCode);
@@ -801,7 +824,8 @@ void CompilerChar(Compiler* compiler, char ch){
 	compiler->m_Column++;
 	if (!nl && compiler->m_CommentMode == OP_NotSet) {
 		if(compiler->m_Ch == ' ') printf("-> SPACE (0x%x)\n",  compiler->m_Ch);
-		else printf("-> %c (0x%x) %d:%d\n", compiler->m_Ch, compiler->m_Ch, compiler->m_Line, compiler->m_Column);
+		else printf("-> %c (0x%x) %d:%d\n", 
+			compiler->m_Ch, compiler->m_Ch, compiler->m_Line, compiler->m_Column);
 		switch (m) {
 		case OP_ModePrefixPass:
 			CompilerPrefix(compiler);
@@ -957,7 +981,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 	}
 	case OP_CPrintfHaveFmtStr: {
 		subTask = true;
-		Obj* fmtObj = GetTaskWorkingObjs->start->obj;
+		Obj* fmtObj = (Obj*)GetTaskWorkingObjs->start;
 		StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 		bool firstPercent = false;
 		int varIdx = 1;
@@ -974,11 +998,13 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 						switch (ObjGetType(vo)) {
 						case OP_Name:{
 							Op type = NameInfoDBFindType(&compiler->m_NameTypeCtx, vo->name);
-							StrConcat(GetTaskCode, CODE_STR_MAX, CompilerGetCPrintfFmtForType(compiler, type));
+							StrConcat(GetTaskCode, CODE_STR_MAX, 
+								CompilerGetCPrintfFmtForType(compiler, type));
 							break;
 						}
 						case OP_Value:{
-							StrConcat(GetTaskCode, CODE_STR_MAX, CompilerGetCPrintfFmtForType(compiler, vo->var.type));
+							StrConcat(GetTaskCode, CODE_STR_MAX, 
+								CompilerGetCPrintfFmtForType(compiler, vo->var.type));
 							break;
 						}
 						}
@@ -1158,12 +1184,15 @@ void CompilerStrPayload(Compiler* compiler){
 	case OP_String: { //"
 		switch(GetTaskType){
 		case OP_FuncWantCode: { //printf
-			CompilerPushTask(compiler, OP_CPrintfHaveFmtStr);
+			AllowedPfxs ap;
+			AllowedPfxsInit(&ap, 0, "expected fmt args or line end", 4, OP_Value, OP_Name, OP_String, OP_LineEnd);
+			CompilerPushTask(compiler, OP_CPrintfHaveFmtStr, &ap);
+			AllowedPfxsFree(&ap);
 			Obj*o=CompilerPushObj(compiler);
 			ObjSetStr(o, compiler->m_Str);
 			ObjSetType(o, OP_CPrintfFmtStr);
 			CompilerPopObj(compiler, true);
-			CompilerPushAllowedPfxs(compiler, 0, "expected fmt args or line end", 4, OP_Value, OP_Name, OP_String, OP_LineEnd);
+			//CompilerPushAllowedPfxs(compiler, 0, "expected fmt args or line end", 4, );
 			break;
 		}
 		}
@@ -1350,13 +1379,16 @@ void CompilerStrPayload(Compiler* compiler){
 			}
 			break;
 		}
-		case OP_Func:
+		case OP_Func: {
+			AllowedPfxs ap;
 			SetObjType(compiler->m_NameOp);
 			CompilerGetObj(compiler)->func.retType = OP_Void;
 			CompilerGetObj(compiler)->func.retTypeMod = OP_NotSet;
-			CompilerPushAllowedPfxs(compiler, 0,"", 1, OP_Name);
-			CompilerPushTask(compiler, OP_FuncNeedName);
+			CompilerPushAllowedPfxs(compiler, 0, "", 1, OP_Name);
+			AllowedPfxsInit(&ap, 0, "", 1, OP_Name);
+			CompilerPushTask(compiler, OP_FuncNeedName, &ap);
 			break;
+		}
 		case OP_Public:
 		case OP_Private:
 			CompilerGetObj(compiler)->privacy = compiler->m_NameOp;
