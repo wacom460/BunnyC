@@ -174,7 +174,7 @@ void IBVectorCopyPushOp(IBVector* vec, Op val) {
 IBVecData* IBVectorTop(IBVector* vec) {
 	assert(vec);
 	if (vec->elemCount <= 0) {
-		__debugbreak();
+		//__debugbreak();
 		return NULL;
 	}
 	return (IBVecData*)((char*)vec->data + (vec->elemCount - 1) * vec->elemSize);
@@ -183,13 +183,14 @@ IBVecData* IBVectorFront(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
 	return vec->data;
 }
-void IBVectorPop(IBVector* vec) {
+void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	void* ra;
 	if (vec->protectedSlotCount && vec->elemCount <= vec->protectedSlotCount) {
 		assert(0);
-		return;
+		exit(-1);
 	}
 	if(vec->elemCount <= 0) return;
+	if(freeFunc) freeFunc((void*)IBVectorGet(vec, vec->elemCount - 1));
 	vec->elemCount--;
 	vec->slotCount = ClampInt(vec->slotCount, 1, vec->elemCount);
 	vec->dataSize = vec->elemSize * vec->slotCount;
@@ -197,10 +198,8 @@ void IBVectorPop(IBVector* vec) {
 	ra = realloc(vec->data, vec->dataSize);
 	if (ra) vec->data = ra;
 	assert(vec->data);
-#ifdef DEBUGGING_ONLY_OBJ_DATA
 	vec->en = &vec->sn[vec->elemCount - 1];
 	vec->en->next = NULL;
-#endif
 }
 void IBVectorFreeSimple(IBVector* vec) {
 #ifdef DEBUGGING_ONLY_OBJ_DATA
@@ -210,8 +209,7 @@ void IBVectorFreeSimple(IBVector* vec) {
 }
 #define IBVectorFree(vec, freeFunc){\
 	int i;\
-	i = 0;\
-	for(;i<(vec)->elemCount;i++){\
+	for(i = 0;i<(vec)->elemCount;i++){\
 		freeFunc((void*)IBVectorGet((vec), i));\
 	}\
 	IBVectorFreeSimple((vec));\
@@ -241,6 +239,9 @@ void NameInfoInit(NameInfo* info){
 	info->type=OP_NotSet;
 	info->name=NULL;
 }
+void NameInfoFree(NameInfo* info) {
+	free(info->name);
+}
 typedef struct NameInfoDB {
 	IBVector pairs;	
 } NameInfoDB;
@@ -264,7 +265,7 @@ Op NameInfoDBFindType(NameInfoDB* db, char* name) {
 	return OP_NotFound;
 }
 void NameInfoDBFree(NameInfoDB* db) {
-	IBVectorFreeSimple(&db->pairs);
+	IBVectorFree(&db->pairs, NameInfoFree);
 }
 typedef struct FuncObj {
 	Val retVal;
@@ -315,6 +316,10 @@ void ObjInit(Obj* o) {
 	memset(&o->var, 0, sizeof(VarObj));
 	o->arg.type = OP_Null;
 	o->arg.mod = OP_NotSet;
+}
+void ObjFree(Obj* o) {
+	if (o->name) free(o->name);
+	if (o->str) free(o->str);
 }
 typedef struct AllowedPfxs {
 	IBVector pfxs;/*Op*/
@@ -452,13 +457,10 @@ Task* _GetTask(Compiler *compiler){
 	return ret;
 }
 #define GetTask _GetTask(compiler)
-#define GetAPfxsStack (!GetTask ? NULL : &GetTask->apfxsStack)
-#define GetAllowedPfxsTop\
-	((!GetTask || !(GetTask->apfxsStack.elemCount))\
-	? NULL : ((AllowedPfxs*)IBVectorTop(GetAPfxsStack)))
+#define GetAPfxsStack (&GetTask->apfxsStack)
+#define GetAllowedPfxsTop ((AllowedPfxs*)IBVectorTop(GetAPfxsStack))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
-#define GetTaskType ((GetTask && compiler->m_TaskStack.elemCount) ? GetTask->type\
-	: OP_TaskStackEmpty)
+#define GetTaskType (GetTask->type)
 #define GetTaskCode   (GetTask->code1)
 #define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
@@ -467,7 +469,7 @@ Task* _GetTask(Compiler *compiler){
 		GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
-#define GetTaskWorkingObjs (GetTask ? (&GetTask->working) : NULL)
+#define GetTaskWorkingObjs (&GetTask->working)
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -632,6 +634,11 @@ void CompilerFree(Compiler* compiler) {
 	}
 	printf("-> Compilation complete <-\nResulting C code:\n\n");
 	printf("%s", compiler->m_cOutput);
+	IBVectorFree(&compiler->m_ObjStack, ObjFree);
+	IBVectorFreeSimple(&compiler->m_ModeStack);
+	IBVectorFreeSimple(&compiler->m_StrReadPtrsStack);
+	IBVectorFree(&compiler->m_TaskStack, TaskFree);
+	NameInfoDBFree(&compiler->m_NameTypeCtx);
 }
 void AllowedPfxsPrint(AllowedPfxs* ap) {
 	Op* oi;
@@ -649,7 +656,7 @@ void _CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs *initialAPfxs) {
 }
 void _CompilerPopTask(Compiler* compiler) {
 	printf(" Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
-	IBVectorPop(&compiler->m_TaskStack);
+	IBVectorPop(&compiler->m_TaskStack, TaskFree);
 }
 void _CompilerPushObj(Compiler* compiler, Obj** o) {
 	Obj obj;
@@ -677,12 +684,19 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 	if (compiler->m_ObjStack.elemCount == 1) {
 		Obj* o;
 		o=CompilerGetObj(compiler);
-		if (o->name)free(o->name);
-		if (o->str)free(o->str);
+		if (o->name) {
+			free(o->name);
+			o->name = NULL;
+		}
+		if (o->str) {
+			free(o->str);
+			o->str = NULL;
+		}
+		memset(o, 0, sizeof(Obj));
 		ObjInit(CompilerGetObj(compiler));
 	}
 	else {
-		IBVectorPop(&compiler->m_ObjStack);
+		IBVectorPop(&compiler->m_ObjStack, ObjFree);
 	}
 	printf(" -> ");
 	ObjPrint(CompilerGetObj(compiler));
@@ -695,7 +709,7 @@ void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
 	printf(" push: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
 }
 void _CompilerPop(Compiler* compiler) {
-	IBVectorPop(&compiler->m_ModeStack);
+	IBVectorPop(&compiler->m_ModeStack, NULL);
 	printf(" pop: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
 }
 Op ObjGetType(Obj* obj) { return obj->type; }
@@ -766,7 +780,7 @@ void CompilerPopAllowedNextPfxs(Compiler* compiler) {
 			printf("%s ", GetPfxName(*oi));
 		}
 		printf("} -> { ");
-		IBVectorPop(GetAPfxsStack);
+		IBVectorPop(GetAPfxsStack, AllowedPfxsFree);
 		if (!GetAPfxsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
 		pfxsIb = &GetAllowedPfxsTop->pfxs;
 		idx = 0;
@@ -779,10 +793,16 @@ void CompilerPopAllowedNextPfxs(Compiler* compiler) {
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	Op* oi;
 	int idx;
-	if(!GetTask || !GetAPfxsStack->elemCount) return pfx == OP_Op;
+	Task* t;
+	AllowedPfxs* ap;
+	t = NULL;
+	ap = NULL;
+	t = GetTask;
+	if(!t || !GetAPfxsStack->elemCount) return pfx == OP_Op;
 	idx = 0;
 	oi = NULL;
-	while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs,&idx)) {
+	ap = GetAllowedPfxsTop;
+	if(ap) while (oi = (Op*)IBVectorIterNext(&ap->pfxs,&idx)) {
 		assert(oi);
 		if (oi && *oi == pfx) 
 			return true;
@@ -1195,10 +1215,12 @@ void CompilerPrefix(Compiler* compiler){
 		break;
 	}
 	if (compiler->m_Pfx == OP_Op) {
-		AllowedPfxs* aps;
-		aps = GetAllowedPfxsTop;
+		AllowedPfxs* aps=NULL;
+		Task* t;
+		t = GetTask;
+		if(t) aps = GetAllowedPfxsTop;
 		if (aps && aps->life && --aps->life <= 0) {
-			IBVectorPop(GetAPfxsStack);
+			IBVectorPop(GetAPfxsStack, AllowedPfxsFree);
 		}
 	}
 }
@@ -1276,7 +1298,8 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_FuncWantCode: { /*printf*/
 			AllowedPfxs ap;
 			Obj* o;
-			AllowedPfxsInit(&ap, 0, "expected fmt args or line end", 4, OP_Value, OP_Name, OP_String, OP_LineEnd);
+			AllowedPfxsInit(&ap, 0, "expected fmt args or line end", 
+				4, OP_Value, OP_Name, OP_String, OP_LineEnd);
 			CompilerPushTask(compiler, OP_CPrintfHaveFmtStr, &ap);
 			AllowedPfxsFree(&ap);
 			//CompilerPushObj(compiler, &o);
@@ -1335,7 +1358,8 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerGetObj(compiler)->var.type = compiler->m_NameOp;
 			CompilerGetObj(compiler)->var.mod = OP_NotSet;
 			SetObjType(OP_VarNeedName);
-			CompilerPushAllowedPfxs(compiler, 0,"Expected variable name after variable type", 1, OP_Name);
+			CompilerPushAllowedPfxs(compiler, 0, "Expected variable name after variable type", 
+				1, OP_Name);
 			break;
 		}
 		}
@@ -1381,7 +1405,8 @@ void CompilerStrPayload(Compiler* compiler){
 			SetObjType(OP_FuncHasName);
 			SetTaskType(OP_FuncHasName);
 			//PopPfxs();
-			CompilerPushAllowedPfxs(compiler, 0,"", 3, OP_VarType, OP_Op, OP_LineEnd/*means allowed pfx will be cleared on newline*/);
+			CompilerPushAllowedPfxs(compiler, 0,"", 
+				3, OP_VarType, OP_Op, OP_LineEnd/*means allowed pfx will be cleared on newline*/);
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
 			break;
 		}
@@ -1496,7 +1521,7 @@ void CompilerStrPayload(Compiler* compiler){
 	if(compiler->m_StrReadPtrsStack.elemCount > 1)
 	{
 		if (*(bool*)IBVectorTop(&compiler->m_StrReadPtrsStack)) compiler->m_Pointer = OP_NotSet;
-		IBVectorPop(&compiler->m_StrReadPtrsStack);
+		IBVectorPop(&compiler->m_StrReadPtrsStack, NULL);
 	}
 }
 void CompilerExplainErr(Compiler* compiler, Op code) {
