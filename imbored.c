@@ -66,11 +66,6 @@ size_t ClampSizeT(size_t val, size_t min, size_t max) {
 	if (val > max) return max;
 	return val;
 }
-typedef struct IBLLNode {
-	IBVecData prev;
-	IBVecData next;
-	IBVecData;
-} IBLLNode;
 typedef union {
 	void* data;
 	struct Obj* obj;
@@ -80,6 +75,11 @@ typedef union {
 	struct AllowedPfxs* apfxs;
 	struct NameInfoDB* niDB;
 } IBVecData;
+typedef struct IBLLNode {
+	IBVecData prev;
+	IBVecData next;
+	IBVecData;//data ptr
+} IBLLNode;
 typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
@@ -104,6 +104,7 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->nodes = malloc(vec->slotCount * sizeof(IBLLNode));
 	vec->end = vec->start = vec->nodes;
 	assert(vec->nodes);
+	memset(vec->nodes, 0, vec->slotCount * sizeof(IBLLNode));
 }
 void* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
@@ -127,10 +128,21 @@ void IBVectorCopyPush(IBVector* vec, void* elem) {
 		ra=realloc(vec->data, vec->dataSize);
 		assert(ra);
 		vec->data = ra;
+		ra=realloc(vec->nodes, vec->slotCount * sizeof(IBLLNode));
+		assert(ra);
+		vec->nodes = ra;
 	}
 	topPtr = (char*)vec->data + vec->elemSize * vec->elemCount;
 	memcpy(topPtr, elem, vec->elemSize);
 	vec->VEC_TOP.data = topPtr;
+	if (vec->elemCount > 0){
+		vec->nodes[vec->elemCount - 1].next.data = topPtr;
+		vec->nodes[vec->elemCount].prev.data = vec->nodes[vec->elemCount - 1].data;
+	}
+	vec->nodes[vec->elemCount].next.data = NULL;
+	vec->nodes[vec->elemCount].data = topPtr;
+	vec->start = &vec->nodes[0];
+	vec->end = &vec->nodes[vec->elemCount];
 	vec->elemCount++;
 }
 void IBVectorCopyPushBool(IBVector* vec, bool val) {
