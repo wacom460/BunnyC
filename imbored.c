@@ -1,5 +1,5 @@
-#define _CRT_SECURE_NO_WARNINGS 1
 #include <stdio.h>
+#define _CRT_SECURE_NO_WARNINGS 1
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -98,8 +98,10 @@ typedef struct IBVector {
 	int slotCount;
 	int protectedSlotCount;/*cant pop past this, if 0 then unaffecting*/
 	size_t dataSize;
-	IBLLNode* start;
-	IBLLNode* end;
+#ifdef DEBUGGING_ONLY_OBJ_DATA /*DO NOT USE IN CODE*/
+	IBLLNode* sn;/*start NODE*/
+	IBLLNode* en;/*end NODE*/
+#endif
 	IBVecData;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize) {
@@ -111,10 +113,12 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->data = malloc(vec->dataSize);
 	assert(vec->data);
 	memset(vec->data, 0, vec->dataSize);
-	vec->start = malloc(vec->slotCount * sizeof(IBLLNode));
-	vec->end = vec->start;
-	assert(vec->start);
-	memset(vec->start, 0, vec->slotCount * sizeof(IBLLNode));
+#ifdef DEBUGGING_ONLY_OBJ_DATA
+	vec->sn = malloc(vec->slotCount * sizeof(IBLLNode));
+	vec->en = vec->sn;
+	assert(vec->sn);
+	memset(vec->sn, 0, vec->slotCount * sizeof(IBLLNode));
+#endif
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
@@ -136,19 +140,23 @@ IBVecData* IBVectorPush(IBVector* vec) {
 		ra = realloc(vec->data, vec->dataSize);
 		assert(ra);
 		vec->data = ra;
-		ra = realloc(vec->start, vec->slotCount * sizeof(IBLLNode));
+#ifdef DEBUGGING_ONLY_OBJ_DATA
+		ra = realloc(vec->sn, vec->slotCount * sizeof(IBLLNode));
 		assert(ra);
-		vec->start = ra;
+		vec->sn = ra;
+#endif
 	}
 	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
+#ifdef DEBUGGING_ONLY_OBJ_DATA
 	if (vec->elemCount > 0) {
-		vec->start[vec->elemCount - 1].next = &vec->start[vec->elemCount];
-		vec->start[vec->elemCount].prev = &vec->start[vec->elemCount - 1];
+		vec->sn[vec->elemCount - 1].next = &vec->sn[vec->elemCount];
+		vec->sn[vec->elemCount].prev = &vec->sn[vec->elemCount - 1];
 	}
-	else vec->start[vec->elemCount].prev = NULL;
-	vec->start[vec->elemCount].next = NULL;
-	vec->start[vec->elemCount].data = topPtr;
-	vec->end = &vec->start[vec->elemCount];
+	else vec->sn[vec->elemCount].prev = NULL;
+	vec->sn[vec->elemCount].next = NULL;
+	vec->sn[vec->elemCount].data = topPtr;
+	vec->en = &vec->sn[vec->elemCount];
+#endif
 	vec->elemCount++;
 	return topPtr;
 }
@@ -186,11 +194,15 @@ void IBVectorPop(IBVector* vec) {
 	ra = realloc(vec->data, vec->dataSize);
 	if (ra) vec->data = ra;
 	assert(vec->data);
-	vec->end = &vec->start[vec->elemCount - 1];
-	vec->end->next = NULL;
+#ifdef DEBUGGING_ONLY_OBJ_DATA
+	vec->en = &vec->sn[vec->elemCount - 1];
+	vec->en->next = NULL;
+#endif
 }
 void IBVectorFreeSimple(IBVector* vec) {
-	free(vec->start);
+#ifdef DEBUGGING_ONLY_OBJ_DATA
+	free(vec->sn);
+#endif
 	free(vec->data);
 }
 #define IBVectorFree(vec, freeFunc){\
@@ -279,7 +291,11 @@ typedef struct Obj {
 	Val val;	
 } Obj;
 Op ObjGetType(Obj* obj);
-void ObjSetType(Obj* obj, Op type);
+void _ObjSetType(Obj* obj, Op type);
+#define ObjSetType(obj, type){\
+	PRINT_LINE_INFO();\
+	_ObjSetType(obj, type);\
+}
 Op ObjGetMod(Obj* obj);
 void ObjSetMod(Obj* obj, Op mod);
 void ObjSetName(Obj* obj, char* name);
@@ -365,13 +381,21 @@ void _CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs* initialAPfxs);
 	PRINT_LINE_INFO();\
 	_CompilerPushTask(compiler, task, apfxs);\
 }
-void CompilerPopTask(Compiler* compiler);
+void _CompilerPopTask(Compiler* compiler);
+#define CompilerPopTask(compiler){\
+	PRINT_LINE_INFO();\
+	_CompilerPopTask(compiler);\
+}
 void _CompilerPushObj(Compiler* compiler, Obj** o);
 #define CompilerPushObj(compiler, objDP){\
 	PRINT_LINE_INFO();\
 	_CompilerPushObj(compiler, objDP);\
 }
-Obj* CompilerPopObj(Compiler* compiler, bool pushToWorking);
+void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj **objDP);
+#define CompilerPopObj(compiler, p2w, objDP){\
+	PRINT_LINE_INFO();\
+	_CompilerPopObj(compiler, p2w, objDP);\
+}
 void CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace);
 Op CompilerPop(Compiler* compiler);
 /*life:0 = infinite, -1 life each pfx*/
@@ -576,7 +600,7 @@ void CompilerFree(Compiler* compiler) {
 		case OP_FuncSigComplete:
 		case OP_FuncHasName: {
 			SetObjType(OP_FuncSigComplete);
-			CompilerPopObj(compiler, true);
+			CompilerPopObj(compiler, true, NULL);
 			CompilerPopAndDoTask(compiler);
 			break;
 		}
@@ -600,14 +624,14 @@ void _CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs *initialAPfxs) {
 	IBVectorCopyPush(&t.apfxsStack, initialAPfxs);
 	IBVectorCopyPush(&compiler->m_TaskStack, &t);
 }
-void CompilerPopTask(Compiler* compiler) {
-	printf("Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
+void _CompilerPopTask(Compiler* compiler) {
+	printf(" Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
 	IBVectorPop(&compiler->m_TaskStack);
 }
 void _CompilerPushObj(Compiler* compiler, Obj** o) {
 	Obj obj;
 	ObjInit(&obj);
-	printf("Push obj: ");
+	printf(" Push obj: ");
 	if (compiler->m_ObjStack.elemCount) {
 		ObjPrint(CompilerGetObj(compiler));
 		printf(" -> ");
@@ -617,10 +641,10 @@ void _CompilerPushObj(Compiler* compiler, Obj** o) {
 	printf("\n");
 	if (o) { (*o) = CompilerGetObj(compiler); }
 }
-Obj* CompilerPopObj(Compiler* compiler, bool pushToWorking) {
+void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 	if (pushToWorking){
 		if (GetObjType == OP_NotSet)Err(OP_ErrNOT_GOOD, "");
-		printf("To working: ");
+		printf(" To working: ");
 		ObjPrint(CompilerGetObj(compiler));
 		printf("\n");
 		IBVectorCopyPush(GetTaskWorkingObjs, CompilerGetObj(compiler));
@@ -640,7 +664,7 @@ Obj* CompilerPopObj(Compiler* compiler, bool pushToWorking) {
 	printf(" -> ");
 	ObjPrint(CompilerGetObj(compiler));
 	printf("\n");
-	return CompilerGetObj(compiler);
+	if(objDP) (*objDP) = CompilerGetObj(compiler);
 }
 void CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
 	compiler->m_StrAllowSpace = strAllowSpace;
@@ -653,7 +677,7 @@ Op CompilerPop(Compiler* compiler) {
 	return GetMode;
 }
 Op ObjGetType(Obj* obj) { return obj->type; }
-void ObjSetType(Obj* obj, Op type) {
+void _ObjSetType(Obj* obj, Op type) {
 	printf(" obj type: %s(%d) -> %s(%d)\n", 
 		GetOpName(obj->type), (int)obj->type, GetOpName(type), (int)type);
 	obj->type = type;
@@ -791,12 +815,12 @@ void CompilerChar(Compiler* compiler, char ch){
 		}
 		switch (GetObjType) {
 		case OP_CallWantArgs: {
-			CompilerPopObj(compiler, true);
+			CompilerPopObj(compiler, true, NULL);
 			break;
 		}
 		case OP_VarWantValue: 
 		case OP_VarComplete: {
-			CompilerPopObj(compiler, true);
+			CompilerPopObj(compiler, true, NULL);
 			break;
 		}
 		}
@@ -819,7 +843,7 @@ void CompilerChar(Compiler* compiler, char ch){
 				SetObjType(OP_FuncSigComplete);
 				PopPfxs();
 				mod = ObjGetMod(CompilerGetObj(compiler));
-				CompilerPopObj(compiler, true);
+				CompilerPopObj(compiler, true, NULL);
 				if (mod != OP_Imaginary) {
 					CompilerPushAllowedPfxs(compiler, 0, 
 						"expected operator, print statement, or variable declaration",
@@ -1011,7 +1035,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		subTask = true;
 		assert(GetTaskWorkingObjs);
 		assert(GetTaskWorkingObjs->elemCount);
-		fmtObj = (Obj*)GetTaskWorkingObjs->start;
+		fmtObj = (Obj*)GetTaskWorkingObjs->data;
 		StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 		firstPercent = false;
 		varIdx = 1;
@@ -1226,7 +1250,7 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerPushObj(compiler, &o);
 			ObjSetStr(o, compiler->m_Str);
 			ObjSetType(o, OP_CPrintfFmtStr);
-			CompilerPopObj(compiler, true);
+			CompilerPopObj(compiler, true, NULL);
 			break;
 		}
 		}
@@ -1248,7 +1272,7 @@ void CompilerStrPayload(Compiler* compiler){
 				CompilerGetObj(compiler)->val = strVal;
 				ObjSetType(CompilerGetObj(compiler), OP_Value);
 				CompilerGetObj(compiler)->var.type = OP_i32;/*for now*/
-				CompilerPopObj(compiler, true);
+				CompilerPopObj(compiler, true, NULL);
 				break;
 			}
 			case OP_FuncNeedRetVal: {
@@ -1308,7 +1332,7 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerPushObj(compiler, &o);
 			ObjSetName(o, compiler->m_Str);
 			ObjSetType(o, OP_Name);
-			CompilerPopObj(compiler, true);
+			CompilerPopObj(compiler, true, NULL);
 			break;
 		}
 		}
@@ -1333,7 +1357,7 @@ void CompilerStrPayload(Compiler* compiler){
 			PopPfxs();
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
 			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->arg.type);
-			CompilerPopObj(compiler, true);
+			CompilerPopObj(compiler, true, NULL);
 			break;
 		case OP_VarNeedName:
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
@@ -1387,7 +1411,7 @@ void CompilerStrPayload(Compiler* compiler){
 						else {
 							SetTaskType(OP_Func);
 							CompilerPopAndDoTask(compiler);
-							PopPfxs();
+							//PopPfxs();
 						}
 					}
 				}
@@ -1400,7 +1424,7 @@ void CompilerStrPayload(Compiler* compiler){
 			switch (t) {
 			case OP_FuncArgComplete: {
 				printf("what\n");
-				CompilerPopObj(compiler, true);
+				CompilerPopObj(compiler, true, NULL);
 				if (GetObjType != OP_FuncHasName) {
 					Err(OP_ErrNOT_GOOD, "expected FuncHasName");
 					break;
