@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,11 +72,13 @@ size_t ClampSizeT(size_t val, size_t min, size_t max) {
 }
 typedef union IBVecData {
 	union IBVecData* data;
-//DO NOT USE THESE IN CODE, THEY DONT WORK IDK WHY
-//DEBUGGING ONLY
-//#define DEBUGGING_ONLY_OBJ_DATA
+/*
+DO NOT USE THESE IN CODE, THEY DONT WORK IDK WHY
+DEBUGGING ONLY
+*/
+#define DEBUGGING_ONLY_OBJ_DATA
 #ifdef DEBUGGING_ONLY_OBJ_DATA
-	//put types to see in VS debugger
+	/*put types to see in VS debugger*/
 	struct Obj* obj;
 	struct Task* task;
 	Op* op;
@@ -87,17 +90,17 @@ typedef union IBVecData {
 typedef struct IBLLNode {
 	struct IBLLNode* prev;
 	struct IBLLNode* next;
-	IBVecData;//data ptr
+	IBVecData;/*data ptr*/
 } IBLLNode;
 typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
 	int slotCount;
-	int protectedSlotCount;//cant pop past this, if 0 then unaffecting
+	int protectedSlotCount/*cant pop past this, if 0 then unaffecting*/
 	size_t dataSize;
 	IBLLNode* start;
 	IBLLNode* end;
-	IBVecData;//DATA BLOCK
+	IBVecData;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->elemSize = elemSize;
@@ -295,7 +298,7 @@ void ObjInit(Obj* o) {
 	o->arg.mod = OP_NotSet;
 }
 typedef struct AllowedPfxs {
-	IBVector pfxs;//Op
+	IBVector pfxs;/*Op*/
 	char* err;
 	int life;
 } AllowedPfxs;
@@ -318,8 +321,8 @@ void AllowedPfxsFree(AllowedPfxs* ap) {
 }
 typedef struct Task {
 	Op type;
-	IBVector apfxsStack; //AllowedPfxs
-	IBVector working;//Obj
+	IBVector apfxsStack; /*AllowedPfxs*/
+	IBVector working;/*Obj*/
 	char code1[CODE_STR_MAX];
 	char code2[CODE_STR_MAX];
 } Task;
@@ -340,10 +343,10 @@ typedef struct Compiler {
 	char m_Str[CompilerSTR_MAX];
 	char m_cOutput[CODE_STR_MAX];
 
-	IBVector m_ObjStack; //Obj
-	IBVector m_ModeStack; //Op
-	IBVector m_TaskStack; //Task
-	IBVector m_StrReadPtrsStack; //bool
+	IBVector m_ObjStack; /*Obj*/
+	IBVector m_ModeStack; /*Op*/
+	IBVector m_TaskStack; /*Task*/
+	IBVector m_StrReadPtrsStack; /*bool*/
 
 	Op m_Pointer;
 	Op m_NameOp;
@@ -371,11 +374,11 @@ void _CompilerPushObj(Compiler* compiler, Obj** o);
 Obj* CompilerPopObj(Compiler* compiler, bool pushToWorking);
 void CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace);
 Op CompilerPop(Compiler* compiler);
-//life:0 = infinite, -1 life each pfx
+/*life:0 = infinite, -1 life each pfx*/
 void CompilerPushAllowedPfxs(Compiler* compiler, int life, char* err, int count, ...);
 void CompilerPopAllowedNextPfxs(Compiler* compiler);
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx);
-//NO NEWLINES AT END OF STR
+/*NO NEWLINES AT END OF STR*/
 void CompilerChar(Compiler* compiler, char ch);
 void CompilerPopAndDoTask(Compiler* compiler);
 char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type);
@@ -477,32 +480,36 @@ OpNamePair cEquivelents[] = {
 };
 char* GetCEqu(Op op) {
 	int sz;
+	int i;
 	sz=sizeof(cEquivelents) / sizeof(cEquivelents[0]);
-	for (int i = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++) {
 		if (op == cEquivelents[i].op) return cEquivelents[i].name;
 	}
 	return "?";
 }
 char* GetOpName(Op op) {
 	int sz;
+	int i;
 	sz=sizeof(opNames) / sizeof(opNames[0]);
-	for (int i = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++) {
 		if (op == opNames[i].op) return opNames[i].name;
 	}
 	return "?";
 }
 char* GetPfxName(Op op) {
 	int sz;
+	int i;
 	sz=sizeof(pfxNames) / sizeof(pfxNames[0]);
-	for (int i = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++) {
 		if (op == pfxNames[i].op) return pfxNames[i].name;
 	}
 	return "?";
 }
 Op GetOpFromName(char* name) {
 	int sz;
+	int i;
 	sz=sizeof(opNames) / sizeof(opNames[0]);
-	for (int i = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++) {
 		if (!strcmp(opNames[i].name, name)) return opNames[i].op;
 	}
 	return OP_Error;
@@ -732,7 +739,7 @@ bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	}
 	return false;
 }
-//NO NEWLINES AT END OF STR
+/*NO NEWLINES AT END OF STR*/
 void CompilerChar(Compiler* compiler, char ch){
 	Op m;
 	bool nl;
@@ -806,7 +813,6 @@ void CompilerChar(Compiler* compiler, char ch){
 				Err(OP_FuncNeedRetVal, "");
 				break;
 			}
-			//case OP_FuncSignatureComplete:
 			case OP_FuncSigComplete:
 			case OP_FuncHasName: {
 				Op mod;
@@ -872,16 +878,16 @@ char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type) {
 void Val2Str(char *dest, int destSz, Val v, Op type) {
 
 	switch (type) {
-	case OP_u8:  { snprintf(dest, destSz, "%u",   v.u8);  break; }
-	case OP_c8:  { snprintf(dest, destSz, "%c",   v.c8);  break; }
-	case OP_i16: { snprintf(dest, destSz, "%d",   v.i16); break; }
-	case OP_u16: { snprintf(dest, destSz, "%u",   v.u16); break; }
-	case OP_i32: { snprintf(dest, destSz, "%d",   v.i32); break; }
-	case OP_i64: { snprintf(dest, destSz, "%lld", v.i64); break; }
-	case OP_u32: { snprintf(dest, destSz, "%u",   v.u32); break; }
-	case OP_u64: { snprintf(dest, destSz, "%llu", v.u64); break; }
-	case OP_f32: { snprintf(dest, destSz, "%f",   v.f32); break; }
-	case OP_d64: { snprintf(dest, destSz, "%f",   v.d64); break; }
+	case OP_u8:  { sprintf(dest, "%u",   v.u8);  break; }
+	case OP_c8:  { sprintf(dest, "%c",   v.c8);  break; }
+	case OP_i16: { sprintf(dest, "%d",   v.i16); break; }
+	case OP_u16: { sprintf(dest, "%u",   v.u16); break; }
+	case OP_i32: { sprintf(dest, "%d",   v.i32); break; }
+	case OP_i64: { sprintf(dest, "%lld", v.i64); break; }
+	case OP_u32: { sprintf(dest, "%u",   v.u32); break; }
+	case OP_u64: { sprintf(dest, "%llu", v.u64); break; }
+	case OP_f32: { sprintf(dest, "%f",   v.f32); break; }
+	case OP_d64: { sprintf(dest, "%f",   v.d64); break; }
 	}
 }
 void CompilerPopAndDoTask(Compiler* compiler)	{
@@ -900,6 +906,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 	case OP_Func: {
 		Obj* o;
 		int idx;
+		int i;
 		char cFuncModsTypeName[CODE_STR_MAX];
 		char cFuncArgs[CODE_STR_MAX];
 		char cFuncCode[CODE_STR_MAX];
@@ -911,10 +918,10 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		cFuncArgs[0] = '\0';
 		cFuncCode[0] = '\0';
 		funcObj = NULL;
-		for (int i = 0; i < GetTaskWorkingObjs->elemCount; ++i) {
+		for (i = 0; i < GetTaskWorkingObjs->elemCount; ++i) {
 			Obj* o = (Obj*)IBVectorGet(GetTaskWorkingObjs, i);
 			switch (ObjGetType(o)) {
-			case OP_FuncArgComplete: {//multiple allowed
+			case OP_FuncArgComplete: {/*multiple allowed*/
 				Op at;
 				at = o->arg.type;
 				if (at == OP_Null)Err(OP_ErrNOT_GOOD, "arg type NULL");
@@ -934,7 +941,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				}
 			}
 			case OP_FuncHasName:
-			case OP_CompletedFunction: {//should only happen once
+			case OP_CompletedFunction: {/*should only happen once*/
 				Op mod;
 				funcObj = o;
 				mod = ObjGetMod(o);
@@ -965,7 +972,8 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				if(!o->name)Err(OP_ErrNOT_GOOD, "var name NULL");
 				StrConcat(cFuncCode, CODE_STR_MAX, o->name);
 				StrConcat(cFuncCode, CODE_STR_MAX, "=");
-				snprintf(valBuf, 32, "%I64u", o->var.val.i64);
+				/*snprintf(valBuf, 32, "%I64u", o->var.val.i64);*/
+				sprintf(valBuf, "%I64u", o->var.val.i64);
 				StrConcat(cFuncCode, 32, valBuf);
 				StrConcat(cFuncCode, CODE_STR_MAX, ";\n");
 				break;
@@ -1005,7 +1013,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 		firstPercent = false;
 		varIdx = 1;
-		for (i = 0; i < strlen(fmtObj->str); ++i) {
+		for (i = 0; i < (int)strlen(fmtObj->str); ++i) {
 			char c;
 			c = fmtObj->str[i];
 			switch (c) {
@@ -1100,7 +1108,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 }
 void CompilerPrefix(Compiler* compiler){
 	Obj* obj;
-	//for assigning func call ret val to var
+	/*for assigning func call ret val to var*/
 	if (compiler->m_Pfx == OP_Value && compiler->m_Ch == '@' && !compiler->m_Str[0]) {
 		CompilerPushAllowedPfxs(compiler, 1, "", 1, OP_Op);
 	}
@@ -1112,7 +1120,7 @@ void CompilerPrefix(Compiler* compiler){
 		Err(OP_ErrUnexpectedNextPfx, "");
 	printf("PFX:%s(%d)\n", GetPfxName(compiler->m_Pfx), (int)compiler->m_Pfx);
 	switch (compiler->m_Pfx) {
-	case OP_String: { //"
+	case OP_String: { /*"*/
 		compiler->m_StringMode = true;
 		CompilerPush(compiler, OP_ModeStrPass, false);
 		break;
@@ -1122,7 +1130,7 @@ void CompilerPrefix(Compiler* compiler){
 	case OP_Value:
 	case OP_Op:
 	case OP_Name:
-		//getchar();
+		/*getchar();*/
 		CompilerPush(compiler, OP_ModeStrPass, false);
 		break;
 	case OP_Comment:
@@ -1205,9 +1213,9 @@ void CompilerStrPayload(Compiler* compiler){
 	printf("Str: %s\n", compiler->m_Str);
 	switch (compiler->m_Pfx)
 	{
-	case OP_String: { //"
+	case OP_String: { /*"*/
 		switch(GetTaskType){
-		case OP_FuncWantCode: { //printf
+		case OP_FuncWantCode: { /*printf*/
 			AllowedPfxs ap;
 			Obj* o;
 			AllowedPfxsInit(&ap, 0, "expected fmt args or line end", 4, OP_Value, OP_Name, OP_String, OP_LineEnd);
@@ -1222,7 +1230,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		break;
 	}
-	case OP_Value: { //=
+	case OP_Value: { /*=*/
 		switch (GetObjType) {
 		case OP_VarWantValue: {
 			CompilerGetObj(compiler)->var.val = strVal;
@@ -1237,7 +1245,7 @@ void CompilerStrPayload(Compiler* compiler){
 				CompilerPushObj(compiler, NULL);
 				CompilerGetObj(compiler)->val = strVal;
 				ObjSetType(CompilerGetObj(compiler), OP_Value);
-				CompilerGetObj(compiler)->var.type = OP_i32;//for now
+				CompilerGetObj(compiler)->var.type = OP_i32;/*for now*/
 				CompilerPopObj(compiler, true);
 				break;
 			}
@@ -1261,7 +1269,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		break;
 	}
-	case OP_VarType: //%
+	case OP_VarType: /* % */
 		switch (GetTaskType) {
 		case OP_FuncWantCode: {
 			CompilerPushObj(compiler, NULL);
@@ -1291,7 +1299,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		}
 		break;
-	case OP_Name: { //$
+	case OP_Name: { /* $ */
 		switch(GetTaskType){
 		case OP_CPrintfHaveFmtStr: {
 			Obj* o;
@@ -1303,7 +1311,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		}
 		switch (GetObjType) {
-		case OP_CallNeedName: { //=@call
+		case OP_CallNeedName: { /* =@call */
 			SetObjType(OP_CallWantArgs);
 			PopPfxs();
 			CompilerPushAllowedPfxs(compiler, 0,"expected var type or line end after func name", 3, OP_Name, OP_Value, OP_LineEnd);
@@ -1334,7 +1342,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		break;
 	}
-	case OP_Op: //@
+	case OP_Op: /* @ */
 		switch (compiler->m_NameOp) {
 		case OP_Call:{
 			switch (GetObjType) {
@@ -1367,7 +1375,7 @@ void CompilerStrPayload(Compiler* compiler){
 				printf(" Finishing function\n");
 				idx = 0;
 				while (o = (Obj*)IBVectorIterNext(GetTaskWorkingObjs,&idx)) {
-					//TODO: could cache func obj index later
+					/*TODO: could cache func obj index later*/
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						if (o->func.retType != OP_Void) {
 							CompilerPushAllowedPfxs(compiler, 0,"", 1, OP_Value);
