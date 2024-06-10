@@ -199,7 +199,7 @@ void IBVectorFreeSimple(IBVector* vec) {
 	IBVectorFreeSimple((vec));\
 }
 
-char* StrConcat(char* dest, int count, const char* src) {
+char* StrConcat(char* dest, int count, char* src) {
 	return strcat(dest, src);
 }
 typedef union Val {
@@ -217,7 +217,7 @@ typedef union Val {
 } Val;
 typedef struct NameInfo {
 	Op type;
-	const char* name;
+	char* name;
 } NameInfo;
 void NameInfoInit(NameInfo* info){
 	info->type=OP_NotSet;
@@ -229,13 +229,13 @@ typedef struct NameInfoDB {
 void NameInfoDBInit(NameInfoDB* db) {
 	IBVectorInit(&db->pairs, sizeof(NameInfo));
 }
-void NameInfoDBAdd(NameInfoDB* db, const char* name, Op type) {
+void NameInfoDBAdd(NameInfoDB* db, char* name, Op type) {
 	NameInfo info;
 	info.type = type;
 	info.name = _strdup(name);
 	IBVectorCopyPush(&db->pairs, &info);
 }
-Op NameInfoDBFindType(NameInfoDB* db, const char* name) {
+Op NameInfoDBFindType(NameInfoDB* db, char* name) {
 	NameInfo* pair;
 	int idx;
 	idx = 0;
@@ -263,7 +263,7 @@ typedef struct VarObj {
 	Op type;
 	Op mod;
 } VarObj;
-const char* GetOpName(Op op);
+char* GetOpName(Op op);
 typedef struct Obj {
 	Op type;
 	Op modifier;
@@ -275,12 +275,12 @@ typedef struct Obj {
 	ArgObj arg;
 	Val val;	
 } Obj;
-const Op ObjGetType(Obj* obj);
+Op ObjGetType(Obj* obj);
 void ObjSetType(Obj* obj, Op type);
 Op ObjGetMod(Obj* obj);
 void ObjSetMod(Obj* obj, Op mod);
-void ObjSetName(Obj* obj, const char* name);
-void ObjSetStr(Obj* obj, const char* Str);
+void ObjSetName(Obj* obj, char* name);
+void ObjSetStr(Obj* obj, char* Str);
 void ObjPrint(Obj* obj);
 void ObjInit(Obj* o) {
 	o->type=OP_NotSet;
@@ -296,10 +296,10 @@ void ObjInit(Obj* o) {
 }
 typedef struct AllowedPfxs {
 	IBVector pfxs;//Op
-	const char* err;
+	char* err;
 	int life;
 } AllowedPfxs;
-void AllowedPfxsInit(AllowedPfxs* ap, int life, const char *err, int count, ...) {
+void AllowedPfxsInit(AllowedPfxs* ap, int life, char *err, int count, ...) {
 	va_list args;
 	Op o;
 	IBVectorInit(&ap->pfxs, sizeof(Op));
@@ -372,14 +372,13 @@ Obj* CompilerPopObj(Compiler* compiler, bool pushToWorking);
 void CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace);
 Op CompilerPop(Compiler* compiler);
 //life:0 = infinite, -1 life each pfx
-//void pushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life);
-void CompilerPushAllowedPfxs(Compiler* compiler, int life, const char* err, int count, ...);
+void CompilerPushAllowedPfxs(Compiler* compiler, int life, char* err, int count, ...);
 void CompilerPopAllowedNextPfxs(Compiler* compiler);
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx);
 //NO NEWLINES AT END OF STR
 void CompilerChar(Compiler* compiler, char ch);
 void CompilerPopAndDoTask(Compiler* compiler);
-const char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type);
+char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type);
 void CompilerPrefix(Compiler* compiler);
 void CompilerStr(Compiler* compiler);
 void CompilerStrPayload(Compiler* compiler);
@@ -476,7 +475,7 @@ OpNamePair cEquivelents[] = {
 	{"", OP_NotSet},
 	{"extern", OP_Imaginary},
 };
-const char* GetCEqu(Op op) {
+char* GetCEqu(Op op) {
 	int sz;
 	sz=sizeof(cEquivelents) / sizeof(cEquivelents[0]);
 	for (int i = 0; i < sz; i++) {
@@ -484,7 +483,7 @@ const char* GetCEqu(Op op) {
 	}
 	return "?";
 }
-const char* GetOpName(Op op) {
+char* GetOpName(Op op) {
 	int sz;
 	sz=sizeof(opNames) / sizeof(opNames[0]);
 	for (int i = 0; i < sz; i++) {
@@ -492,7 +491,7 @@ const char* GetOpName(Op op) {
 	}
 	return "?";
 }
-const char* GetPfxName(Op op) {
+char* GetPfxName(Op op) {
 	int sz;
 	sz=sizeof(pfxNames) / sizeof(pfxNames[0]);
 	for (int i = 0; i < sz; i++) {
@@ -500,7 +499,7 @@ const char* GetPfxName(Op op) {
 	}
 	return "?";
 }
-Op GetOpFromName(const char* name) {
+Op GetOpFromName(char* name) {
 	int sz;
 	sz=sizeof(opNames) / sizeof(opNames[0]);
 	for (int i = 0; i < sz; i++) {
@@ -521,7 +520,7 @@ Op fromPfxCh(char ch) {
 	default: return OP_Unknown;
 	}
 }
-void owStr(char** str, const char* with) {
+void owStr(char** str, char* with) {
 	if (*str) free(*str);
 	*str = _strdup(with);
 }
@@ -646,7 +645,7 @@ Op CompilerPop(Compiler* compiler) {
 	printf("pop: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
 	return GetMode;
 }
-const Op ObjGetType(Obj* obj) { return obj->type; }
+Op ObjGetType(Obj* obj) { return obj->type; }
 void ObjSetType(Obj* obj, Op type) {
 	printf(" obj type: %s(%d) -> %s(%d)\n", 
 		GetOpName(obj->type), (int)obj->type, GetOpName(type), (int)type);
@@ -658,11 +657,11 @@ void ObjSetMod(Obj* obj, Op mod) {
 		GetOpName(obj->modifier), (int)obj->modifier, GetOpName(mod), (int)mod);
 	obj->modifier = mod;
 }
-void ObjSetName(Obj* obj, const char* name) {
+void ObjSetName(Obj* obj, char* name) {
 	printf("obj name: %s -> %s\n", obj->name, name);
 	owStr(&obj->name, name);
 }
-void ObjSetStr(Obj* obj, const char* Str) {
+void ObjSetStr(Obj* obj, char* Str) {
 	printf("obj str: %s -> %s\n", obj->str, Str);
 	owStr(&obj->str, Str);
 }
@@ -679,7 +678,7 @@ void ObjPrint(Obj* obj) {
 	/*if(u64)*/printf("Val:%d", obj->val.i32);
 	printf("]");
 }
-void CompilerPushAllowedPfxs(Compiler* compiler, int life, const char* err, int count, ...)
+void CompilerPushAllowedPfxs(Compiler* compiler, int life, char* err, int count, ...)
 {
 	Op o;
 	Op* oi;
@@ -857,7 +856,7 @@ void CompilerChar(Compiler* compiler, char ch){
 		compiler->m_Line++;
 	}
 }
-const char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type) {
+char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type) {
 	switch (type) {
 	case OP_String: return "s";
 	case OP_i32:    return "d";
@@ -1386,7 +1385,7 @@ void CompilerStrPayload(Compiler* compiler){
 			}
 			break;
 		case OP_Return: {
-			auto t = GetObjType;
+			Op t = GetObjType;
 			switch (t) {
 			case OP_FuncArgComplete: {
 				printf("what\n");
@@ -1471,7 +1470,7 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 }
 int main(int argc, char** argv) {
 	FILE* f;
-	const char* fname = /*argv[1]*/"main.txt";
+	char* fname = /*argv[1]*/"main.txt";
 	f = fopen(fname, "r");
 	if (f){
 		Compiler *comp = (Compiler*)malloc(sizeof(Compiler));
