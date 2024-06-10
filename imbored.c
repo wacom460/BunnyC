@@ -610,7 +610,7 @@ void CompilerFree(Compiler* compiler) {
 	printf("-> Compilation complete <-\nResulting C code:\n\n");
 	printf("%s", compiler->m_cOutput);
 }
-void ALlowedPfxsPrint(AllowedPfxs* ap) {
+void AllowedPfxsPrint(AllowedPfxs* ap) {
 	Op* oi;
 	int idx;
 	idx = 0;

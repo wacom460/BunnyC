@@ -2,15 +2,11 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/.vs/Project1
 /Project1/x64/Debug
 /x64/Debug
 /.vs
 /Build/x64/Debug
 /Compiler/x64/Debug
-/enc_temp_folder/6dc35054cc5feb875bab924e19adec6d
-/enc_temp_folder/27d7e7af8fbfc677ec7011e0e415acf5
-/Build/Debug
+/Build/
 /Debug
-/enc_temp_folder/414e2605c6733b598b7ecd94ab72b9d
-/enc_temp_folder/fd1f4e9464a84a2819d23f4191e3d2e
+/enc_temp_folder
