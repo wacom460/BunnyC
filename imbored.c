@@ -42,7 +42,7 @@ typedef enum Op { //multiple uses
 	OP_GreaterThan, OP_LessThanOrEquals, OP_GreaterThanOrEquals,
 	OP_ScopeOpen, OP_ScopeClose, OP_ParenthesisOpen, OP_ParenthesisClose,
 	OP_BracketOpen, OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
-	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,
+	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,OP_RootTask,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -53,6 +53,7 @@ typedef enum Op { //multiple uses
 	OP_NotFound, OP_Error, OP_ErrNOT_GOOD, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
 	OP_ErrQuadriplePointersNOT_ALLOWED, OP_ErrUnknownOpStr,
+	OP_ErrProtectedSlot,
 
 	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
 } Op;
@@ -84,6 +85,7 @@ typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
 	int slotCount;
+	int protectedSlotCount;//cant pop past this, if 0 then unaffecting
 	size_t dataSize;
 	IBLLNode* start;
 	IBLLNode* end;
@@ -93,6 +95,7 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->elemSize = elemSize;
 	vec->elemCount = 0;
 	vec->slotCount = 1;
+	vec->protectedSlotCount = 0;
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	vec->data = malloc(vec->dataSize);
 	assert(vec->data);
@@ -104,7 +107,7 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
-	return (char*)vec->data + vec->elemSize * idx;
+	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
 void* IBVectorIterNext(IBVector* vec, int* idx) {
 	if (!vec) return NULL;
@@ -153,9 +156,13 @@ IBVecData* IBVectorTop(IBVector* vec) {
 }
 IBVecData* IBVectorFront(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
-	return (char*)vec->data;
+	return vec->data;
 }
 void IBVectorPop(IBVector* vec) {
+	if (vec->protectedSlotCount && vec->elemCount <= vec->protectedSlotCount) {
+		assert(0);
+		return;
+	}
 	void* ra;
 	if(vec->elemCount <= 0) return;
 	vec->elemCount--;
@@ -168,10 +175,19 @@ void IBVectorPop(IBVector* vec) {
 	vec->end = &vec->start[vec->elemCount - 1];
 	vec->end->next = NULL;
 }
-void IBVectorFree(IBVector* vec) {
+void IBVectorFreeSimple(IBVector* vec) {
 	free(vec->start);
 	free(vec->data);
 }
+#define IBVectorFree(vec, freeFunc){\
+	int i;\
+	i = 0;\
+	for(;i<(vec)->elemCount;i++){\
+		freeFunc((void*)IBVectorGet((vec), i));\
+	}\
+	IBVectorFreeSimple((vec));\
+}
+
 char* StrConcat(char* dest, int count, const char* src) {
 	return strcat(dest, src);
 }
@@ -219,7 +235,7 @@ Op NameInfoDBFindType(NameInfoDB* db, const char* name) {
 	return OP_NotFound;
 }
 void NameInfoDBFree(NameInfoDB* db) {
-	IBVectorFree(&db->pairs);
+	IBVectorFreeSimple(&db->pairs);
 }
 typedef struct FuncObj {
 	Val retVal;
@@ -285,17 +301,30 @@ void AllowedPfxsInit(AllowedPfxs* ap, int count, ...) {
 	}
 	va_end(args);
 }
+void AllowedPfxsFree(AllowedPfxs* ap) {
+	IBVectorFreeSimple(&ap->pfxs);
+}
 typedef struct Task {
 	Op type;
+	IBVector apfxsStack; //AllowedPfxs
 	IBVector working;//Obj
 	char code1[CODE_STR_MAX];
 	char code2[CODE_STR_MAX];
 } Task;
 void TaskInit(Task* t, Op type) {
+	AllowedPfxs* ap;
 	IBVectorInit(&t->working, sizeof(Obj));
+	IBVectorInit(&t->apfxsStack, sizeof(AllowedPfxs));
+	t->apfxsStack.protectedSlotCount = 1;
+	ap = (AllowedPfxs*)IBVectorPush(&t->apfxsStack);
+	AllowedPfxsInit(ap, 1, OP_Op);
+	//IBVectorPop(&t->apfxsStack);//should fail
 	t->type = type;
 	t->code1[0] = '\0';
 	t->code2[0] = '\0';
+}
+void TaskFree(Task* t) {
+	IBVectorFree(&t->apfxsStack, AllowedPfxsFree);
 }
 typedef struct Compiler {
 	int m_Line;
@@ -305,7 +334,6 @@ typedef struct Compiler {
 	char m_cOutput[CODE_STR_MAX];
 
 	IBVector m_ObjStack; //Obj
-	IBVector m_AllowedNextPfxsStack; //AllowedPfxs
 	IBVector m_ModeStack; //Op
 	IBVector m_TaskStack; //Task
 	IBVector m_StrReadPtrsStack; //bool
@@ -361,15 +389,16 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 	PRINT_LINE_INFO();\
 	CompilerPopAllowedNextPfxs(compiler);\
 }
-#define GetAllowedPfxsTop ((AllowedPfxs*)IBVectorTop(&compiler->m_AllowedNextPfxsStack))
 #define GetTask ((Task*)IBVectorTop(&compiler->m_TaskStack))
+#define GetAPfxsStack (&GetTask->apfxsStack)
+#define GetAllowedPfxsTop ((AllowedPfxs*)IBVectorTop(GetAPfxsStack))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
 #define GetTaskType   ((compiler->m_TaskStack.elemCount) ? GetTask->type : OP_TaskStackEmpty)
 #define GetTaskCode   (GetTask->code1)
 #define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
 	PRINT_LINE_INFO();\
-	printf("SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
+	printf(" SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
 #define GetTaskWorkingObjs (GetTask ? (&GetTask->working) : NULL)
@@ -479,7 +508,7 @@ Obj* CompilerGetObj(Compiler* compiler) {
 }
 void CompilerInit(Compiler* compiler){
 	Obj* o;
-	AllowedPfxs ap;
+	Task* rootTask;
 	compiler->m_Line = 1;
 	compiler->m_Column = 1;
 	compiler->m_Pfx = OP_Null;
@@ -492,16 +521,14 @@ void CompilerInit(Compiler* compiler){
 	compiler->m_StrAllowSpace = false;
 	compiler->m_CommentMode = OP_NotSet;
 	compiler->m_MultiLineOffCount = 0;
-	IBVectorInit(&compiler->m_AllowedNextPfxsStack, sizeof(AllowedPfxs));
-	AllowedPfxsInit(&ap, 1, OP_Op);
-	IBVectorCopyPush(&compiler->m_AllowedNextPfxsStack, &ap);
-	
-	//IBVectorInit(&compiler->m_NameTypeCtx.pairs, sizeof(NameInfo));
 	NameInfoDBInit(&compiler->m_NameTypeCtx);
 	IBVectorInit(&compiler->m_ObjStack, sizeof(Obj));
 	IBVectorInit(&compiler->m_ModeStack, sizeof(Op));
 	IBVectorInit(&compiler->m_StrReadPtrsStack, sizeof(bool));
 	IBVectorInit(&compiler->m_TaskStack, sizeof(Task));
+	compiler->m_TaskStack.protectedSlotCount = 1;
+	rootTask = (Task*)IBVectorPush(&compiler->m_TaskStack);
+	TaskInit(rootTask, OP_RootTask);
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
 	CompilerPush(compiler, OP_ModePrefixPass, false);
 	o=CompilerPushObj(compiler);
@@ -630,7 +657,7 @@ void CompilerPushAllowedPfxs(Compiler* compiler, int life, const char* err, int 
 	while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs, &idx))
 		printf("%s ", GetPfxName(*oi));
 	printf("} -> { ");
-	ap = (AllowedPfxs*)IBVectorPush(&compiler->m_AllowedNextPfxsStack);
+	ap = (AllowedPfxs*)IBVectorPush(GetAPfxsStack);
 	AllowedPfxsInit(ap, 0);
 	while (count--) {
 		o = va_arg(args, Op);
@@ -651,8 +678,8 @@ void CompilerPopAllowedNextPfxs(Compiler* compiler) {
 			printf("%s ", GetPfxName(*oi));
 		}
 		printf("} -> { ");
-		IBVectorPop(&compiler->m_AllowedNextPfxsStack);
-		if (!compiler->m_AllowedNextPfxsStack.elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
+		IBVectorPop(GetAPfxsStack);
+		if (!GetAPfxsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
 		pfxsIb = &GetAllowedPfxsTop->pfxs;
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(pfxsIb,&idx)) {
@@ -782,7 +809,7 @@ void CompilerChar(Compiler* compiler, char ch){
 		case OP_ModeStrPass:
 			CompilerStr(compiler);
 			break;
-		default: Err(OP_ErrNOT_GOOD, "unknown mode %d", m);
+		default: Err(OP_ErrNOT_GOOD, "unknown mode");
 			break;
 		}
 	}
@@ -821,9 +848,12 @@ void Val2Str(char *dest, int destSz, Val v, Op type) {
 	}
 }
 void CompilerPopAndDoTask(Compiler* compiler)	{
+	IBVector* wObjs;
 	printf("PopAndDoTask()\n");
 	if(!compiler->m_TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
-	if(!GetTaskWorkingObjs->elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
+	wObjs = GetTaskWorkingObjs;
+	assert(wObjs);
+	if(!wObjs->elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
 	bool subTask = false;
 	switch (GetTaskType) {
 	case OP_FuncWantCode: break;
@@ -1052,7 +1082,7 @@ void CompilerPrefix(Compiler* compiler){
 	if (compiler->m_Pfx == OP_Op) {
 		AllowedPfxs* aps = GetAllowedPfxsTop;
 		if (aps->life && --aps->life <= 0) {
-			IBVectorPop(&compiler->m_AllowedNextPfxsStack);
+			IBVectorPop(GetAPfxsStack);
 		}
 	}
 }
@@ -1363,7 +1393,7 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 		int idx;
 		printf("%s Unexpected next prefix %s. Pfx stack idx:%d Allowed:", 
 			GetAllowedPfxsTop->err, GetPfxName(compiler->m_Pfx), 
-				compiler->m_AllowedNextPfxsStack.elemCount - 1);
+				GetAPfxsStack->elemCount - 1);
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs,&idx)) {
 			printf("%s,", GetPfxName(*oi));
