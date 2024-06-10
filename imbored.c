@@ -86,7 +86,6 @@ typedef struct IBVector {
 	int slotCount;
 	size_t dataSize;
 	size_t iterIdx;
-	IBLLNode* nodes;
 	IBLLNode* start;
 	IBLLNode* end;
 	IBVecData;//DATA BLOCK
@@ -101,10 +100,10 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->data = malloc(vec->dataSize);
 	assert(vec->data);
 	memset(vec->data, 0, vec->dataSize);
-	vec->nodes = malloc(vec->slotCount * sizeof(IBLLNode));
-	vec->end = vec->start = vec->nodes;
-	assert(vec->nodes);
-	memset(vec->nodes, 0, vec->slotCount * sizeof(IBLLNode));
+	vec->start = malloc(vec->slotCount * sizeof(IBLLNode));
+	vec->end = vec->start;
+	assert(vec->start);
+	memset(vec->start, 0, vec->slotCount * sizeof(IBLLNode));
 }
 void* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
@@ -128,21 +127,20 @@ void IBVectorCopyPush(IBVector* vec, void* elem) {
 		ra=realloc(vec->data, vec->dataSize);
 		assert(ra);
 		vec->data = ra;
-		ra=realloc(vec->nodes, vec->slotCount * sizeof(IBLLNode));
+		ra=realloc(vec->start, vec->slotCount * sizeof(IBLLNode));
 		assert(ra);
-		vec->nodes = ra;
+		vec->start = ra;
 	}
 	topPtr = (char*)vec->data + vec->elemSize * vec->elemCount;
 	memcpy(topPtr, elem, vec->elemSize);
 	vec->VEC_TOP.data = topPtr;
 	if (vec->elemCount > 0){
-		vec->nodes[vec->elemCount - 1].next.data = topPtr;
-		vec->nodes[vec->elemCount].prev.data = vec->nodes[vec->elemCount - 1].data;
+		vec->start[vec->elemCount - 1].next.data = topPtr;
+		vec->start[vec->elemCount].prev.data = vec->start[vec->elemCount - 1].data;
 	}
-	vec->nodes[vec->elemCount].next.data = NULL;
-	vec->nodes[vec->elemCount].data = topPtr;
-	vec->start = &vec->nodes[0];
-	vec->end = &vec->nodes[vec->elemCount];
+	vec->start[vec->elemCount].next.data = NULL;
+	vec->start[vec->elemCount].data = topPtr;
+	vec->end = &vec->start[vec->elemCount];
 	vec->elemCount++;
 }
 void IBVectorCopyPushBool(IBVector* vec, bool val) {
@@ -171,7 +169,7 @@ void IBVectorPop(IBVector* vec) {
 	assert(vec->data);
 }
 void IBVectorFree(IBVector* vec) {
-	free(vec->nodes);
+	free(vec->start);
 	free(vec->data);
 }
 char* StrConcat(char* dest, int count, const char* src) {
@@ -1076,7 +1074,10 @@ void Compiler_Str(Compiler* compiler){
 		case '\t': return;
 		case ' ': {
 			if (compiler->m_StrAllowSpace) break;
-			else return Compiler_StrPayload(compiler);
+			else {
+				Compiler_StrPayload(compiler);
+				return;
+			}
 		}
 		case '&': {
 			if (*(bool*)IBVectorTop(&compiler->m_StrReadPtrsStack)) {
@@ -1376,7 +1377,7 @@ void Compiler_ExplainErr(Compiler* compiler, Op code) {
 		printf("No working task to call done (@@) for");
 		break;
 	case OP_ErrUnexpectedNextPfx:
-		printf("%s Unexpected next prefix %s. Pfx stack idx:%zd Allowed:", GetAllowedPfxsTop->err, GetPfxName(compiler->m_Pfx), compiler->m_AllowedNextPfxsStack.elemCount - 1);
+		printf("%s Unexpected next prefix %s. Pfx stack idx:%d Allowed:", GetAllowedPfxsTop->err, GetPfxName(compiler->m_Pfx), compiler->m_AllowedNextPfxsStack.elemCount - 1);
 		Op* oi;
 		while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs)) {
 			printf("%s,", GetPfxName(*oi));
