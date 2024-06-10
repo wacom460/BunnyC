@@ -125,7 +125,7 @@ IBVecData* IBVectorPush(IBVector* vec) {
 		assert(ra);
 		vec->start = ra;
 	}
-	topPtr = vec->data + vec->elemSize * vec->elemCount;
+	topPtr = (char*)vec->data + vec->elemSize * vec->elemCount;
 	if (vec->elemCount > 0) {
 		vec->start[vec->elemCount - 1].next = &vec->start[vec->elemCount];
 		vec->start[vec->elemCount].prev = &vec->start[vec->elemCount - 1];
@@ -148,7 +148,7 @@ void IBVectorCopyPushOp(IBVector* vec, Op val) {
 }
 void* IBVectorTop(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
-	return (char*)vec->data + vec->elemSize * (vec->elemCount - 1);
+	return vec->end->data;
 }
 void* IBVectorFront(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
@@ -630,7 +630,7 @@ void CompilerPushAllowedPfxs(Compiler* compiler, int life, const char* err, int 
 	while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs, &idx))
 		printf("%s ", GetPfxName(*oi));
 	printf("} -> { ");
-	ap = IBVectorPush(&compiler->m_AllowedNextPfxsStack)->apfxs;
+	ap = (AllowedPfxs*)IBVectorPush(&compiler->m_AllowedNextPfxsStack);
 	AllowedPfxsInit(ap, 0);
 	while (count--) {
 		o = va_arg(args, Op);
