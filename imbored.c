@@ -66,12 +66,17 @@ size_t ClampSizeT(size_t val, size_t min, size_t max) {
 	if (val > max) return max;
 	return val;
 }
+typedef struct IBLLNode {
+	IBVecData prev;
+	IBVecData next;
+	IBVecData;
+} IBLLNode;
 typedef union {
 	void* data;
 	struct Obj* obj;
 	struct Task* task;
 	Op* op;
-	int* boool;
+	int* boolean;
 	struct AllowedPfxs* apfxs;
 	struct NameInfoDB* niDB;
 } IBVecData;
@@ -81,8 +86,11 @@ typedef struct IBVector {
 	int slotCount;
 	size_t dataSize;
 	size_t iterIdx;
-	IBVecData;
-	IBVecData VEC_TOP;
+	IBLLNode* nodes;
+	IBLLNode* start;
+	IBLLNode* end;
+	IBVecData;//DATA BLOCK
+	IBVecData VEC_TOP;//ptr to end element
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->elemSize = elemSize;
@@ -91,7 +99,11 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	vec->iterIdx = 0;
 	vec->data = malloc(vec->dataSize);
+	assert(vec->data);
 	memset(vec->data, 0, vec->dataSize);
+	vec->nodes = malloc(vec->slotCount * sizeof(IBLLNode));
+	vec->end = vec->start = vec->nodes;
+	assert(vec->nodes);
 }
 void* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
@@ -108,10 +120,13 @@ void IBVectorCopyPush(IBVector* vec, void* elem) {
 	void* topPtr;
 	assert(vec->elemCount <= vec->slotCount);
 	if (vec->elemCount >= vec->slotCount) {
+		void* ra;
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
-		vec->data = realloc(vec->data, vec->dataSize);
 		assert(vec->data);
+		ra=realloc(vec->data, vec->dataSize);
+		assert(ra);
+		vec->data = ra;
 	}
 	topPtr = (char*)vec->data + vec->elemSize * vec->elemCount;
 	memcpy(topPtr, elem, vec->elemSize);
@@ -133,14 +148,18 @@ void* IBVectorFront(IBVector* vec) {
 	return (char*)vec->data;
 }
 void IBVectorPop(IBVector* vec) {
+	void* ra;
 	if(vec->elemCount <= 0) return;
 	vec->elemCount--;
 	vec->slotCount = ClampInt(vec->slotCount, 1, vec->elemCount);
 	vec->dataSize = vec->elemSize * vec->slotCount;
-	vec->data = realloc(vec->data, vec->dataSize);
+	assert(vec->data);
+	ra = realloc(vec->data, vec->dataSize);
+	if (ra) vec->data = ra;
 	assert(vec->data);
 }
 void IBVectorFree(IBVector* vec) {
+	free(vec->nodes);
 	free(vec->data);
 }
 char* StrConcat(char* dest, int count, const char* src) {
