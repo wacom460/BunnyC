@@ -96,7 +96,7 @@ typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
 	int slotCount;
-	int protectedSlotCount/*cant pop past this, if 0 then unaffecting*/
+	int protectedSlotCount;/*cant pop past this, if 0 then unaffecting*/
 	size_t dataSize;
 	IBLLNode* start;
 	IBLLNode* end;
