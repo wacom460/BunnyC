@@ -66,8 +66,8 @@ size_t ClampSizeT(size_t val, size_t min, size_t max) {
 	if (val > max) return max;
 	return val;
 }
-typedef union {
-	void* data;
+typedef union IBVecData {
+	union IBVecData* data;
 	struct Obj* obj;
 	struct Task* task;
 	Op* op;
@@ -111,32 +111,36 @@ void* IBVectorIterNext(IBVector* vec, int* idx) {
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (char*)vec->data + vec->elemSize * (*idx)++;
 }
-void IBVectorCopyPush(IBVector* vec, void* elem) {
-	void* topPtr;
+IBVecData* IBVectorPush(IBVector* vec) {
+	IBVecData* topPtr;
 	assert(vec->elemCount <= vec->slotCount);
 	if (vec->elemCount >= vec->slotCount) {
 		void* ra;
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
 		assert(vec->data);
-		ra=realloc(vec->data, vec->dataSize);
+		ra = realloc(vec->data, vec->dataSize);
 		assert(ra);
 		vec->data = ra;
-		ra=realloc(vec->start, vec->slotCount * sizeof(IBLLNode));
+		ra = realloc(vec->start, vec->slotCount * sizeof(IBLLNode));
 		assert(ra);
 		vec->start = ra;
 	}
-	topPtr = (char*)vec->data + vec->elemSize * vec->elemCount;
-	memcpy(topPtr, elem, vec->elemSize);
+	topPtr = vec->data + vec->elemSize * vec->elemCount;
 	vec->VEC_TOP.data = topPtr;
-	if (vec->elemCount > 0){
+	if (vec->elemCount > 0) {
 		vec->start[vec->elemCount - 1].next = &vec->start[vec->elemCount];
 		vec->start[vec->elemCount].prev = &vec->start[vec->elemCount - 1];
-	}else vec->start[vec->elemCount].prev = NULL;
+	}
+	else vec->start[vec->elemCount].prev = NULL;
 	vec->start[vec->elemCount].next = NULL;
 	vec->start[vec->elemCount].data = topPtr;
 	vec->end = &vec->start[vec->elemCount];
 	vec->elemCount++;
+	return topPtr;
+}
+void IBVectorCopyPush(IBVector* vec, void* elem) {
+	memcpy(IBVectorPush(vec), elem, vec->elemSize);
 }
 void IBVectorCopyPushBool(IBVector* vec, bool val) {
 	IBVectorCopyPush(vec, &val);
@@ -354,7 +358,7 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 	GetTask->type = tt;\
 }
 #define GetTaskWorkingObjs (GetTask->working)
-#define SwitchTaskStackStart if (!compiler->m_TaskStack.elemCount) {\
+#define SwitchTaskStackStart if (compiler->m_TaskStack.elemCount) {\
 	switch (GetTaskType) {
 #define SwitchTaskStackEnd }\
 	}
@@ -603,30 +607,28 @@ void ObjPrint(Obj* obj) {
 	/*if(u64)*/printf("Val:%d", obj->val.i32);
 	printf("]");
 }
-//void CompilerpushAllowedNextPfxs(std::vector<Op> allowedNextPfxs, const char* err, int life) {
-//	if (!compiler->m_AllowedNextPfxsStack.top().pfxs.empty()) {
-//		printf(" allowed pfxs PUSH: { ");
-//		for (auto& p : compiler->m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
-//		printf("} -> { ");
-//		compiler->m_AllowedNextPfxsStack.push({ allowedNextPfxs, err, life });
-//		for (auto& p : compiler->m_AllowedNextPfxsStack.top().pfxs) printf("%s ", GetPfxName(p));
-//		printf("}\n");
-//	}
-//	else Err(OP_ErrNOT_GOOD, "pfx stack vec cannot be empty");
-//}
 void CompilerPushAllowedPfxs(Compiler* compiler, int life, const char* err, int count, ...)
 {
 	Op o;
+	Op* oi;
 	va_list args;
+	AllowedPfxs *ap;
+	int idx;
 	va_start(args, count);
-	AllowedPfxs ap;
+	printf(" apfxs PUSH: { ");
+	idx = 0;
+	assert(GetAllowedPfxsTop->pfxs.elemCount);
+	while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs, &idx))
+		printf("%s ", GetPfxName(*oi));
+	printf("} -> { ");
+	ap = IBVectorPush(&compiler->m_AllowedNextPfxsStack)->apfxs;
 	AllowedPfxsInit(&ap, 0);
-	IBVectorInit(&ap.pfxs, sizeof(Op));
 	while (count--) {
 		o = va_arg(args, Op);
-		IBVectorCopyPushOp(&ap.pfxs, o);
+		IBVectorCopyPushOp(&ap->pfxs, o);
+		printf("%s ", GetPfxName(o));
 	}
-	IBVectorCopyPush(&compiler->m_AllowedNextPfxsStack, &ap);
+	printf("}\n");
 }
 void CompilerPopAllowedNextPfxs(Compiler* compiler) {
 	IBVector* pfxsIb = &GetAllowedPfxsTop->pfxs;
