@@ -136,6 +136,7 @@ IBVecData* IBVectorPush(IBVector* vec) {
 	assert(vec->elemCount <= vec->slotCount);
 	if (vec->elemCount >= vec->slotCount) {
 		void* ra;
+		ra = NULL;
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
 		assert(vec->data);
@@ -341,7 +342,7 @@ void AllowedPfxsInit(AllowedPfxs* ap, int life,
 	}
 	va_end(args);
 }
-void ALlowedPfxsPrint(AllowedPfxs* ap);
+void AllowedPfxsPrint(AllowedPfxs* ap);
 void AllowedPfxsFree(AllowedPfxs* ap) {
 	IBVectorFreeSimple(&ap->pfxs);
 }
