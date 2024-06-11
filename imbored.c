@@ -1121,7 +1121,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			fmtObj = (Obj*)wObjs->data;
 			StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 			firstPercent = false;
-			varIdx = 1;
+			varIdx = 0;
 			for (i = 0; i < (int)strlen(fmtObj->str); ++i) {
 				char c;
 				c = fmtObj->str[i];
@@ -1625,7 +1625,7 @@ int main(int argc, char** argv) {
 		}
 		printf("Exiting\n");
 		CompilerFree(&comp);
-		getchar();
+		//getchar();
 		fclose(f);
 		return 0;
 	}
