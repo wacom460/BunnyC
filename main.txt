@@ -1,7 +1,7 @@
 @ext @func $malloc %i32 $size @ret %&?
 
 @func $fucc
-@@
+@@ =0
 
 @func $main %i32 $argc %&&c8 $argv @ret %i32
 "Hello, %% %%" "world\n" $argc

@@ -146,10 +146,12 @@ IBVecData* IBVectorPush(IBVector* vec) {
 		assert(vec->data);
 		ra = realloc(vec->data, vec->dataSize);
 		assert(ra);
+		//if(vec->data && vec->data != ra) free(vec->data);
 		vec->data = ra;
 #ifdef DEBUGGING_ONLY_OBJ_DATA
 		ra = realloc(vec->sn, vec->slotCount * sizeof(IBLLNode));
 		assert(ra);
+		//if(vec->sn && vec->sn != ra) free(vec->sn);
 		vec->sn = ra;
 #endif
 	}
@@ -1620,16 +1622,23 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 		break;
 	case OP_ErrUnexpectedNextPfx: {
 		Op* oi;
+		AllowedPfxs *ap;
+		Task *t;
 		int idx;
-		printf("%s Unexpected next prefix %s. PfxIdx:%d Allowed:", 
-			GetAllowedPfxsTop->err, GetPfxName(compiler->m_Pfx), 
-				GetAPfxsStack->elemCount - 1);
-		idx = 0;
-		assert(GetTask);
-		assert(GetAllowedPfxsTop);
-		assert(GetAllowedPfxsTop->pfxs.elemCount);
-		while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs,&idx)) {
-			printf("%s(%d),", GetPfxName(*oi), (int)*oi);
+		t =GetTask;
+		ap=GetAllowedPfxsTop;
+		if(ap && t){
+			assert(ap->pfxs.elemCount);
+			printf("%s Unexpected next prefix %s. PfxIdx:%d Allowed:", 
+				ap->err, GetPfxName(compiler->m_Pfx), 
+					ap->pfxs.elemCount - 1);
+			idx = 0;
+			while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs,&idx)) {
+				printf("%s(%d),", GetPfxName(*oi), (int)*oi);
+			}
+		}else{
+			printf("Unexpected next prefix %s. Idx:%d Allowed: %s\n", GetPfxName(compiler->m_Pfx), 
+					ap->pfxs.elemCount - 1, GetPfxName(OP_Op));
 		}
 		break;
 	}
