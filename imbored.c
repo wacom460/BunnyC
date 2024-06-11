@@ -11,7 +11,7 @@
 /*
 not actually a compiler
 ascii only, maybe utf8 later...
-transpile to C99
+transpile to C89
 no order of operations, sequential ONLY
 compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
@@ -24,8 +24,9 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #define CODE_STR_MAX 1024
 #define CompilerSTR_MAX 256
 #ifdef __TINYC__
-#define __debugbreak() assert(0)
+#define __debugbreak()
 #endif
+#define DB __debugbreak();
 
 typedef enum Op { /* multiple uses */
 	OP_Null, OP_False, OP_True, OP_Unknown, OP_NotSet, OP_Any, OP_Use, 
@@ -62,22 +63,17 @@ typedef enum Op { /* multiple uses */
 
 	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
 } Op;
-int ClampInt(int val, int min, int max) {
-	if (val < min) return min;
-	if (val > max) return max;
-	return val;
+#define CLAMP_IMP {\
+	if (val < min) return min;\
+	if (val > max) return max;\
+	return val;\
 }
-size_t ClampSizeT(size_t val, size_t min, size_t max) {
-	if (val < min) return min;
-	if (val > max) return max;
-	return val;
-}
+int ClampInt(int val, int min, int max)	CLAMP_IMP
+size_t ClampSizeT(size_t val, size_t min, size_t max) CLAMP_IMP
 typedef union IBVecData {
 	union IBVecData* data;
-/*
-DO NOT USE THESE IN CODE, THEY DONT WORK IDK WHY
-DEBUGGING ONLY
-*/
+/* DO NOT USE THESE IN CODE, THEY DONT WORK.
+	IDK WHY. DEBUGGING ONLY */
 #define DEBUGGING_ONLY_OBJ_DATA
 #ifdef DEBUGGING_ONLY_OBJ_DATA
 	/*put types to see in VS debugger*/
@@ -110,12 +106,16 @@ typedef struct IBVector {
 	IBVecData;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize) {
+	void* m;
 	vec->elemSize = elemSize;
 	vec->elemCount = 0;
-	vec->slotCount = 10;
+	vec->slotCount = 8;
 	vec->protectedSlotCount = 0;
 	vec->dataSize = vec->elemSize * vec->slotCount;
-	vec->data = malloc(vec->dataSize);
+	vec->data = NULL;
+	m=malloc(vec->dataSize);
+	assert(m);
+	vec->data = m;
 	assert(vec->data);
 	memset(vec->data, 0, vec->dataSize);
 #ifdef DEBUGGING_ONLY_OBJ_DATA
@@ -130,13 +130,14 @@ IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
 void* IBVectorIterNext(IBVector* vec, int* idx) {
+	assert(idx);
+	assert(vec);
 	if (!vec) return NULL;
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (char*)vec->data + vec->elemSize * (*idx)++;
 }
 IBVecData* IBVectorPush(IBVector* vec) {
 	IBVecData* topPtr;
-	assert(vec->elemCount <= vec->slotCount);
 	if (vec->elemCount >= vec->slotCount) {
 		void* ra;
 		ra = NULL;
@@ -379,6 +380,7 @@ void TaskInit(Task* t, Op type) {
 }
 void TaskFree(Task* t) {
 	IBVectorFree(&t->apfxsStack, AllowedPfxsFree);
+	IBVectorFree(&t->working, ObjFree);
 }
 typedef struct Compiler {
 	int m_Line;
@@ -475,10 +477,10 @@ Task* _GetTask(Compiler *compiler){
 	return ret;
 }
 #define GetTask _GetTask(compiler)
-#define GetAPfxsStack (&GetTask->apfxsStack)
+#define GetAPfxsStack (GetTask ? &GetTask->apfxsStack : NULL)
 #define GetAllowedPfxsTop ((AllowedPfxs*)IBVectorTop(GetAPfxsStack))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
-#define GetTaskType (GetTask->type)
+#define GetTaskType (GetTask ? GetTask->type : OP_TaskStackEmpty)
 #define GetTaskCode   (GetTask->code1)
 #define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
@@ -487,7 +489,7 @@ Task* _GetTask(Compiler *compiler){
 		GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
-#define GetTaskWorkingObjs (&GetTask->working)
+//#define GetTaskWorkingObjs (GetTask ? &GetTask->working : NULL)
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -697,12 +699,15 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 	assert(o);
 	if (pushToWorking){
 		Obj* newObjMem;
+		Task* t;
 		if (GetObjType == OP_NotSet)Err(OP_ErrNOT_GOOD, "");
+		t = GetTask;
+		assert(t);
 		assert(o);
 		printf(" To working: ");
 		ObjPrint(o);
 		printf("\n");
-		newObjMem=(Obj*)IBVectorPush(GetTaskWorkingObjs);
+		newObjMem=(Obj*)IBVectorPush(&t->working);
 		assert(newObjMem);
 		ObjCopy(newObjMem, o);
 	}
@@ -755,8 +760,10 @@ void ObjSetStr(Obj* obj, char* Str) {
 }
 void ObjCopy(Obj* dst, Obj* src) {
 	assert(dst && src);
-	//*dst=*src;
-	memcpy(dst,src,sizeof(Obj));
+	*dst=*src;
+	//memcpy(dst,src,sizeof(Obj));
+	dst->name = NULL;
+	dst->str = NULL;
 	if(src->name) owStr(&dst->name, src->name);
 	if(src->str) owStr(&dst->str, src->str);
 }
@@ -990,11 +997,13 @@ void Val2Str(char *dest, int destSz, Val v, Op type) {
 }
 void CompilerPopAndDoTask(Compiler* compiler)	{
 	IBVector* wObjs;
+	Task* t;
 	bool subTask;
-	if (!GetTask) return;
+	t = GetTask;
+	assert(t);
 	printf("PopAndDoTask()\n");
 	if(!compiler->m_TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
-	wObjs = GetTaskWorkingObjs;
+	wObjs = &t->working;
 	assert(wObjs);
 	if(!wObjs->elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
 	subTask = false;
@@ -1017,8 +1026,8 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		cFuncArgs[0] = '\0';
 		cFuncCode[0] = '\0';
 		funcObj = NULL;
-		for (i = 0; i < GetTaskWorkingObjs->elemCount; ++i) {
-			Obj* o = (Obj*)IBVectorGet(GetTaskWorkingObjs, i);
+		for (i = 0; i < wObjs->elemCount; ++i) {
+			Obj* o = (Obj*)IBVectorGet(wObjs, i);
 			switch (ObjGetType(o)) {
 			case OP_FuncArgComplete: {/*multiple allowed*/
 				Op at;
@@ -1059,7 +1068,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 		}
 		idx = 0;
-		while (o= (Obj*)IBVectorIterNext(GetTaskWorkingObjs,&idx)) {
+		while (o= (Obj*)IBVectorIterNext(wObjs,&idx)) {
 			switch (ObjGetType(o)) {
 			case OP_VarComplete: {
 				char valBuf[32];
@@ -1108,8 +1117,8 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		int varIdx;
 		int i;
 		subTask = true;
-		if (GetTask && GetTaskWorkingObjs->elemCount) {
-			fmtObj = (Obj*)GetTaskWorkingObjs->data;
+		if (GetTask && wObjs->elemCount) {
+			fmtObj = (Obj*)wObjs->data;
 			StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 			firstPercent = false;
 			varIdx = 1;
@@ -1124,7 +1133,8 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 						}
 						else {
 							Obj* vo;
-							vo = (Obj*)IBVectorGet(GetTaskWorkingObjs, varIdx);
+							vo = (Obj*)IBVectorGet(wObjs, varIdx);
+							assert(vo);
 							switch (ObjGetType(vo)) {
 							case OP_Name:{
 								Op type = NameInfoDBFindType(&compiler->m_NameTypeCtx, vo->name);
@@ -1153,12 +1163,12 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				}
 			}
 			StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
-			if (GetTaskWorkingObjs->elemCount > 1) {
+			if (wObjs->elemCount > 1) {
 				StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
 			}
-			for (i = 1; i < GetTaskWorkingObjs->elemCount; ++i) {
+			for (i = 1; i < wObjs->elemCount; ++i) {
 				Obj* o;
-				o = (Obj*)IBVectorGet(GetTaskWorkingObjs, i);
+				o = (Obj*)IBVectorGet(wObjs, i);
 				switch (ObjGetType(o)) {
 				case OP_Name: {
 					StrConcat(GetTaskCode, CODE_STR_MAX, o->name);
@@ -1177,7 +1187,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 					StrConcat(GetTaskCode, 32, valBuf);
 				}
 				}
-				if (i < GetTaskWorkingObjs->elemCount - 1) {
+				if (i < wObjs->elemCount - 1) {
 					StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
 				}
 			}
@@ -1361,9 +1371,11 @@ void CompilerStrPayload(Compiler* compiler){
 			}
 			case OP_FuncNeedRetVal: {
 				Obj* o;
+				Task* t;
 				int idx;
 				idx = 0;
-				while (o = (Obj*)IBVectorIterNext(GetTaskWorkingObjs,&idx)) {
+				t = GetTask;
+				while (o = (Obj*)IBVectorIterNext(&t->working,&idx)) {
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						printf("Finishing func got ret value\n");
 						o->func.retVal = strVal;
@@ -1483,12 +1495,17 @@ void CompilerStrPayload(Compiler* compiler){
 			case OP_FuncHasName:
 			case OP_FuncWantCode: {
 				Obj* o;
+				Task* t;
+				IBVector* wo;
 				int idx;
 				PRINT_LINE_INFO();
 				printf(" Finishing function\n");
 				idx = 0;
+				t = NULL;
 				o=NULL;
-				while (o = (Obj*)IBVectorIterNext(GetTaskWorkingObjs,&idx)) {
+				t = GetTask;
+				wo = &t->working;
+				while (o = (Obj*)IBVectorIterNext(wo,&idx)) {
 					/*TODO: could cache func obj index later*/
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						if (o->func.retType != OP_Void) {
