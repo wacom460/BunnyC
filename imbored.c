@@ -58,7 +58,7 @@ typedef enum Op { /* multiple uses */
 	OP_NotFound, OP_Error, OP_ErrNOT_GOOD, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
 	OP_ErrQuadriplePointersNOT_ALLOWED, OP_ErrUnknownOpStr,
-	OP_ErrProtectedSlot,
+	OP_ErrProtectedSlot,OP_ErrUnknownPfx,
 
 	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
 } Op;
@@ -78,7 +78,7 @@ typedef union IBVecData {
 DO NOT USE THESE IN CODE, THEY DONT WORK IDK WHY
 DEBUGGING ONLY
 */
-//#define DEBUGGING_ONLY_OBJ_DATA
+#define DEBUGGING_ONLY_OBJ_DATA
 #ifdef DEBUGGING_ONLY_OBJ_DATA
 	/*put types to see in VS debugger*/
 	struct Obj* obj;
@@ -87,6 +87,7 @@ DEBUGGING ONLY
 	unsigned char *boolean;
 	struct AllowedPfxs* apfxs;
 	struct NameInfoDB* niDB;
+	struct NameInfo* ni;
 #endif
 } IBVecData;
 #ifdef DEBUGGING_ONLY_OBJ_DATA
@@ -177,17 +178,20 @@ void IBVectorCopyPushOp(IBVector* vec, Op val) {
 IBVecData* IBVectorTop(IBVector* vec) {
 	assert(vec);
 	if (vec->elemCount <= 0) {
-		//__debugbreak();
+		__debugbreak();
 		return NULL;
 	}
 	return (IBVecData*)((char*)vec->data + ((vec->elemCount - 1) * vec->elemSize));
 }
 IBVecData* IBVectorFront(IBVector* vec) {
+	assert(vec);
 	if (vec->elemCount <= 0) return NULL;
+	assert(vec->data);
 	return vec->data;
 }
 void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	void* ra;
+	assert(vec);
 	if (vec->protectedSlotCount && vec->elemCount <= vec->protectedSlotCount) {
 		assert(0);
 		exit(-1);
@@ -311,8 +315,13 @@ void _ObjSetType(Obj* obj, Op type);
 }
 Op ObjGetMod(Obj* obj);
 void ObjSetMod(Obj* obj, Op mod);
-void ObjSetName(Obj* obj, char* name);
+void _ObjSetName(Obj* obj, char* name);
+#define ObjSetName(obj, name){\
+	PRINT_LINE_INFO();\
+	_ObjSetName(obj,name);\
+}
 void ObjSetStr(Obj* obj, char* Str);
+void ObjCopy(Obj* dst, Obj* src);
 void ObjPrint(Obj* obj);
 void ObjInit(Obj* o) {
 	o->type=OP_NotSet;
@@ -586,8 +595,17 @@ Op fromPfxCh(char ch) {
 	}
 }
 void owStr(char** str, char* with) {
+	assert(str);
+	//assert(*str);
+	assert(with);
+	if (!with){
+		if(*str)free(*str);
+		*str=NULL;
+		return;
+	}
 	if (*str) free(*str);
 	*str = _strdup(with);
+	assert(*str);
 }
 Obj* CompilerGetObj(Compiler* compiler) {
 	return (Obj*)IBVectorTop(&compiler->m_ObjStack);
@@ -632,7 +650,6 @@ void CompilerFree(Compiler* compiler) {
 			break;
 		}
 		}
-	
 	}
 	printf("-> Compilation complete <-\nResulting C code:\n\n");
 	printf("%s", compiler->m_cOutput);
@@ -653,7 +670,6 @@ void _CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs **initialAPfxs) 
 	Task t;
 	printf(" Push task %s(%d)\n", GetOpName(task),(int)task);
 	TaskInit(&t, task);
-	//IBVectorCopyPush(&t.apfxsStack, initialAPfxs);
 	(*initialAPfxs) = (AllowedPfxs*)IBVectorPush(&t.apfxsStack);
 	IBVectorCopyPush(&compiler->m_TaskStack, &t);
 }
@@ -662,42 +678,49 @@ void _CompilerPopTask(Compiler* compiler) {
 	IBVectorPop(&compiler->m_TaskStack, TaskFree);
 }
 void _CompilerPushObj(Compiler* compiler, Obj** o) {
-	Obj obj;
-	ObjInit(&obj);
+	Obj *obj;
 	printf(" Push obj: ");
 	if (compiler->m_ObjStack.elemCount) {
 		ObjPrint(CompilerGetObj(compiler));
 		printf(" -> ");
 	}
-	IBVectorCopyPush(&compiler->m_ObjStack, &obj);
-	ObjPrint(CompilerGetObj(compiler));
+	obj = (Obj*)IBVectorPush(&compiler->m_ObjStack);
+	ObjInit(obj);
+	ObjPrint(obj);
 	printf("\n");
 	if (o) { (*o) = CompilerGetObj(compiler); }
 }
 void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
+	Obj* o;
+	assert(GetTask);
+	o = CompilerGetObj(compiler);
+	assert(o);
 	if (pushToWorking){
+		Obj* newObjMem;
 		if (GetObjType == OP_NotSet)Err(OP_ErrNOT_GOOD, "");
+		assert(o);
 		printf(" To working: ");
-		ObjPrint(CompilerGetObj(compiler));
+		ObjPrint(o);
 		printf("\n");
-		IBVectorCopyPush(GetTaskWorkingObjs, CompilerGetObj(compiler));
+		newObjMem=(Obj*)IBVectorPush(GetTaskWorkingObjs);
+		assert(newObjMem);
+		ObjCopy(newObjMem, o);
 	}
 	printf("Pop obj: ");
-	ObjPrint(CompilerGetObj(compiler));
+	ObjPrint(o);
 	if (compiler->m_ObjStack.elemCount == 1) {
-		Obj* o;
-		o=CompilerGetObj(compiler);
-		assert(o);
 		ObjFree(o);
-		ObjInit(CompilerGetObj(compiler));
+		ObjInit(o);
 	}
 	else {
 		IBVectorPop(&compiler->m_ObjStack, ObjFree);
+		o = CompilerGetObj(compiler);
 	}
 	printf(" -> ");
-	ObjPrint(CompilerGetObj(compiler));
+	assert(compiler->m_ObjStack.elemCount);
+	ObjPrint(o);
 	printf("\n");
-	if(objDP) (*objDP) = CompilerGetObj(compiler);
+	if(objDP) (*objDP) = o;
 }
 void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
 	compiler->m_StrAllowSpace = strAllowSpace;
@@ -720,13 +743,22 @@ void ObjSetMod(Obj* obj, Op mod) {
 		GetOpName(obj->modifier), (int)obj->modifier, GetOpName(mod), (int)mod);
 	obj->modifier = mod;
 }
-void ObjSetName(Obj* obj, char* name) {
-	printf("obj name: %s -> %s\n", obj->name, name);
+void _ObjSetName(Obj* obj, char* name) {
+	assert(obj);
+	//assert(obj->name);
+	printf(" obj name: %s -> %s\n", obj->name, name);
 	owStr(&obj->name, name);
 }
 void ObjSetStr(Obj* obj, char* Str) {
 	printf("obj str: %s -> %s\n", obj->str, Str);
 	owStr(&obj->str, Str);
+}
+void ObjCopy(Obj* dst, Obj* src) {
+	assert(dst && src);
+	//*dst=*src;
+	memcpy(dst,src,sizeof(Obj));
+	if(src->name) owStr(&dst->name, src->name);
+	if(src->str) owStr(&dst->str, src->str);
 }
 void ObjPrint(Obj* obj) {
 	printf("[");
@@ -1020,7 +1052,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retTypeMod));
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");
 				if (!o->name)Err(OP_ErrNOT_GOOD, "func name NULL");
-				StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
+				if(o->name)StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, "(");
 				break;
 			}
@@ -1183,6 +1215,7 @@ void CompilerPrefix(Compiler* compiler){
 	}
 	compiler->m_Pfx = fromPfxCh(compiler->m_Ch);
 	if(compiler->m_Pfx == OP_SpaceChar) return;
+	if (compiler->m_Pfx == OP_Unknown) Err(OP_ErrUnknownPfx, "catastrophic err");
 	obj=CompilerGetObj(compiler);
 	if (compiler->m_Pfx != OP_Unknown
 		&& (!GetTask || GetAllowedPfxsTop->pfxs.elemCount)
@@ -1454,6 +1487,7 @@ void CompilerStrPayload(Compiler* compiler){
 				PRINT_LINE_INFO();
 				printf(" Finishing function\n");
 				idx = 0;
+				o=NULL;
 				while (o = (Obj*)IBVectorIterNext(GetTaskWorkingObjs,&idx)) {
 					/*TODO: could cache func obj index later*/
 					if (ObjGetType(o) == OP_FuncSigComplete) {
@@ -1521,6 +1555,8 @@ void CompilerStrPayload(Compiler* compiler){
 }
 void CompilerExplainErr(Compiler* compiler, Op code) {
 	switch (code) {
+	case OP_ErrUnknownPfx:
+		printf("This prefix \"%c\" is unknown!", compiler->m_Pfx);
 	case OP_ErrUnknownOpStr:
 		printf("Unknown OP str @%s\n", compiler->m_Str);
 		break;
