@@ -397,10 +397,11 @@ typedef struct Compiler {
 	Op m_Pointer;
 	Op m_NameOp;
 	char m_Ch;
+	char m_LastCh;
 	bool m_StringMode;
 	bool m_StrAllowSpace;
 	Op m_CommentMode;
-	int m_MultiLineOffCount;
+	//int m_MultiLineOffCount;
 	NameInfoDB m_NameTypeCtx;	
 } Compiler;
 Obj* CompilerGetObj(Compiler* compiler);
@@ -450,7 +451,7 @@ void CompilerStrPayload(Compiler* compiler);
 void CompilerExplainErr(Compiler* compiler, Op code);
 #define Err(code, msg){\
 	PRINT_LINE_INFO();\
-	printf(":%s At %u:%u \"%s\"(%d)\nExplanation: ", \
+	printf(" %s AT:line %u column %u. OP:\"%s\"(%d).\nWHY?: ", \
 		msg, compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code);\
 	CompilerExplainErr(compiler, code);\
 	printf("\n");\
@@ -506,7 +507,7 @@ OpNamePair opNames[] = {
 	{"(", OP_ParenthesisOpen},{")", OP_ParenthesisClose},{"[", OP_BracketOpen},
 	{"]", OP_BracketClose},{",", OP_Comma},{"$", OP_Name},{"for", OP_For},
 	{"loop", OP_While},{"block", OP_Block},{"struct", OP_Struct},{"priv", OP_Private},
-	{"pub", OP_Public},{"void", OP_Void},{"c8", OP_c8},{"u8", OP_u8},{"u16", OP_u16},
+	{"pub", OP_Public},{"?", OP_Void},{"c8", OP_c8},{"u8", OP_u8},{"u16", OP_u16},
 	{"u32", OP_u32},{"u64", OP_u64},{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},
 	{"i64", OP_i64},{"f32", OP_f32},{"d64", OP_d64},{"pointer", OP_Pointer},
 	{"double pointer", OP_DoublePointer},{"tripple pointer", OP_TripplePointer},
@@ -622,10 +623,11 @@ void CompilerInit(Compiler* compiler){
 	compiler->m_Pointer = OP_NotSet;
 	compiler->m_NameOp = OP_Null;
 	compiler->m_Ch = '\0';
+	compiler->m_LastCh = '\0';
 	compiler->m_StringMode = false;
 	compiler->m_StrAllowSpace = false;
 	compiler->m_CommentMode = OP_NotSet;
-	compiler->m_MultiLineOffCount = 0;
+	//compiler->m_MultiLineOffCount = 0;
 	NameInfoDBInit(&compiler->m_NameTypeCtx);
 	IBVectorInit(&compiler->m_ObjStack, sizeof(Obj));
 	IBVectorInit(&compiler->m_ModeStack, sizeof(Op));
@@ -860,13 +862,16 @@ void CompilerChar(Compiler* compiler, char ch){
 			break;
 		}
 		case OP_Comment: {
-			CompilerPop(compiler);
-			CompilerPush(compiler, OP_ModeMultiLineComment, false);
-			compiler->m_CommentMode = OP_MultiLineComment;
+			if(compiler->m_LastCh==compiler->m_Ch&&compiler->m_Ch==COMMENT_CHAR){
+				CompilerPop(compiler);
+				CompilerPush(compiler, OP_ModeMultiLineComment, false);
+				compiler->m_CommentMode = OP_MultiLineComment;
+			}
 			break;
 		}
 		case OP_MultiLineComment: {
-			switch (compiler->m_MultiLineOffCount++) {
+
+			/*switch (compiler->m_MultiLineOffCount++) {
 			case 0: break;
 			case 1: {
 				CompilerPop(compiler);
@@ -874,7 +879,7 @@ void CompilerChar(Compiler* compiler, char ch){
 				compiler->m_CommentMode = OP_NotSet;
 				break;
 			}
-			}
+			}*/
 			break;
 		}
 		}
@@ -1121,7 +1126,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			fmtObj = (Obj*)wObjs->data;
 			StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 			firstPercent = false;
-			varIdx = 0;
+			varIdx = 1;
 			for (i = 0; i < (int)strlen(fmtObj->str); ++i) {
 				char c;
 				c = fmtObj->str[i];
@@ -1133,20 +1138,31 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 						}
 						else {
 							Obj* vo;
+							Op voT;
 							vo = (Obj*)IBVectorGet(wObjs, varIdx);
+							//printf("cfmt vidx:%d\n",varIdx);
 							assert(vo);
-							switch (ObjGetType(vo)) {
+							voT = ObjGetType(vo);
+							//if(voT==OP_String)DB
+							switch (voT) {
 							case OP_Name:{
 								Op type = NameInfoDBFindType(&compiler->m_NameTypeCtx, vo->name);
 								StrConcat(GetTaskCode, CODE_STR_MAX, 
 									CompilerGetCPrintfFmtForType(compiler, type));
 								break;
 							}
+							case OP_String:
+								assert(vo->var.type==OP_String);
 							case OP_Value:{
 								StrConcat(GetTaskCode, CODE_STR_MAX, 
 									CompilerGetCPrintfFmtForType(compiler, vo->var.type));
 								break;
 							}
+							case OP_CPrintfFmtStr: break;
+							default:{
+								Err(OP_ErrNOT_GOOD, "unhandled printf arg type");
+							}
+
 							}
 							firstPercent = false;
 							varIdx++;
@@ -1327,6 +1343,9 @@ void CompilerStr(Compiler* compiler){
 }
 void CompilerStrPayload(Compiler* compiler){
 	Val strVal;
+	Task *t;
+	t=NULL;
+	t=GetTask;
 	printf("Doing Str payload\n");
 	strVal.i32=atoi(compiler->m_Str);
 	compiler->m_NameOp = GetOpFromName(compiler->m_Str);
@@ -1334,7 +1353,16 @@ void CompilerStrPayload(Compiler* compiler){
 	switch (compiler->m_Pfx)
 	{
 	case OP_String: { /*"*/
-		switch(GetTaskType){
+		switch(/*GetTaskType*/t->type){
+		case OP_CPrintfHaveFmtStr:{
+			Obj *o;
+			CompilerPushObj(compiler, &o);
+			ObjSetType(o, OP_String);
+			o->var.type=OP_String;
+			ObjSetStr(o, compiler->m_Str);
+			CompilerPopObj(compiler, true, NULL);
+			break;
+		}
 		case OP_FuncWantCode: { /*printf*/
 			AllowedPfxs *ap;
 			Obj* o;
@@ -1362,10 +1390,11 @@ void CompilerStrPayload(Compiler* compiler){
 		if (compiler->m_TaskStack.elemCount) {
 			switch (GetTaskType) {
 			case OP_CPrintfHaveFmtStr:{
-				CompilerPushObj(compiler, NULL);
-				CompilerGetObj(compiler)->val = strVal;
-				ObjSetType(CompilerGetObj(compiler), OP_Value);
-				CompilerGetObj(compiler)->var.type = OP_i32;/*for now*/
+				Obj *o;
+				CompilerPushObj(compiler, &o);
+				o->val = strVal;
+				ObjSetType(o, OP_Value);
+				o->var.type = OP_i32;/*for now*/
 				CompilerPopObj(compiler, true, NULL);
 				break;
 			}
@@ -1625,7 +1654,7 @@ int main(int argc, char** argv) {
 		}
 		printf("Exiting\n");
 		CompilerFree(&comp);
-		//getchar();
+		getchar();
 		fclose(f);
 		return 0;
 	}
