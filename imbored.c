@@ -852,39 +852,38 @@ void CompilerChar(Compiler* compiler, char ch){
 	bool nl;
 	compiler->m_Ch = ch;
 	nl = false;
-	switch (compiler->m_Ch) {
-	case COMMENT_CHAR: {
-		if (compiler->m_StringMode) break;
-		switch (compiler->m_CommentMode) {
-		case OP_NotSet: {
-			compiler->m_CommentMode = OP_Comment;
-			CompilerPush(compiler, OP_ModeComment, false);
-			break;
-		}
-		case OP_Comment: {
-			if(compiler->m_LastCh==compiler->m_Ch&&compiler->m_Ch==COMMENT_CHAR){
-				CompilerPop(compiler);
-				CompilerPush(compiler, OP_ModeMultiLineComment, false);
-				compiler->m_CommentMode = OP_MultiLineComment;
-			}
-			break;
-		}
-		case OP_MultiLineComment: {
-
-			/*switch (compiler->m_MultiLineOffCount++) {
-			case 0: break;
-			case 1: {
-				CompilerPop(compiler);
-				compiler->m_MultiLineOffCount = 0;
-				compiler->m_CommentMode = OP_NotSet;
-				break;
-			}
-			}*/
-			break;
-		}
-		}
-		break;
+	m=GetMode;
+	if(compiler->m_CommentMode==OP_NotSet&&
+		compiler->m_Ch==COMMENT_CHAR&&
+		compiler->m_LastCh!=COMMENT_CHAR)
+	{
+		PRINT_LINE_INFO();
+		printf(" LINE COMMENT ON\n");
+		compiler->m_CommentMode = OP_Comment;
+		CompilerPush(compiler, OP_ModeComment, false);
+	}else if(compiler->m_CommentMode==OP_Comment&&
+			compiler->m_LastCh==compiler->m_Ch && 
+				!compiler->m_StringMode
+				&&compiler->m_Ch==COMMENT_CHAR&&
+				m==OP_ModeComment)
+	{
+		PRINT_LINE_INFO();
+		printf(" MULTI COMMENT ON!!!!!!\n");
+		CompilerPop(compiler);
+		CompilerPush(compiler, OP_ModeMultiLineComment, false);
+		compiler->m_CommentMode = OP_MultiLineComment;
+		compiler->m_Ch='\0';
+	}else if(compiler->m_CommentMode==OP_MultiLineComment&&
+		compiler->m_LastCh==compiler->m_Ch && 
+				!compiler->m_StringMode
+				&&compiler->m_Ch==COMMENT_CHAR&&
+				m==OP_ModeMultiLineComment)
+	{
+		PRINT_LINE_INFO();
+		printf(" MULTI COMMENT OFF!\n");
+		compiler->m_CommentMode=OP_NotSet;
 	}
+	switch (compiler->m_Ch) {
 	case '\0': return;
 	case '\n': {
 		nl = true;
@@ -946,9 +945,6 @@ void CompilerChar(Compiler* compiler, char ch){
 		break;
 	}
 	}
-	if (compiler->m_MultiLineOffCount == 1 && compiler->m_Ch != COMMENT_CHAR) {
-		compiler->m_MultiLineOffCount = 0;
-	}
 	m = GetMode;
 	compiler->m_Column++;
 	if (!nl && compiler->m_CommentMode == OP_NotSet) {
@@ -956,6 +952,9 @@ void CompilerChar(Compiler* compiler, char ch){
 		else printf("-> %c (0x%x) %d:%d\n", 
 			compiler->m_Ch, compiler->m_Ch, compiler->m_Line, compiler->m_Column);
 		switch (m) {
+		case OP_ModeComment:
+		case OP_ModeMultiLineComment:
+			break;
 		case OP_ModePrefixPass:
 			CompilerPrefix(compiler);
 			break;
@@ -970,6 +969,10 @@ void CompilerChar(Compiler* compiler, char ch){
 		if (CompilerIsPfxExpected(compiler, OP_LineEnd)) PopPfxs();
 		compiler->m_Column = 0;
 		compiler->m_Line++;
+	}	
+	compiler->m_LastCh=compiler->m_Ch;
+	if(m==OP_ModeMultiLineComment&&compiler->m_CommentMode==OP_NotSet){
+		CompilerPop(compiler);
 	}
 }
 char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type) {
@@ -1110,7 +1113,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 			StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
 		}
-		compiler->m_cOutput[0]='\0';
+		//compiler->m_cOutput[0]='\0';
 		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncModsTypeName);
 		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncArgs);
 		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncCode);
