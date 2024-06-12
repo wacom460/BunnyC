@@ -1,3 +1,8 @@
+//define IB_HEADER to use in TCC and get definitions only
+/*
+#define IB_HEADER
+#include "imbored.c" //access the compiler and structures
+*/
 #define _CRT_SECURE_NO_WARNINGS 1
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,22 +45,24 @@ typedef enum Op { /* multiple uses */
 	OP_VarNeedName, OP_VarWantValue, OP_VarComplete,
 	OP_CallNeedName, OP_CallWantArgs, OP_CallComplete,	
 
-	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct, OP_VarType, 
-	OP_LineEnd,	OP_Comment, OP_MultiLineComment, OP_Public, OP_Private, 
-	OP_Imaginary, OP_Void, OP_Set, OP_SetAdd, OP_Call, OP_Colon, OP_Dot, 
-	OP_Add, OP_Subtract, OP_Multiply, OP_Divide, OP_AddEq, OP_SubEq, 
-	OP_MultEq, OP_DivEq, OP_Equals, OP_NotEquals, OP_LessThan,
-	OP_GreaterThan, OP_LessThanOrEquals, OP_GreaterThanOrEquals,
-	OP_ScopeOpen, OP_ScopeClose, OP_ParenthesisOpen, OP_ParenthesisClose,
-	OP_BracketOpen, OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
+	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct, 
+	OP_VarType,	OP_LineEnd,	OP_Comment, OP_MultiLineComment, 
+	OP_Public, OP_Private, 	OP_Imaginary, OP_Void, OP_Set, OP_SetAdd, 
+	OP_Call, OP_Colon, OP_Dot, 	OP_Add, OP_Subtract, OP_Multiply, 
+	OP_Divide, OP_AddEq, OP_SubEq, OP_MultEq, OP_DivEq, OP_Equals, 
+	OP_NotEquals, OP_LessThan, OP_GreaterThan, OP_LessThanOrEquals, 
+	OP_GreaterThanOrEquals, OP_ScopeOpen, OP_ScopeClose, 
+	OP_ParenthesisOpen, OP_ParenthesisClose, OP_BracketOpen, 
+	OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
 	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,OP_RootTask,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
 	OP_Block, OP_c8, OP_u8, OP_u16, OP_u32, OP_u64, OP_i8, OP_i16,
 	OP_i32, OP_i64, OP_f32, OP_d64, OP_Pointer, OP_DoublePointer,
-	OP_TripplePointer, OP_CompilerFlags, OP_dbgBreak,OP_dbgAssert,
-	OP_TaskType, OP_TaskStack, OP_NotEmpty, OP_TabChar,
+	OP_TripplePointer, OP_CompilerFlags, OP_dbgBreak, OP_dbgAssert,
+	OP_dbgAssertWantArgs,OP_TaskType, OP_TaskStack, OP_NotEmpty, 
+	OP_TabChar,OP_UseNeedStr,OP_UseStrSysLib,
 
 	OP_NotFound, OP_Error, OP_ErrNOT_GOOD, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
@@ -65,169 +72,50 @@ typedef enum Op { /* multiple uses */
 	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
 } Op;
 #define CLAMP_IMP {\
-	if (val < min) return min;\
-	if (val > max) return max;\
-	return val;\
+	return val < min ? min : val > max ? max : val;\
 }
-int ClampInt(int val, int min, int max)	CLAMP_IMP
-size_t ClampSizeT(size_t val, size_t min, size_t max) CLAMP_IMP
-typedef struct StrDef {
-	unsigned int len;
-	char *str;
-};
+#define CLAMP_FUNC(type, name) type name(type val, type min, type max)
+CLAMP_FUNC(int, ClampInt);
+CLAMP_FUNC(size_t, ClampSizeT);
+typedef struct IBStr {
+	char *start;
+	char* end; //ptr of null terminator '\0'
+} IBStr;
+
+void IBStrInit(IBStr* str, size_t reserve);
+int IBStrGetLen(IBStr* str);
+char *IBStrAppend(IBStr* str, char *with);
+
 typedef union IBVecData {
 	union IBVecData* data;
-/* DO NOT USE THESE IN CODE, THEY DONT WORK.
-	IDK WHY. DEBUGGING ONLY */
-#define DEBUGGING_ONLY_OBJ_DATA
-#ifdef DEBUGGING_ONLY_OBJ_DATA
-	/*put types to see in VS debugger*/
-	struct Obj* obj;
+	/*struct Obj* obj;
 	struct Task* task;
 	Op* op;
 	unsigned char *boolean;
 	struct AllowedPfxs* apfxs;
 	struct NameInfoDB* niDB;
-	struct NameInfo* ni;
-#endif
+	struct NameInfo* ni;*/
 } IBVecData;
-#ifdef DEBUGGING_ONLY_OBJ_DATA
-typedef struct IBLLNode {
-	struct IBLLNode* prev;
-	struct IBLLNode* next;
-	IBVecData;/*data ptr*/
-} IBLLNode;
-#endif
 typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
 	int slotCount;
 	int protectedSlotCount;/*cant pop past this, if 0 then unaffecting*/
 	size_t dataSize;
-#ifdef DEBUGGING_ONLY_OBJ_DATA /*DO NOT USE IN CODE*/
-	IBLLNode* sn;/*start NODE*/
-	IBLLNode* en;/*end NODE*/
-#endif
 	IBVecData;/*DATA BLOCK*/
 } IBVector;
-void IBVectorInit(IBVector* vec, size_t elemSize) {
-	void* m;
-	vec->elemSize = elemSize;
-	vec->elemCount = 0;
-	vec->slotCount = 8;
-	vec->protectedSlotCount = 0;
-	vec->dataSize = vec->elemSize * vec->slotCount;
-	vec->data = NULL;
-	m=malloc(vec->dataSize);
-	assert(m);
-	vec->data = m;
-	assert(vec->data);
-	memset(vec->data, 0, vec->dataSize);
-#ifdef DEBUGGING_ONLY_OBJ_DATA
-	vec->sn = malloc(vec->slotCount * sizeof(IBLLNode));
-	vec->en = vec->sn;
-	assert(vec->sn);
-	memset(vec->sn, 0, vec->slotCount * sizeof(IBLLNode));
-#endif
-}
-IBVecData* IBVectorGet(IBVector* vec, int idx) {
-	if (idx >= vec->elemCount) return NULL;
-	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
-}
-void* IBVectorIterNext(IBVector* vec, int* idx) {
-	assert(idx);
-	assert(vec);
-	if (!vec) return NULL;
-	if ((*idx) >= vec->elemCount) return NULL;
-	return (char*)vec->data + vec->elemSize * (*idx)++;
-}
-IBVecData* IBVectorPush(IBVector* vec) {
-	IBVecData* topPtr;
-	if (vec->elemCount >= vec->slotCount) {
-		void* ra;
-		ra = NULL;
-		vec->slotCount++;
-		vec->dataSize = vec->elemSize * vec->slotCount;
-		assert(vec->data);
-		ra = realloc(vec->data, vec->dataSize);
-		assert(ra);
-		//if(vec->data && vec->data != ra) free(vec->data);
-		vec->data = ra;
-#ifdef DEBUGGING_ONLY_OBJ_DATA
-		ra = realloc(vec->sn, vec->slotCount * sizeof(IBLLNode));
-		assert(ra);
-		//if(vec->sn && vec->sn != ra) free(vec->sn);
-		vec->sn = ra;
-#endif
-	}
-	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
-#ifdef DEBUGGING_ONLY_OBJ_DATA
-	if (vec->elemCount > 0) {
-		vec->sn[vec->elemCount - 1].next = &vec->sn[vec->elemCount];
-		vec->sn[vec->elemCount].prev = &vec->sn[vec->elemCount - 1];
-	}
-	else vec->sn[vec->elemCount].prev = NULL;
-	vec->sn[vec->elemCount].next = NULL;
-	vec->sn[vec->elemCount].data = topPtr;
-	vec->en = &vec->sn[vec->elemCount];
-#endif
-	vec->elemCount++;
-	return topPtr;
-}
-void IBVectorCopyPush(IBVector* vec, void* elem) {
-	memcpy(IBVectorPush(vec), elem, vec->elemSize);
-}
-void IBVectorCopyPushBool(IBVector* vec, bool val) {
-	IBVectorCopyPush(vec, &val);
-}
-void IBVectorCopyPushOp(IBVector* vec, Op val) {
-	IBVectorCopyPush(vec, &val);
-}
-IBVecData* IBVectorTop(IBVector* vec) {
-	assert(vec);
-	if (vec->elemCount <= 0) {
-		__debugbreak();
-		return NULL;
-	}
-	return (IBVecData*)((char*)vec->data + ((vec->elemCount - 1) * vec->elemSize));
-}
-IBVecData* IBVectorFront(IBVector* vec) {
-	assert(vec);
-	if (vec->elemCount <= 0) return NULL;
-	assert(vec->data);
-	return vec->data;
-}
-void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
-	void* ra;
-	assert(vec);
-	if (vec->protectedSlotCount && vec->elemCount <= vec->protectedSlotCount) {
-		assert(0);
-		exit(-1);
-	}
-	if(vec->elemCount <= 0) return;
-	if(freeFunc) freeFunc((void*)IBVectorGet(vec, vec->elemCount - 1));
-	vec->elemCount--;
-	//vec->slotCount = ClampInt(vec->slotCount, 1, vec->elemCount);
-	vec->slotCount=vec->elemCount;
-	if(vec->slotCount<1)vec->slotCount=1;
-	vec->dataSize = vec->elemSize * vec->slotCount;
-	if(vec->elemCount){
-		assert(vec->data);
-		ra = realloc(vec->data, vec->dataSize);
-		if (ra) vec->data = ra;
-		assert(vec->data);
-#ifdef DEBUGGING_ONLY_OBJ_DATA
-		vec->en = &vec->sn[vec->elemCount - 1];
-		vec->en->next = NULL;
-#endif
-	}
-}
-void IBVectorFreeSimple(IBVector* vec) {
-#ifdef DEBUGGING_ONLY_OBJ_DATA
-	free(vec->sn);
-#endif
-	free(vec->data);
-}
+void IBVectorInit(IBVector* vec, size_t elemSize);
+IBVecData* IBVectorGet(IBVector* vec, int idx);
+void* IBVectorIterNext(IBVector* vec, int* idx);
+IBVecData* IBVectorPush(IBVector* vec);
+void IBVectorCopyPush(IBVector* vec, void* elem);
+void IBVectorCopyPushBool(IBVector* vec, bool val);
+void IBVectorCopyPushOp(IBVector* vec, Op val);
+IBVecData* IBVectorTop(IBVector* vec);
+IBVecData* IBVectorFront(IBVector* vec);
+void IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
+void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
+void IBVectorFreeSimple(IBVector* vec);
 #define IBVectorFree(vec, freeFunc){\
 	int i;\
 	for(i = 0;i<(vec)->elemCount;i++){\
@@ -235,10 +123,7 @@ void IBVectorFreeSimple(IBVector* vec) {
 	}\
 	IBVectorFreeSimple((vec));\
 }
-
-char* StrConcat(char* dest, int count, char* src) {
-	return strcat(dest, src);
-}
+char* StrConcat(char* dest, int count, char* src);
 typedef union Val {
 	unsigned char u8;
 	unsigned short u16;
@@ -256,38 +141,9 @@ typedef struct NameInfo {
 	Op type;
 	char* name;
 } NameInfo;
-void NameInfoInit(NameInfo* info){
-	info->type=OP_NotSet;
-	info->name=NULL;
-}
-void NameInfoFree(NameInfo* info) {
-	free(info->name);
-}
 typedef struct NameInfoDB {
 	IBVector pairs;	
 } NameInfoDB;
-void NameInfoDBInit(NameInfoDB* db) {
-	IBVectorInit(&db->pairs, sizeof(NameInfo));
-}
-void NameInfoDBAdd(NameInfoDB* db, char* name, Op type) {
-	NameInfo info;
-	info.type = type;
-	info.name = _strdup(name);
-	IBVectorCopyPush(&db->pairs, &info);
-}
-Op NameInfoDBFindType(NameInfoDB* db, char* name) {
-	NameInfo* pair;
-	int idx;
-	idx = 0;
-	while (pair = (NameInfo*)IBVectorIterNext(&db->pairs, &idx)) {
-		if (!strcmp(pair->name, name))
-			return pair->type;
-	}
-	return OP_NotFound;
-}
-void NameInfoDBFree(NameInfoDB* db) {
-	IBVectorFree(&db->pairs, NameInfoFree);
-}
 typedef struct FuncObj {
 	Val retVal;
 	Op retType;
@@ -331,46 +187,17 @@ void _ObjSetName(Obj* obj, char* name);
 void ObjSetStr(Obj* obj, char* Str);
 void ObjCopy(Obj* dst, Obj* src);
 void ObjPrint(Obj* obj);
-void ObjInit(Obj* o) {
-	o->type=OP_NotSet;
-	o->modifier=OP_NotSet;
-	o->privacy=OP_NoChange;
-	o->name=NULL;
-	o->str=NULL;
-	o->val.i32 = 0;
-	memset(&o->func, 0, sizeof(FuncObj));
-	memset(&o->var, 0, sizeof(VarObj));
-	o->arg.type = OP_Null;
-	o->arg.mod = OP_NotSet;
-}
-void ObjFree(Obj* o) {
-	if (o->name) free(o->name);
-	if (o->str) free(o->str);
-}
+void ObjInit(Obj* o);
+void ObjFree(Obj* o);
 typedef struct AllowedPfxs {
 	IBVector pfxs;/*Op*/
 	char* err;
 	int life;
 } AllowedPfxs;
 void AllowedPfxsInit(AllowedPfxs* ap, int life, 
-	char *err, int count, ...)
-{
-	va_list args;
-	Op o;
-	IBVectorInit(&ap->pfxs, sizeof(Op));
-	ap->err=err;
-	ap->life=life;
-	va_start(args, count);
-	while (count--) {
-		o = va_arg(args, Op);
-		IBVectorCopyPushOp(&ap->pfxs, o);
-	}
-	va_end(args);
-}
+	char *err, int count, ...);
 void AllowedPfxsPrint(AllowedPfxs* ap);
-void AllowedPfxsFree(AllowedPfxs* ap) {
-	IBVectorFreeSimple(&ap->pfxs);
-}
+void AllowedPfxsFree(AllowedPfxs* ap);
 typedef struct Task {
 	Op type;
 	IBVector apfxsStack; /*AllowedPfxs*/
@@ -378,18 +205,8 @@ typedef struct Task {
 	char code1[CODE_STR_MAX];
 	char code2[CODE_STR_MAX];
 } Task;
-void TaskInit(Task* t, Op type) {
-	IBVectorInit(&t->working, sizeof(Obj));
-	IBVectorInit(&t->apfxsStack, sizeof(AllowedPfxs));
-	t->type = type;
-	t->code1[0] = '\0';
-	t->code2[0] = '\0';
-}
-void TaskFree(Task* t) {
-	IBVectorFree(&t->apfxsStack, AllowedPfxsFree);
-	IBVectorFree(&t->working, ObjFree);
-}
-char CompilerStringModeIgnoreChars[5] = " \0\0\0\0";
+void TaskInit(Task* t, Op type);
+void TaskFree(Task* t);
 typedef struct Compiler {
 	int m_Line;
 	int m_Column;
@@ -412,13 +229,19 @@ typedef struct Compiler {
 	//int m_MultiLineOffCount;
 	NameInfoDB m_NameTypeCtx;	
 } Compiler;
+
+void _Err(Compiler *compiler, Op code, char *msg);
+#define Err(code, msg){\
+	PLINE;\
+	_Err(compiler, code, msg);\
+}
 Obj* CompilerGetObj(Compiler* compiler);
 void CompilerInit(Compiler* compiler);
 void CompilerFree(Compiler* compiler);
-void _CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs** initialAPfxs);
-#define CompilerPushTask(compiler, task, apfxsDP){\
+void _CompilerPushTask(Compiler* compiler, Op taskOP, AllowedPfxs** initialAPfxs);
+#define CompilerPushTask(compiler, taskOP, apfxsDP){\
 	PLINE;\
-	_CompilerPushTask(compiler, task, apfxsDP);\
+	_CompilerPushTask(compiler, taskOP, apfxsDP);\
 }
 void _CompilerPopTask(Compiler* compiler);
 #define CompilerPopTask(compiler){\
@@ -457,15 +280,6 @@ void CompilerPrefix(Compiler* compiler);
 void CompilerStr(Compiler* compiler);
 void CompilerStrPayload(Compiler* compiler);
 void CompilerExplainErr(Compiler* compiler, Op code);
-#define Err(code, msg){\
-	PLINE;\
-	printf(" %s AT:line %u column %u. OP:\"%s\"(%d).\nWHY?: ", \
-		msg, compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code);\
-	CompilerExplainErr(compiler, code);\
-	printf("\n");\
-	__debugbreak();\
-	exit(-1);\
-}
 #define SetObjType(type) ObjSetType(CompilerGetObj(compiler), type)
 #define GetObjType (ObjGetType(CompilerGetObj(compiler)))
 #define PushPfxs(pfxs, msg, life){\
@@ -503,13 +317,23 @@ typedef struct PathAssertion {
 	Op start;
 	Op allowedToBecome[3];
 } PathAssertion;
-PathAssertion pathAssertions[] = {
-	{OP_Op, {OP_Func}},
-};
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
 } OpNamePair;
+char* GetCEqu(Op op);
+char* GetOpName(Op op);
+char* GetPfxName(Op op);
+Op GetOpFromName(char* name);
+Op GetOpFromNameList(char* name, Op list);
+Op fromPfxCh(char ch);
+void owStr(char** str, char* with);
+
+#ifndef IB_HEADER
+char CompilerStringModeIgnoreChars[5] = " \0\0\0\0";
+PathAssertion pathAssertions[] = {
+	{OP_Op, {OP_Func}},
+};
 OpNamePair opNames[] = {
 	{"null", OP_Null},{"no", OP_False},{"yes", OP_True},{"set", OP_Set},
 	{"call", OP_Call},{"add", OP_SetAdd},{"func", OP_Func},{"~", OP_Comment},
@@ -541,7 +365,7 @@ OpNamePair opNames[] = {
 	{"dbgBreak", OP_dbgBreak},{"dbgAssert", OP_dbgAssert}, { "CallNeedName",OP_CallNeedName },
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
-	{"SpaceChar",OP_SpaceChar},
+	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"sys", OP_UseStrSysLib}
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -564,6 +388,224 @@ OpNamePair cEquivelents[] = {
 	{"", OP_NotSet},
 	{"extern", OP_Imaginary},
 };
+OpNamePair dbgAssertsNP[] = {
+	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
+};
+
+CLAMP_FUNC(int, ClampInt) CLAMP_IMP
+CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
+void IBStrInit(IBStr* str, size_t reserve) {
+	assert(reserve);
+	str->start = (char*)malloc(reserve);
+	str->end = str->start;
+}
+int IBStrGetLen(IBStr* str) {
+	return str->end - str->start;
+}
+char *IBStrAppend(IBStr* str, char *with) {
+	void* ra;
+	int len;
+	int withLen;
+	len = IBStrGetLen(str);
+	withLen = strlen(with);
+	ra = realloc(str->start, len + withLen + 1);
+	assert(ra);
+	if (ra) {
+		str->start = (char*)ra;
+		strcpy(str->start + len, with);
+		str->end += withLen;
+	}else exit(-1);
+}
+void IBVectorInit(IBVector* vec, size_t elemSize) {
+	void* m;
+	vec->elemSize = elemSize;
+	vec->elemCount = 0;
+	vec->slotCount = 8;
+	vec->protectedSlotCount = 0;
+	vec->dataSize = vec->elemSize * vec->slotCount;
+	vec->data = NULL;
+	m=malloc(vec->dataSize);
+	assert(m);
+	vec->data = m;
+	assert(vec->data);
+	memset(vec->data, 0, vec->dataSize);
+}
+IBVecData* IBVectorGet(IBVector* vec, int idx) {
+	if (idx >= vec->elemCount) return NULL;
+	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
+}
+void* IBVectorIterNext(IBVector* vec, int* idx) {
+	assert(idx);
+	assert(vec);
+	if (!vec) return NULL;
+	if ((*idx) >= vec->elemCount) return NULL;
+	return (char*)vec->data + vec->elemSize * (*idx)++;
+}
+IBVecData* IBVectorPush(IBVector* vec) {
+	IBVecData* topPtr;
+	if (vec->elemCount >= vec->slotCount) {
+		void* ra;
+		ra = NULL;
+		vec->slotCount++;
+		vec->dataSize = vec->elemSize * vec->slotCount;
+		assert(vec->data);
+		ra = realloc(vec->data, vec->dataSize);
+		assert(ra);
+		vec->data = ra;
+	}
+	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
+	vec->elemCount++;
+	return topPtr;
+}
+void IBVectorCopyPush(IBVector* vec, void* elem) {
+	memcpy(IBVectorPush(vec), elem, vec->elemSize);
+}
+void IBVectorCopyPushBool(IBVector* vec, bool val) {
+	IBVectorCopyPush(vec, &val);
+}
+void IBVectorCopyPushOp(IBVector* vec, Op val) {
+	IBVectorCopyPush(vec, &val);
+}
+IBVecData* IBVectorTop(IBVector* vec) {
+	assert(vec);
+	if (vec->elemCount <= 0) {
+		__debugbreak();
+		return NULL;
+	}
+	return (IBVecData*)((char*)vec->data + ((vec->elemCount - 1) * vec->elemSize));
+}
+IBVecData* IBVectorFront(IBVector* vec) {
+	assert(vec);
+	if (vec->elemCount <= 0) return NULL;
+	assert(vec->data);
+	return vec->data;
+}
+void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
+	void* ra;
+	assert(vec);
+	if (vec->protectedSlotCount && vec->elemCount <= vec->protectedSlotCount) {
+		assert(0);
+		exit(-1);
+	}
+	if(vec->elemCount <= 0) return;
+	if(freeFunc) freeFunc((void*)IBVectorGet(vec, vec->elemCount - 1));
+	vec->elemCount--;
+	vec->slotCount=vec->elemCount;
+	if(vec->slotCount<1)vec->slotCount=1;
+	vec->dataSize = vec->elemSize * vec->slotCount;
+	if(vec->elemCount){
+		assert(vec->data);
+		ra = realloc(vec->data, vec->dataSize);
+		if (ra) vec->data = ra;
+		assert(vec->data);
+	}
+}
+void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
+	size_t newSize;
+	void *ra;
+	if(vec->elemCount < 1) return;
+	if(vec->elemCount == 1){
+		vec->elemCount--;
+		return;
+	}
+	newSize=(vec->dataSize * vec->elemCount) - vec->dataSize;
+	assert(newSize>=vec->dataSize);
+	ra = malloc(newSize);
+	assert(ra);
+	if(ra){
+		memcpy(ra, IBVectorGet(vec, 1), newSize);
+		free(vec->data);
+		vec->data = ra;
+	}
+}
+void IBVectorFreeSimple(IBVector* vec) {
+	free(vec->data);
+}
+char* StrConcat(char* dest, int count, char* src) {
+	return strcat(dest, src);
+}
+void NameInfoInit(NameInfo* info){
+	info->type=OP_NotSet;
+	info->name=NULL;
+}
+void NameInfoFree(NameInfo* info) {
+	free(info->name);
+}
+void NameInfoDBInit(NameInfoDB* db) {
+	IBVectorInit(&db->pairs, sizeof(NameInfo));
+}
+void NameInfoDBAdd(NameInfoDB* db, char* name, Op type) {
+	NameInfo info;
+	info.type = type;
+	info.name = _strdup(name);
+	IBVectorCopyPush(&db->pairs, &info);
+}
+Op NameInfoDBFindType(NameInfoDB* db, char* name) {
+	NameInfo* pair;
+	int idx;
+	idx = 0;
+	while (pair = (NameInfo*)IBVectorIterNext(&db->pairs, &idx)) {
+		if (!strcmp(pair->name, name))
+			return pair->type;
+	}
+	return OP_NotFound;
+}
+void NameInfoDBFree(NameInfoDB* db) {
+	IBVectorFree(&db->pairs, NameInfoFree);
+}
+void ObjInit(Obj* o) {
+	o->type=OP_NotSet;
+	o->modifier=OP_NotSet;
+	o->privacy=OP_NoChange;
+	o->name=NULL;
+	o->str=NULL;
+	o->val.i32 = 0;
+	memset(&o->func, 0, sizeof(FuncObj));
+	memset(&o->var, 0, sizeof(VarObj));
+	o->arg.type = OP_Null;
+	o->arg.mod = OP_NotSet;
+}
+void ObjFree(Obj* o) {
+	if (o->name) free(o->name);
+	if (o->str) free(o->str);
+}
+void AllowedPfxsInit(AllowedPfxs* ap, int life, 
+	char *err, int count, ...)
+{
+	va_list args;
+	Op o;
+	IBVectorInit(&ap->pfxs, sizeof(Op));
+	ap->err=err;
+	ap->life=life;
+	va_start(args, count);
+	while (count--) {
+		o = va_arg(args, Op);
+		IBVectorCopyPushOp(&ap->pfxs, o);
+	}
+	va_end(args);
+}
+void AllowedPfxsFree(AllowedPfxs* ap) {
+	IBVectorFreeSimple(&ap->pfxs);
+}
+void TaskInit(Task* t, Op type) {
+	IBVectorInit(&t->working, sizeof(Obj));
+	IBVectorInit(&t->apfxsStack, sizeof(AllowedPfxs));
+	t->type = type;
+	t->code1[0] = '\0';
+	t->code2[0] = '\0';
+}
+void TaskFree(Task* t) {
+	IBVectorFree(&t->apfxsStack, AllowedPfxsFree);
+	IBVectorFree(&t->working, ObjFree);
+}
+void _Err(Compiler *compiler, Op code, char *msg){
+	printf(" %s AT:line %u column %u. OP:\"%s\"(%d).\nWHY?: ",
+		msg, compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code);
+	CompilerExplainErr(compiler, code);
+	printf("\n");
+	__debugbreak();
+	exit(-1);
+}
 char* GetCEqu(Op op) {
 	int sz;
 	int i;
@@ -600,9 +642,6 @@ Op GetOpFromName(char* name) {
 	}
 	return OP_Error;
 }
-OpNamePair dbgAssertsNP[] = {
-	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
-};
 Op GetOpFromNameList(char* name, Op list) {
 	switch (list) {
 	case OP_dbgAssert: {
@@ -661,7 +700,6 @@ void CompilerInit(Compiler* compiler){
 	compiler->m_StringMode = false;
 	compiler->m_StrAllowSpace = false;
 	compiler->m_CommentMode = OP_NotSet;
-	//compiler->m_MultiLineOffCount = 0;
 	NameInfoDBInit(&compiler->m_NameTypeCtx);
 	IBVectorInit(&compiler->m_ObjStack, sizeof(Obj));
 	IBVectorInit(&compiler->m_ModeStack, sizeof(Op));
@@ -704,10 +742,10 @@ void AllowedPfxsPrint(AllowedPfxs* ap) {
 	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
 		printf("%s ", GetPfxName(*oi));
 }
-void _CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs **initialAPfxs) {
+void _CompilerPushTask(Compiler* compiler, Op taskOP, AllowedPfxs **initialAPfxs) {
 	Task t;
-	printf(" Push task %s(%d)\n", GetOpName(task),(int)task);
-	TaskInit(&t, task);
+	printf(" Push task %s(%d)\n", GetOpName(taskOP),(int)taskOP);
+	TaskInit(&t, taskOP);
 	(*initialAPfxs) = (AllowedPfxs*)IBVectorPush(&t.apfxsStack);
 	IBVectorCopyPush(&compiler->m_TaskStack, &t);
 }
@@ -1392,7 +1430,26 @@ void CompilerStrPayload(Compiler* compiler){
 	{
 	case OP_String: { /*"*/
 		switch(/*GetTaskType*/t->type){
-		case OP_dbgAssert: {
+		case OP_UseNeedStr:{
+			Op lib;
+			lib = compiler->m_NameOp;
+			switch(lib){
+			case OP_UseStrSysLib:{
+				break;
+			}
+			default:{
+				
+				break;
+			}
+			}
+			break;
+		}
+		case OP_dbgAssertWantArgs: {
+			switch (GetOpFromNameList(compiler->m_Str, OP_dbgAssert)) {
+		case OP_TaskType:{
+			break;
+						 }
+			}
 			break;
 		}
 		case OP_CPrintfHaveFmtStr:{
@@ -1541,7 +1598,7 @@ void CompilerStrPayload(Compiler* compiler){
 		switch (compiler->m_NameOp) {
 		case OP_dbgAssert: {
 			AllowedPfxs *ap;
-			CompilerPushTask(compiler, OP_dbgAssert, &ap);
+			CompilerPushTask(compiler, OP_dbgAssertWantArgs, &ap);
 			AllowedPfxsInit(ap, 0, "expected string", 1, OP_String);
 			break;
 		}
@@ -1633,6 +1690,12 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Private:
 			CompilerGetObj(compiler)->privacy = compiler->m_NameOp;
 			break;
+		case OP_Use:{
+			AllowedPfxs *ap;
+			CompilerPushTask(compiler, OP_UseNeedStr, &ap);
+			AllowedPfxsInit(ap, 0, "@use: Expected string", 1, OP_String); 
+			break;
+		}
 		default:
 			Err(OP_ErrUnknownOpStr, "");
 		}
@@ -1650,11 +1713,12 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 	switch (code) {
 	case OP_ErrUnknownPfx:
 		printf("This prefix \"%c\" is unknown!", compiler->m_Pfx);
+		break;
 	case OP_ErrUnknownOpStr:
 		printf("Unknown OP str @%s\n", compiler->m_Str);
 		break;
 	case OP_ErrQuadriplePointersNOT_ALLOWED:
-		printf("Why?");
+		printf("quadruple pointer is not allowed");
 		break;
 	case OP_ErrUnexpectedOp:
 		printf("Unexpected OP");
@@ -1679,7 +1743,7 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 				printf("%s(%d),", GetPfxName(*oi), (int)*oi);
 			}
 		}else{
-			printf("Unexpected next prefix %s. Idx:%d Allowed: %s\n", GetPfxName(compiler->m_Pfx), 
+			printf("No task. Only Op(@) prefix allowed. Pfx: %s. Idx:%d Allowed pfxs: %s\n", GetPfxName(compiler->m_Pfx), 
 					ap->pfxs.elemCount - 1, GetPfxName(OP_Op));
 		}
 		break;
@@ -1717,3 +1781,4 @@ int main(int argc, char** argv) {
 	}
 	return 1;
 }
+#endif
