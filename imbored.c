@@ -189,6 +189,7 @@ void ObjCopy(Obj* dst, Obj* src);
 void ObjPrint(Obj* obj);
 void ObjInit(Obj* o);
 void ObjFree(Obj* o);
+void Val2Str(char *dest, int destSz, Val v, Op type);
 typedef struct AllowedPfxs {
 	IBVector pfxs;/*Op*/
 	char* err;
@@ -201,7 +202,7 @@ void AllowedPfxsFree(AllowedPfxs* ap);
 typedef struct Task {
 	Op type;
 	IBVector apfxsStack; /*AllowedPfxs*/
-	IBVector working;/*Obj*/
+	IBVector working;/*Obj*/ 
 	char code1[CODE_STR_MAX];
 	char code2[CODE_STR_MAX];
 } Task;

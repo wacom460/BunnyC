@@ -1,8 +1,7 @@
 @use "sys"
 
 @ext @func $malloc %i32 $size @ret %&?
-@dbgAssert "taskList" "empty"
-
+@dbgAssert "taskType" "null"
 @ext @func $free %&? $ptr
 @dbgAssert
 
