@@ -332,6 +332,7 @@ void owStr(char** str, char* with);
 #ifndef IB_HEADER
 char CompilerStringModeIgnoreChars[5] = " \0\0\0\0";
 PathAssertion pathAssertions[] = {
+	{OP_NotSet, {OP_Any}},
 	{OP_Op, {OP_Func}},
 };
 OpNamePair opNames[] = {
@@ -365,7 +366,8 @@ OpNamePair opNames[] = {
 	{"dbgBreak", OP_dbgBreak},{"dbgAssert", OP_dbgAssert}, { "CallNeedName",OP_CallNeedName },
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
-	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"sys", OP_UseStrSysLib}
+	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"UseNeedStr",OP_UseNeedStr},
+	{"sys", OP_UseStrSysLib},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -602,7 +604,8 @@ void _Err(Compiler *compiler, Op code, char *msg){
 	printf(" %s AT:line %u column %u. OP:\"%s\"(%d).\nWHY?: ",
 		msg, compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code);
 	CompilerExplainErr(compiler, code);
-	printf("\n");
+	printf("\nPress enter to break.");
+	getchar();
 	__debugbreak();
 	exit(-1);
 }
@@ -807,8 +810,12 @@ void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
 	printf(" push: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
 }
 void _CompilerPop(Compiler* compiler) {
+	Op type=OP_Null;
+	Task *t;
+	t = GetTask;
 	IBVectorPop(&compiler->m_ModeStack, NULL);
-	printf(" pop: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
+	if(t)type=t->type;
+	printf(" pop: to %s(%d) Task type:%s(%d)\n", GetOpName(GetMode), (int)GetMode, GetOpName(type), (int)type);
 }
 Op ObjGetType(Obj* obj) { return obj->type; }
 void _ObjSetType(Obj* obj, Op type) {
