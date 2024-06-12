@@ -1,9 +1,22 @@
-@ext @func $malloc %i32 $size @ret %&?
+@use sys
 
-@func $fucc
-@@ =0
+@ext @func $malloc %i32 $size @ret %&?
+@dbgAssert "taskList" "empty"
+
+@ext @func $free %&? $ptr
+@dbgAssert
+
+@func $empty
+@@
+
+@func $retFive @ret %i32
+@@ =5
 
 @func $main %i32 $argc %&&c8 $argv @ret %i32
-"Hello, %% %%" "world\n" $argc
-
-@@ =0
+	%&? $a
+	%i32 $i
+	$a =@call $malloc =32
+	"Hello, %% %%" "world\n" $argc
+	@call $free $a
+	$i =20
+@@ $i

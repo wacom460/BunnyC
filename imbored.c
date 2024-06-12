@@ -17,12 +17,12 @@ compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
 */
 
-#define PRINT_LINE_INFO() printf("[%d]", __LINE__)
+#define PLINE printf("[%d]", __LINE__)
 #define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 32
 #define COMMENT_CHAR ('~')
-#define CODE_STR_MAX 1024
-#define CompilerSTR_MAX 256
+#define CODE_STR_MAX 512
+#define CompilerSTR_MAX 64
 #ifdef __TINYC__
 #define __debugbreak()
 #endif
@@ -54,7 +54,8 @@ typedef enum Op { /* multiple uses */
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
 	OP_Block, OP_c8, OP_u8, OP_u16, OP_u32, OP_u64, OP_i8, OP_i16,
 	OP_i32, OP_i64, OP_f32, OP_d64, OP_Pointer, OP_DoublePointer,
-	OP_TripplePointer, OP_CompilerFlags, OP_dbgBreak,
+	OP_TripplePointer, OP_CompilerFlags, OP_dbgBreak,OP_dbgAssert,
+	OP_TaskType, OP_TaskStack, OP_NotEmpty, OP_TabChar,
 
 	OP_NotFound, OP_Error, OP_ErrNOT_GOOD, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
@@ -313,14 +314,14 @@ typedef struct Obj {
 Op ObjGetType(Obj* obj);
 void _ObjSetType(Obj* obj, Op type);
 #define ObjSetType(obj, type){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	_ObjSetType(obj, type);\
 }
 Op ObjGetMod(Obj* obj);
 void ObjSetMod(Obj* obj, Op mod);
 void _ObjSetName(Obj* obj, char* name);
 #define ObjSetName(obj, name){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	_ObjSetName(obj,name);\
 }
 void ObjSetStr(Obj* obj, char* Str);
@@ -384,6 +385,7 @@ void TaskFree(Task* t) {
 	IBVectorFree(&t->apfxsStack, AllowedPfxsFree);
 	IBVectorFree(&t->working, ObjFree);
 }
+char CompilerStringModeIgnoreChars[5] = " \0\0\0\0";
 typedef struct Compiler {
 	int m_Line;
 	int m_Column;
@@ -411,32 +413,32 @@ void CompilerInit(Compiler* compiler);
 void CompilerFree(Compiler* compiler);
 void _CompilerPushTask(Compiler* compiler, Op task, AllowedPfxs** initialAPfxs);
 #define CompilerPushTask(compiler, task, apfxsDP){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	_CompilerPushTask(compiler, task, apfxsDP);\
 }
 void _CompilerPopTask(Compiler* compiler);
 #define CompilerPopTask(compiler){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	_CompilerPopTask(compiler);\
 }
 void _CompilerPushObj(Compiler* compiler, Obj** o);
 #define CompilerPushObj(compiler, objDP){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	_CompilerPushObj(compiler, objDP);\
 }
 void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj **objDP);
 #define CompilerPopObj(compiler, p2w, objDP){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	_CompilerPopObj(compiler, p2w, objDP);\
 }
 void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace);
 #define CompilerPush(compiler, mode, strAllowSpace){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	_CompilerPush(compiler, mode, strAllowSpace);\
 }
 void _CompilerPop(Compiler* compiler);
 #define CompilerPop(compiler){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	_CompilerPop(compiler);\
 }
 /*life:0 = infinite, -1 life each pfx*/
@@ -452,7 +454,7 @@ void CompilerStr(Compiler* compiler);
 void CompilerStrPayload(Compiler* compiler);
 void CompilerExplainErr(Compiler* compiler, Op code);
 #define Err(code, msg){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	printf(" %s AT:line %u column %u. OP:\"%s\"(%d).\nWHY?: ", \
 		msg, compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code);\
 	CompilerExplainErr(compiler, code);\
@@ -463,11 +465,11 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 #define SetObjType(type) ObjSetType(CompilerGetObj(compiler), type)
 #define GetObjType (ObjGetType(CompilerGetObj(compiler)))
 #define PushPfxs(pfxs, msg, life){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	pushAllowedNextPfxs(pfxs, msg, life);\
 }
 #define PopPfxs(){\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	CompilerPopAllowedNextPfxs(compiler);\
 }
 Task* _GetTask(Compiler *compiler){
@@ -487,12 +489,19 @@ Task* _GetTask(Compiler *compiler){
 #define GetTaskCode   (GetTask->code1)
 #define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
-	PRINT_LINE_INFO();\
+	PLINE;\
 	printf(" SetTaskType: %s(%d) -> %s(%d)\n", \
 		GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
 //#define GetTaskWorkingObjs (GetTask ? &GetTask->working : NULL)
+typedef struct PathAssertion {
+	Op start;
+	Op allowedToBecome[3];
+} PathAssertion;
+PathAssertion pathAssertions[] = {
+	{OP_Op, {OP_Func}},
+};
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -525,7 +534,7 @@ OpNamePair opNames[] = {
 	{"ErrNOT_GOOD", OP_ErrNOT_GOOD},{"FuncNeedName",OP_FuncNeedName},{"String", OP_String},
 	{"VarComplete", OP_VarComplete},{"VarWantValue",OP_VarWantValue},{"LineEnd", OP_LineEnd},
 	{"CPrintfHaveFmtStr",OP_CPrintfHaveFmtStr},{"FuncWantCode",OP_FuncWantCode},
-	{"dbgBreak", OP_dbgBreak},{"CallNeedName",OP_CallNeedName},
+	{"dbgBreak", OP_dbgBreak},{"dbgAssert", OP_dbgAssert}, { "CallNeedName",OP_CallNeedName },
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
 	{"SpaceChar",OP_SpaceChar},
@@ -536,6 +545,7 @@ OpNamePair pfxNames[] = {
 	{"VarType(%)", OP_VarType},{"Pointer(&)", OP_Pointer},
 	{"Return(@ret)", OP_Return},{"OP_Unknown", OP_Unknown},
 	{"String(\")", OP_String},{"LineEnd(\\n)", OP_LineEnd},
+	{"Tab character", OP_TabChar},
 };
 OpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
@@ -586,8 +596,26 @@ Op GetOpFromName(char* name) {
 	}
 	return OP_Error;
 }
+OpNamePair dbgAssertsNP[] = {
+	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
+};
+Op GetOpFromNameList(char* name, Op list) {
+	switch (list) {
+	case OP_dbgAssert: {
+		int sz;
+		int i;
+		sz = sizeof(dbgAssertsNP) / sizeof(dbgAssertsNP[0]);
+		for (i = 0; i < sz; i++) {
+			if (!strcmp(dbgAssertsNP[i].name, name)) return dbgAssertsNP[i].op;
+		}
+		break;
+	}
+	}
+	return OP_Unknown;
+}
 Op fromPfxCh(char ch) {
 	switch (ch) {
+	case '\t': return OP_TabChar;
 	case ' ': return OP_SpaceChar;
 	case '@': return OP_Op;
 	case '$': return OP_Name;
@@ -859,7 +887,7 @@ void CompilerChar(Compiler* compiler, char ch){
 		compiler->m_Ch==COMMENT_CHAR&&
 		compiler->m_LastCh!=COMMENT_CHAR)
 	{
-		PRINT_LINE_INFO();
+		PLINE;
 		printf(" LINE COMMENT ON\n");
 		compiler->m_CommentMode = OP_Comment;
 		CompilerPush(compiler, OP_ModeComment, false);
@@ -869,7 +897,7 @@ void CompilerChar(Compiler* compiler, char ch){
 				&&compiler->m_Ch==COMMENT_CHAR&&
 				m==OP_ModeComment)
 	{
-		PRINT_LINE_INFO();
+		PLINE;
 		printf(" MULTI COMMENT ON!!!!!!\n");
 		CompilerPop(compiler);
 		CompilerPush(compiler, OP_ModeMultiLineComment, false);
@@ -881,7 +909,7 @@ void CompilerChar(Compiler* compiler, char ch){
 				&&compiler->m_Ch==COMMENT_CHAR&&
 				m==OP_ModeMultiLineComment)
 	{
-		PRINT_LINE_INFO();
+		PLINE;
 		printf(" MULTI COMMENT OFF!\n");
 		compiler->m_CommentMode=OP_NotSet;
 	}
@@ -1245,7 +1273,8 @@ void CompilerPrefix(Compiler* compiler){
 		CompilerPushAllowedPfxs(compiler, 1, "", 1, OP_Op);
 	}
 	compiler->m_Pfx = fromPfxCh(compiler->m_Ch);
-	if(compiler->m_Pfx == OP_SpaceChar) return;
+	if(compiler->m_Pfx == OP_SpaceChar
+		|| compiler->m_Pfx == OP_TabChar) return;
 	if (compiler->m_Pfx == OP_Unknown) Err(OP_ErrUnknownPfx, "catastrophic err");
 	obj=CompilerGetObj(compiler);
 	if (compiler->m_Pfx != OP_Unknown
@@ -1359,6 +1388,9 @@ void CompilerStrPayload(Compiler* compiler){
 	{
 	case OP_String: { /*"*/
 		switch(/*GetTaskType*/t->type){
+		case OP_dbgAssert: {
+			break;
+		}
 		case OP_CPrintfHaveFmtStr:{
 			Obj *o;
 			CompilerPushObj(compiler, &o);
@@ -1503,6 +1535,12 @@ void CompilerStrPayload(Compiler* compiler){
 	}
 	case OP_Op: /* @ */
 		switch (compiler->m_NameOp) {
+		case OP_dbgAssert: {
+			AllowedPfxs *ap;
+			CompilerPushTask(compiler, OP_dbgAssert, &ap);
+			AllowedPfxsInit(ap, 0, "expected string", 1, OP_String);
+			break;
+		}
 		case OP_Call:{
 			switch (GetObjType) {
 			case OP_VarWantValue: {
@@ -1532,7 +1570,7 @@ void CompilerStrPayload(Compiler* compiler){
 				Task* t;
 				IBVector* wo;
 				int idx;
-				PRINT_LINE_INFO();
+				PLINE;
 				printf(" Finishing function\n");
 				idx = 0;
 				t = NULL;
