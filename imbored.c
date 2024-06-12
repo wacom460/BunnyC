@@ -71,6 +71,10 @@ typedef enum Op { /* multiple uses */
 }
 int ClampInt(int val, int min, int max)	CLAMP_IMP
 size_t ClampSizeT(size_t val, size_t min, size_t max) CLAMP_IMP
+typedef struct StrDef {
+	unsigned int len;
+	char *str;
+};
 typedef union IBVecData {
 	union IBVecData* data;
 /* DO NOT USE THESE IN CODE, THEY DONT WORK.
