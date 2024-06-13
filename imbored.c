@@ -55,6 +55,7 @@ typedef enum Op { /* multiple uses */
 	OP_ParenthesisOpen, OP_ParenthesisClose, OP_BracketOpen, 
 	OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
 	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,OP_RootTask,
+	OP_Thing,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -365,7 +366,7 @@ OpNamePair opNames[] = {
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
 	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"UseNeedStr",OP_UseNeedStr},
-	{"sys", OP_UseStrSysLib},
+	{"sys", OP_UseStrSysLib},{"thing", OP_Thing},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -391,6 +392,12 @@ OpNamePair cEquivelents[] = {
 OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
 };
+char* SysLibCodeStr = 
+"@space \"sys\""
+"@ext @func $malloc %i32 $size @ret %&?\n"
+"@ext @func $free %&? $ptr\n"
+"\n"
+"\n";
 
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
@@ -1434,8 +1441,8 @@ void CompilerStrPayload(Compiler* compiler){
 	printf("Str: %s\n", compiler->m_Str);
 	switch (compiler->m_Pfx)
 	{
-	case OP_String: { /*"*/
-		switch(/*GetTaskType*/t->type){
+	case OP_String: { /* " */
+		switch(t->type){
 		case OP_UseNeedStr:{
 			Op lib;
 			lib = compiler->m_NameOp;
@@ -1453,9 +1460,9 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_dbgAssertWantArgs: {
 			switch (GetOpFromNameList(compiler->m_Str, OP_dbgAssert)) {
-		case OP_TaskType:{
-			break;
-						 }
+			case OP_TaskType:{
+				break;
+			}
 			}
 			break;
 		}
