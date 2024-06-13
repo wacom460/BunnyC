@@ -217,8 +217,8 @@ void ObjInit(Obj* o);
 void ObjFree(Obj* o);
 void Val2Str(char *dest, int destSz, Val v, Op type);
 typedef struct Expectations {
-	IBVector pfxs;/*Op*/ //P
-	IBVector nameOps;//IBStr //N
+	IBVector pfxs;/*Op P */
+	IBVector nameOps;/*Op N */
 	char* pfxErr;
 	char* nameOpErr;
 	int life;
@@ -627,10 +627,10 @@ void ExpectationsInit(Expectations* exp, int life,
 	char *pfxErr, char* nameOpErr, char *fmt, ...) {
 	va_list args;
 	Op pfx;
-	char* nameOp;
+	Op nameOp;
 	int i;
 	IBVectorInit(&exp->pfxs, sizeof(Op));
-	IBVectorInit(&exp->nameOps, sizeof(char*));
+	IBVectorInit(&exp->nameOps, sizeof(Op));
 	exp->pfxErr=pfxErr;
 	exp->nameOpErr=nameOpErr;
 	exp->life=life;
@@ -640,10 +640,12 @@ void ExpectationsInit(Expectations* exp, int life,
 		switch (ch) {
 		case 'P': {
 			pfx=va_arg(args, Op);
+			IBVectorCopyPushOp(&exp->pfxs, pfx);
 			break;
 		}
 		case 'N':{
-			nameOp=va_arg(args, char*);
+			nameOp=va_arg(args, Op);
+			IBVectorCopyPushOp(&exp->nameOps, nameOp);
 			break;
 		}
 		}
@@ -652,6 +654,7 @@ void ExpectationsInit(Expectations* exp, int life,
 }
 void AllowedPfxsFree(Expectations* ap) {
 	IBVectorFreeSimple(&ap->pfxs);
+	IBVectorFreeSimple(&ap->nameOps);
 }
 void TaskInit(Task* t, Op type) {
 	IBVectorInit(&t->working, sizeof(Obj));
@@ -1754,9 +1757,13 @@ void CompilerStrPayload(Compiler* compiler){
 			compiler->m_TaskStack;
 			break;
 		}
-		case OP_Imaginary:
+		case OP_Imaginary: {
+			Expectations* exp;
 			ObjSetMod(CompilerGetObj(compiler), compiler->m_NameOp);
+			CompilerPushExpectations(compiler, &exp);
+			ExpectationsInit(exp, 0, "", "Expected function nameOP", "N", OP_Func);
 			break;
+		}
 		case OP_Done:
 			if (!compiler->m_TaskStack.elemCount) Err(OP_ErrNoTask, "");
 			switch (GetTaskType) {
