@@ -10,3 +10,6 @@
 /Build/
 /Debug
 /enc_temp_folder
+/*.ncb
+/*.suo
+/*.user
