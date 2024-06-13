@@ -81,20 +81,18 @@ typedef struct IBStr {
 	char *start;
 	char* end; //ptr of null terminator '\0'
 } IBStr;
-
 void IBStrInit(IBStr* str, size_t reserve);
 int IBStrGetLen(IBStr* str);
 char *IBStrAppend(IBStr* str, char *with);
-
 typedef union IBVecData {
 	union IBVecData* data;
-	/*struct Obj* obj;
+	struct Obj* obj;
 	struct Task* task;
 	Op* op;
 	unsigned char *boolean;
 	struct AllowedPfxs* apfxs;
 	struct NameInfoDB* niDB;
-	struct NameInfo* ni;*/
+	struct NameInfo* ni;
 } IBVecData;
 typedef struct IBVector {
 	size_t elemSize;
@@ -313,7 +311,6 @@ Task* _GetTask(Compiler *compiler){
 		GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
-//#define GetTaskWorkingObjs (GetTask ? &GetTask->working : NULL)
 typedef struct PathAssertion {
 	Op start;
 	Op allowedToBecome[3];
@@ -417,7 +414,8 @@ char *IBStrAppend(IBStr* str, char *with) {
 		str->start = (char*)ra;
 		strcpy(str->start + len, with);
 		str->end += withLen;
-	}else exit(-1);
+	} else exit(-1);
+	return NULL;
 }
 void IBVectorInit(IBVector* vec, size_t elemSize) {
 	void* m;
