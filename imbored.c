@@ -1750,8 +1750,8 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 				printf("%s(%d),", GetPfxName(*oi), (int)*oi);
 			}
 		}else{
-			printf("No task. Only Op(@) prefix allowed. Pfx: %s. Idx:%d Allowed pfxs: %s\n", GetPfxName(compiler->m_Pfx), 
-					ap->pfxs.elemCount - 1, GetPfxName(OP_Op));
+			printf("No task. Only Op(@) prefix allowed. Pfx: %s. Allowed pfxs: %s\n", GetPfxName(compiler->m_Pfx), 
+					GetPfxName(OP_Op));
 		}
 		break;
 	}
