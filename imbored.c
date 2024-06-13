@@ -33,6 +33,8 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #endif
 #define DB __debugbreak();
 
+struct IBDatabase* g_DB;
+
 typedef enum Op { /* multiple uses */
 	OP_Null, OP_False, OP_True, OP_Unknown, OP_NotSet, OP_Any, OP_Use, 
 	OP_Build, OP_Space,
@@ -55,7 +57,7 @@ typedef enum Op { /* multiple uses */
 	OP_ParenthesisOpen, OP_ParenthesisClose, OP_BracketOpen, 
 	OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
 	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,OP_RootTask,
-	OP_Thing,
+	OP_Thing,OP_ThingWantName,OP_ThingWantContent,OP_SpaceNeedName,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -82,11 +84,12 @@ typedef struct IBStr {
 	char *start;
 	char* end; //ptr of null terminator '\0'
 } IBStr;
+void IBStrInitCStr(IBStr* str, char* cstr);
 void IBStrInit(IBStr* str, size_t reserve);
-int IBStrGetLen(IBStr* str);
+size_t IBStrGetLen(IBStr* str);
 char *IBStrAppend(IBStr* str, char *with);
 typedef union IBVecData {
-	union IBVecData* data;
+	void* ptr;
 	struct Obj* obj;
 	struct Task* task;
 	Op* op;
@@ -101,7 +104,7 @@ typedef struct IBVector {
 	int slotCount;
 	int protectedSlotCount;/*cant pop past this, if 0 then unaffecting*/
 	size_t dataSize;
-	IBVecData;/*DATA BLOCK*/
+	IBVecData* data;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize);
 IBVecData* IBVectorGet(IBVector* vec, int idx);
@@ -136,6 +139,29 @@ typedef union Val {
 	float f32;
 	double d64;
 } Val;
+typedef struct IB_Variable {
+	Op type;
+	IBStr name;
+	Val val;
+} IB_Variable;
+IB_Variable* IB_VariableNew(Op type, IBStr name, Val val);
+typedef struct IB_Func {
+	Op retType;
+	Op retTypeMod;
+	IBVector args;//IB_Variable
+};
+typedef struct IB_DBObj {
+	Op type;
+	IBStr name;
+	IBVector children;//IB_DBObj
+} IB_DBObj;
+IB_DBObj* IB_DBObjNew(Op type, IBStr name);
+typedef struct IBDatabase {
+	IB_DBObj* root;
+} IBDatabase;
+void IBDatabaseInit(IBDatabase* db);
+void IBDatabaseFree(IBDatabase* db);
+IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location);
 typedef struct NameInfo {
 	Op type;
 	char* name;
@@ -219,10 +245,12 @@ typedef struct Compiler {
 	IBVector m_TaskStack; /*Task*/
 	IBVector m_StrReadPtrsStack; /*bool*/
 
+	char* inputStr;
 	Op m_Pointer;
 	Op m_NameOp;
 	char m_Ch;
 	char m_LastCh;
+	bool m_Running;
 	bool m_StringMode;
 	bool m_StrAllowSpace;
 	Op m_CommentMode;
@@ -273,7 +301,9 @@ void CompilerPushAllowedPfxs(Compiler* compiler, int life, char* err, int count,
 void CompilerPopAllowedNextPfxs(Compiler* compiler);
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx);
 /*NO NEWLINES AT END OF STR*/
-void CompilerChar(Compiler* compiler, char ch);
+void CompilerTick(Compiler* compiler, FILE *f);
+void CompilerInputChar(Compiler* compiler, char ch);
+void CompilerInputStr(Compiler* compiler, char* str);
 void CompilerPopAndDoTask(Compiler* compiler);
 char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type);
 void CompilerPrefix(Compiler* compiler);
@@ -329,7 +359,7 @@ Op fromPfxCh(char ch);
 void owStr(char** str, char* with);
 
 #ifndef IB_HEADER
-char CompilerStringModeIgnoreChars[5] = " \0\0\0\0";
+char* CompilerStringModeIgnoreChars = "";
 PathAssertion pathAssertions[] = {
 	{OP_NotSet, {OP_Any}},
 	{OP_Op, {OP_Func}},
@@ -393,26 +423,39 @@ OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
 };
 char* SysLibCodeStr = 
-"@space \"sys\""
+"@space \"sys\"\n"
 "@ext @func $malloc %i32 $size @ret %&?\n"
+"@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
 "@ext @func $free %&? $ptr\n"
+"@ext @func $strdup %&c8 $str @ret %&c8\n"
 "\n"
+"@dbgBreak\n"
 "\n";
 
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
-void IBStrInit(IBStr* str, size_t reserve) {
+void IBStrInit(IBStr* str, size_t reserve){
 	assert(reserve);
+	assert(str);
 	str->start = (char*)malloc(reserve);
 	str->end = str->start;
 }
-int IBStrGetLen(IBStr* str) {
+void IBStrInitNTStr(IBStr* str, char* nullTerminated){
+	assert(nullTerminated);
+	assert(str);
+	/*str->start = _strdup(nullTerminated);*/
+	owStr(&str->start, nullTerminated);
+	str->end = str->start + strlen(nullTerminated);
+}
+size_t IBStrGetLen(IBStr* str) {
+	assert(str);
 	return str->end - str->start;
 }
 char *IBStrAppend(IBStr* str, char *with) {
 	void* ra;
-	int len;
-	int withLen;
+	size_t len;
+	size_t withLen;
+	assert(str);
 	len = IBStrGetLen(str);
 	withLen = strlen(with);
 	ra = realloc(str->start, len + withLen + 1);
@@ -624,6 +667,9 @@ char* GetCEqu(Op op) {
 	}
 	return "?";
 }
+void IBDatabaseInit(IBDatabase* db){
+	
+}
 char* GetOpName(Op op) {
 	int sz;
 	int i;
@@ -697,6 +743,7 @@ Obj* CompilerGetObj(Compiler* compiler) {
 }
 void CompilerInit(Compiler* compiler){
 	Obj* o;
+	compiler->m_Running = true;
 	compiler->m_Line = 1;
 	compiler->m_Column = 1;
 	compiler->m_Pfx = OP_Null;
@@ -709,6 +756,7 @@ void CompilerInit(Compiler* compiler){
 	compiler->m_StringMode = false;
 	compiler->m_StrAllowSpace = false;
 	compiler->m_CommentMode = OP_NotSet;
+	compiler->inputStr = NULL;
 	NameInfoDBInit(&compiler->m_NameTypeCtx);
 	IBVectorInit(&compiler->m_ObjStack, sizeof(Obj));
 	IBVectorInit(&compiler->m_ModeStack, sizeof(Op));
@@ -882,7 +930,7 @@ void CompilerPushAllowedPfxs(Compiler* compiler, int life, char* err, int count,
 		printf("%s ", GetPfxName(*oi));
 	printf("} -> { ");
 	ap = (AllowedPfxs*)IBVectorPush(GetAPfxsStack);
-	AllowedPfxsInit(ap, 0, err, 0);
+	AllowedPfxsInit(ap, life, err, 0);
 	while (count--) {
 		o = va_arg(args, Op);
 		IBVectorCopyPushOp(&ap->pfxs, o);
@@ -931,8 +979,23 @@ bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	}
 	return false;
 }
+void CompilerTick(Compiler* compiler, FILE* f){
+	char ch;
+	if (compiler->inputStr) {
+		CompilerInputStr(compiler, compiler->inputStr);
+		compiler->inputStr = NULL;
+	}
+	else {
+		assert(f);
+		if ((ch = (char)fgetc(f)) != EOF) {
+			if (ch != 0xffffffff)
+				CompilerInputChar(compiler, ch);
+		}
+		else compiler->m_Running = false;
+	}
+}
 /*NO NEWLINES AT END OF STR*/
-void CompilerChar(Compiler* compiler, char ch){
+void CompilerInputChar(Compiler* compiler, char ch){
 	Op m;
 	bool nl;
 	compiler->m_Ch = ch;
@@ -1060,6 +1123,12 @@ void CompilerChar(Compiler* compiler, char ch){
 		CompilerPop(compiler);
 	}
 }
+void CompilerInputStr(Compiler* compiler, char* str)
+{
+	int i;
+	for (i = 0; str[i] != '\0'; i++)
+		CompilerInputChar(compiler, str[i]);
+}
 char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type) {
 	switch (type) {
 	case OP_String: return "s";
@@ -1120,7 +1189,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		cFuncCode[0] = '\0';
 		funcObj = NULL;
 		for (i = 0; i < wObjs->elemCount; ++i) {
-			Obj* o = (Obj*)IBVectorGet(wObjs, i);
+			o = (Obj*)IBVectorGet(wObjs, i);
 			switch (ObjGetType(o)) {
 			case OP_FuncArgComplete: {/*multiple allowed*/
 				Op at;
@@ -1448,6 +1517,10 @@ void CompilerStrPayload(Compiler* compiler){
 			lib = compiler->m_NameOp;
 			switch(lib){
 			case OP_UseStrSysLib:{
+				printf("Inputting system lib code to compiler\n");
+				//CompilerInputStr(compiler, SysLibCodeStr);
+				assert(!compiler->inputStr);
+				compiler->inputStr = SysLibCodeStr;
 				break;
 			}
 			default:{
@@ -1512,10 +1585,8 @@ void CompilerStrPayload(Compiler* compiler){
 			}
 			case OP_FuncNeedRetVal: {
 				Obj* o;
-				Task* t;
 				int idx;
 				idx = 0;
-				t = GetTask;
 				while (o = (Obj*)IBVectorIterNext(&t->working,&idx)) {
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						printf("Finishing func got ret value\n");
@@ -1565,6 +1636,15 @@ void CompilerStrPayload(Compiler* compiler){
 		break;
 	case OP_Name: { /* $ */
 		switch(GetTaskType){
+		case OP_SpaceNeedName: {
+			Obj* o;
+			CompilerPushObj(compiler, &o);
+			assert(compiler->m_Str[0]!='\0');
+			ObjSetName(o, compiler->m_Str);
+			ObjSetType(o, OP_Space);
+			CompilerPopObj(compiler, true, &o);
+			break;
+		}
 		case OP_CPrintfHaveFmtStr: {
 			Obj* o;
 			CompilerPushObj(compiler, &o);
@@ -1610,6 +1690,18 @@ void CompilerStrPayload(Compiler* compiler){
 	}
 	case OP_Op: /* @ */
 		switch (compiler->m_NameOp) {
+		case OP_Space: {
+			AllowedPfxs *ap;
+			CompilerPushTask(compiler, OP_SpaceNeedName, &ap);
+			AllowedPfxsInit(ap, 0, "expected space name", 1, OP_Name);
+			break;
+		}
+		case OP_Thing: {
+			AllowedPfxs *ap;
+			CompilerPushTask(compiler, OP_ThingWantName, &ap);
+			AllowedPfxsInit(ap, 0, "expected thing name", 1, OP_Name);
+			break;
+		}
 		case OP_dbgAssert: {
 			AllowedPfxs *ap;
 			CompilerPushTask(compiler, OP_dbgAssertWantArgs, &ap);
@@ -1642,7 +1734,6 @@ void CompilerStrPayload(Compiler* compiler){
 			case OP_FuncHasName:
 			case OP_FuncWantCode: {
 				Obj* o;
-				Task* t;
 				IBVector* wo;
 				int idx;
 				PLINE;
@@ -1650,7 +1741,6 @@ void CompilerStrPayload(Compiler* compiler){
 				idx = 0;
 				t = NULL;
 				o=NULL;
-				t = GetTask;
 				wo = &t->working;
 				while (o = (Obj*)IBVectorIterNext(wo,&idx)) {
 					/*TODO: could cache func obj index later*/
@@ -1671,8 +1761,8 @@ void CompilerStrPayload(Compiler* compiler){
 			}
 			break;
 		case OP_Return: {
-			Op t = GetObjType;
-			switch (t) {
+			Op objT = GetObjType;
+			switch (objT) {
 			case OP_FuncArgComplete: {
 				printf("what\n");
 				CompilerPopObj(compiler, true, NULL);
@@ -1773,16 +1863,18 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 	printf("\n");
 }
 int main(int argc, char** argv) {
+	IBDatabase db;
 	FILE* f;
 	char* fname = /*argv[1]*/"main.txt";
+	g_DB = &db;
+	IBDatabaseInit(g_DB);
 	f = fopen(fname, "r");
 	if (f){
 		Compiler comp;
 		char ch;
 		CompilerInit(&comp);
-		while ((ch = fgetc(f)) != EOF) {
-			if (ch == 0xffffffff) break;
-			CompilerChar(&comp, ch);
+		while (comp.m_Running) {
+			CompilerTick(&comp, f);
 		}
 		printf("Exiting\n");
 		CompilerFree(&comp);
