@@ -1,5 +1,5 @@
 @use "sys"
-
+~~
 @ext @func $malloc %i32 $size @ret %&?
 @dbgAssert "taskType" "null"
 @ext @func $free %&? $ptr
@@ -19,3 +19,4 @@
 	@call $free $a
 	$i =20
 @@ $i
+~~
