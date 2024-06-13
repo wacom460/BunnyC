@@ -1450,6 +1450,7 @@ void CompilerStrPayload(Compiler* compiler){
 				break;
 			}
 			}
+			CompilerPopTask(compiler);
 			break;
 		}
 		case OP_dbgAssertWantArgs: {
