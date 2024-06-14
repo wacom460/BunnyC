@@ -85,19 +85,19 @@ typedef struct IBStr {
 	char *start;
 	char* end; //ptr of null terminator '\0'
 } IBStr;
-void IBStrInitCStr(IBStr* str, char* cstr);
 void IBStrInit(IBStr* str, size_t reserve);
+void IBStrInitNTStr(IBStr* str, char* nullTerminated);
 size_t IBStrGetLen(IBStr* str);
 char *IBStrAppend(IBStr* str, char *with);
 typedef union IBVecData {
 	void* ptr;
-	//struct Obj* obj;
-	//struct Task* task;
-	//Op* op;
-	//unsigned char *boolean;
-	//struct Expectations* expects;
-	//struct NameInfoDB* niDB;
-	//struct NameInfo* ni;
+	struct Obj* obj;
+	struct Task* task;
+	Op* op;
+	unsigned char *boolean;
+	struct Expectations* expects;
+	struct NameInfoDB* niDB;
+	struct NameInfo* ni;
 } IBVecData;
 typedef struct IBVector {
 	size_t elemSize;
@@ -446,7 +446,6 @@ void IBStrInit(IBStr* str, size_t reserve){
 void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	assert(nullTerminated);
 	assert(str);
-	/*str->start = _strdup(nullTerminated);*/
 	owStr(&str->start, nullTerminated);
 	str->end = str->start + strlen(nullTerminated);
 }
@@ -790,7 +789,7 @@ void CompilerInit(Compiler* compiler){
 	CompilerPush(compiler, OP_ModePrefixPass, false);
 	CompilerPushObj(compiler, &o);
 	CompilerPushTask(compiler, OP_RootTask, &exp);
-	ExpectationsInit(exp, 0, "Expected OP", "expected @func or @thing", "PNN", OP_Op, OP_Func, OP_Thing);
+	ExpectationsInit(exp, 0, "", "", "PNNNN", OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Thing);
 }
 void CompilerFree(Compiler* compiler) {
 	if (compiler->m_StringMode)
@@ -1771,7 +1770,7 @@ void CompilerStrPayload(Compiler* compiler){
 			Expectations* exp;
 			ObjSetMod(CompilerGetObj(compiler), compiler->m_NameOp);
 			CompilerPushExpectations(compiler, &exp);
-			ExpectationsInit(exp, 0, "", "Expected function nameOP", "N", OP_Func);
+			ExpectationsInit(exp, 0, "", "", "PN", OP_Op, OP_Func);
 			break;
 		}
 		case OP_Done:
