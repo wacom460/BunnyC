@@ -71,7 +71,7 @@ typedef enum Op { /* multiple uses */
 	OP_NotFound, OP_Error, OP_ErrNOT_GOOD, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
 	OP_ErrQuadriplePointersNOT_ALLOWED, OP_ErrUnknownOpStr,
-	OP_ErrProtectedSlot,OP_ErrUnknownPfx,
+	OP_ErrProtectedSlot,OP_ErrUnknownPfx,OP_ErrUnexpectedNameOP,
 
 	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
 } Op;
@@ -95,7 +95,7 @@ typedef union IBVecData {
 	struct Task* task;
 	Op* op;
 	unsigned char *boolean;
-	struct Expectations* expects;
+	struct Expects* expects;
 	struct NameInfoDB* niDB;
 	struct NameInfo* ni;
 } IBVecData;
@@ -150,7 +150,7 @@ typedef struct IB_Func {
 	Op retType;
 	Op retTypeMod;
 	IBVector args;//IB_Variable
-};
+} IB_Func;
 typedef struct IB_DBObj {
 	Op type;
 	IBStr name;
@@ -216,20 +216,20 @@ void ObjPrint(Obj* obj);
 void ObjInit(Obj* o);
 void ObjFree(Obj* o);
 void Val2Str(char *dest, int destSz, Val v, Op type);
-typedef struct Expectations {
+typedef struct Expects {
 	IBVector pfxs;/*Op P */
 	IBVector nameOps;/*Op N */
 	char* pfxErr;
 	char* nameOpErr;
 	int life;
-} Expectations;
-void ExpectationsInit(Expectations* exp, int life,
+} Expects;
+void ExpectsInit(Expects* exp, int life,
 	char* pfxErr, char* nameOpErr, char* fmt, ...);
-void ExpectationsPrint(Expectations* exp);
-void ExpectationsFree(Expectations* exp);
+void ExpectsPrint(Expects* exp);
+void ExpectsFree(Expects* exp);
 typedef struct Task {
 	Op type;
-	IBVector expStack; /*Expectations*/
+	IBVector expStack; /*Expects*/
 	IBVector working;/*Obj*/ 
 	char code1[CODE_STR_MAX];
 	char code2[CODE_STR_MAX];
@@ -241,7 +241,9 @@ typedef struct Compiler {
 	int m_Column;
 	Op m_Pfx;
 	char m_Str[CompilerSTR_MAX];
-	char m_cOutput[CODE_STR_MAX];
+	//char m_cOutput[CODE_STR_MAX];
+	IBStr m_CHeader;//.h
+	IBStr m_CFile;//.c
 
 	IBVector m_ObjStack; /*Obj*/
 	IBVector m_ModeStack; /*Op*/
@@ -268,7 +270,7 @@ void _Err(Compiler *compiler, Op code, char *msg);
 Obj* CompilerGetObj(Compiler* compiler);
 void CompilerInit(Compiler* compiler);
 void CompilerFree(Compiler* compiler);
-void _CompilerPushTask(Compiler* compiler, Op taskOP, Expectations** exectsDP);
+void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP);
 #define CompilerPushTask(compiler, taskOP, exectsDP){\
 	PLINE;\
 	_CompilerPushTask(compiler, taskOP, exectsDP);\
@@ -299,9 +301,10 @@ void _CompilerPop(Compiler* compiler);
 	_CompilerPop(compiler);\
 }
 /*life:0 = infinite, -1 life each pfx*/
-void CompilerPushExpectations(Compiler* compiler, Expectations** expDP);
-void CompilerPopExpectations(Compiler* compiler);
+void CompilerPushExpects(Compiler* compiler, Expects** expDP);
+void CompilerPopExpects(Compiler* compiler);
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx);
+bool CompilerIsNameOpExpected(Compiler* compiler, Op nameOp);
 /*NO NEWLINES AT END OF STR*/
 void CompilerTick(Compiler* compiler, FILE *f);
 void CompilerInputChar(Compiler* compiler, char ch);
@@ -320,7 +323,7 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 }
 #define PopPfxs(){\
 	PLINE;\
-	CompilerPopExpectations(compiler);\
+	CompilerPopExpects(compiler);\
 }
 Task* _GetTask(Compiler *compiler){
 	Task* ret;
@@ -333,7 +336,7 @@ Task* _GetTask(Compiler *compiler){
 }
 #define GetTask _GetTask(compiler)
 #define GetExpectsStack (GetTask ? &GetTask->expStack : NULL)
-#define GetExpectationsTop ((Expectations*)IBVectorTop(GetExpectsStack))
+#define GetExpectsTop ((Expects*)IBVectorTop(GetExpectsStack))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
 #define GetTaskType (GetTask ? GetTask->type : OP_TaskStackEmpty)
 #define GetTaskCode   (GetTask->code1)
@@ -399,7 +402,8 @@ OpNamePair opNames[] = {
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
 	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"UseNeedStr",OP_UseNeedStr},
 	{"sys", OP_UseStrSysLib},{"thing", OP_Thing},{"SpaceNeedName",OP_SpaceNeedName},
-	{"RootTask", OP_RootTask}
+	{"RootTask", OP_RootTask},{"ErrUnknownPfx",OP_ErrUnknownPfx},
+	{"ErrUnexpectedNameOP",OP_ErrUnexpectedNameOP}
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -438,10 +442,11 @@ char* SysLibCodeStr =
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
 void IBStrInit(IBStr* str, size_t reserve){
-	assert(reserve);
+	assert(reserve > 0);
 	assert(str);
 	str->start = (char*)malloc(reserve);
 	str->end = str->start;
+	*str->start = '\0';
 }
 void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	assert(nullTerminated);
@@ -459,14 +464,18 @@ char *IBStrAppend(IBStr* str, char *with) {
 	size_t withLen;
 	assert(str);
 	len = IBStrGetLen(str);
+	assert(len < 8192);
 	withLen = strlen(with);
 	ra = realloc(str->start, len + withLen + 1);
 	assert(ra);
 	if (ra) {
 		str->start = (char*)ra;
-		strcpy(str->start + len, with);
+		strcpy(str->end, with);
 		str->end += withLen;
-	} else exit(-1);
+	}else {
+		assert(0);
+		exit(-1);
+	}
 	return NULL;
 }
 void IBVectorInit(IBVector* vec, size_t elemSize) {
@@ -622,7 +631,7 @@ void ObjFree(Obj* o) {
 	if (o->name) free(o->name);
 	if (o->str) free(o->str);
 }
-void ExpectationsInit(Expectations* exp, int life, 
+void ExpectsInit(Expects* exp, int life, 
 	char *pfxErr, char* nameOpErr, char *fmt, ...) {
 	va_list args;
 	Op pfx;
@@ -655,19 +664,19 @@ void ExpectationsInit(Expectations* exp, int life,
 	printf("}\n");
 	va_end(args);
 }
-void ExpectationsFree(Expectations* ap) {
+void ExpectsFree(Expects* ap) {
 	IBVectorFreeSimple(&ap->pfxs);
 	IBVectorFreeSimple(&ap->nameOps);
 }
 void TaskInit(Task* t, Op type) {
 	IBVectorInit(&t->working, sizeof(Obj));
-	IBVectorInit(&t->expStack, sizeof(Expectations));
+	IBVectorInit(&t->expStack, sizeof(Expects));
 	t->type = type;
 	t->code1[0] = '\0';
 	t->code2[0] = '\0';
 }
 void TaskFree(Task* t) {
-	IBVectorFree(&t->expStack, ExpectationsFree);
+	IBVectorFree(&t->expStack, ExpectsFree);
 	IBVectorFree(&t->working, ObjFree);
 }
 void _Err(Compiler *compiler, Op code, char *msg){
@@ -764,14 +773,14 @@ Obj* CompilerGetObj(Compiler* compiler) {
 }
 void CompilerInit(Compiler* compiler){
 	Obj* o;
-	Task* t;
-	Expectations* exp;
+	Expects* exp;
 	compiler->m_Running = true;
 	compiler->m_Line = 1;
 	compiler->m_Column = 1;
 	compiler->m_Pfx = OP_Null;
 	compiler->m_Str[0] = '\0';
-	compiler->m_cOutput[0] = '\0';
+	IBStrInit(&compiler->m_CHeader, 1);
+	IBStrInit(&compiler->m_CFile, 1);
 	compiler->m_Pointer = OP_NotSet;
 	compiler->m_NameOp = OP_Null;
 	compiler->m_Ch = '\0';
@@ -789,7 +798,7 @@ void CompilerInit(Compiler* compiler){
 	CompilerPush(compiler, OP_ModePrefixPass, false);
 	CompilerPushObj(compiler, &o);
 	CompilerPushTask(compiler, OP_RootTask, &exp);
-	ExpectationsInit(exp, 0, "", "", "PNNNN", OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Thing);
+	ExpectsInit(exp, 0, "", "", "PNNNNN", OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Thing, OP_Space);
 }
 void CompilerFree(Compiler* compiler) {
 	if (compiler->m_StringMode)
@@ -809,28 +818,34 @@ void CompilerFree(Compiler* compiler) {
 		}
 		}
 	}
-	printf("-> Compilation complete <-\nResulting C code:\n\n");
-	printf("%s", compiler->m_cOutput);
+	printf("-> Compilation complete <-\nC Header:\n%s\n\nC File:\n%s\n\n", compiler->m_CHeader.start, compiler->m_CFile.start);
+	//printf("%s", compiler->m_cOutput);
 	IBVectorFree(&compiler->m_ObjStack, ObjFree);
 	IBVectorFreeSimple(&compiler->m_ModeStack);
 	IBVectorFreeSimple(&compiler->m_StrReadPtrsStack);
 	IBVectorFree(&compiler->m_TaskStack, TaskFree);
 	NameInfoDBFree(&compiler->m_NameTypeCtx);
 }
-void ExpectationsPrint(Expectations* ap) {
+void ExpectsPrint(Expects* ap) {
 	Op* oi;
 	int idx;
 	idx = 0;
+	printf("Prefixes { ");
 	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
-		printf("%s ", GetPfxName(*oi));
+		printf("%s(%d) ", GetPfxName(*oi), (int)*oi);
+	printf("}\nNameOps { ");
+	idx = 0;
+	while (oi = (Op*)IBVectorIterNext(&ap->nameOps, &idx))
+		printf("@%s(%d) ", GetOpName(*oi), (int)*oi);
+	printf("}\n");
 }
-void _CompilerPushTask(Compiler* compiler, Op taskOP, Expectations ** exectsDP) {
+void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects ** exectsDP) {
 	Task *t;
 	t = NULL;
 	printf(" Push task %s(%d)\n", GetOpName(taskOP),(int)taskOP);
 	t=(Task*)IBVectorPush(&compiler->m_TaskStack);
 	TaskInit(t, taskOP);
-	(*exectsDP) = (Expectations*)IBVectorPush(&t->expStack);
+	(*exectsDP) = (Expects*)IBVectorPush(&t->expStack);
 }
 void _CompilerPopTask(Compiler* compiler) {
 	printf(" Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
@@ -941,19 +956,19 @@ void ObjPrint(Obj* obj) {
 	/*if(u64)*/printf("Val:%d", obj->val.i32);
 	printf("]");
 }
-void CompilerPushExpectations(Compiler* compiler, Expectations **expDP){
+void CompilerPushExpects(Compiler* compiler, Expects **expDP){
 	Task* t;
-	Expectations* exp;
+	Expects* exp;
 	t = GetTask;
 	assert(t);
 	assert(expDP);
 	assert(*expDP);
-	exp = (Expectations*)IBVectorPush(&t->expStack);
+	exp = (Expects*)IBVectorPush(&t->expStack);
 	assert(exp);
 	(*expDP) = exp;
 }
-void CompilerPopExpectations(Compiler* compiler) {
-	IBVector* pfxsIb = &GetExpectationsTop->pfxs;
+void CompilerPopExpects(Compiler* compiler) {
+	IBVector* pfxsIb = &GetExpectsTop->pfxs;
 	if (pfxsIb->elemCount) {
 		Op* oi;
 		int idx;
@@ -964,9 +979,9 @@ void CompilerPopExpectations(Compiler* compiler) {
 			printf("%s ", GetPfxName(*oi));
 		}
 		printf("} -> { ");
-		IBVectorPop(GetExpectsStack, ExpectationsFree);
+		IBVectorPop(GetExpectsStack, ExpectsFree);
 		if (!GetExpectsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
-		pfxsIb = &GetExpectationsTop->pfxs;
+		pfxsIb = &GetExpectsTop->pfxs;
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(pfxsIb,&idx)) {
 			printf("%s ", GetPfxName(*oi));
@@ -978,17 +993,37 @@ bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	Op* oi;
 	int idx;
 	Task* t;
-	Expectations* ap;
+	Expects* ap;
 	t = NULL;
 	ap = NULL;
 	t = GetTask;
-	if(!t || !GetExpectsStack->elemCount) return pfx == OP_Op;
+	assert(t);
+	assert(GetExpectsStack->elemCount);
 	idx = 0;
 	oi = NULL;
-	ap = GetExpectationsTop;
+	ap = GetExpectsTop;
 	if(ap) while (oi = (Op*)IBVectorIterNext(&ap->pfxs,&idx)) {
 		assert(oi);
 		if (oi && *oi == pfx) 
+			return true;
+	}
+	return false;
+}
+bool CompilerIsNameOpExpected(Compiler* compiler, Op nameOp)
+{
+	Op* oi;
+	int idx;
+	Task* t;
+	Expects* exp;
+	t = GetTask;
+	assert(t);
+	assert(GetExpectsStack->elemCount);
+	idx = 0;
+	oi = NULL;
+	exp = GetExpectsTop;
+	while (oi = (Op*)IBVectorIterNext(&exp->nameOps, &idx)) {
+		assert(oi);
+		if (oi && *oi == nameOp)
 			return true;
 	}
 	return false;
@@ -1016,8 +1051,8 @@ void CompilerInputChar(Compiler* compiler, char ch){
 	nl = false;
 	m=GetMode;
 	if(compiler->m_CommentMode==OP_NotSet&&
-		compiler->m_Ch==COMMENT_CHAR&&
-		compiler->m_LastCh!=COMMENT_CHAR)
+		compiler->m_Ch==COMMENT_CHAR/*&&
+		compiler->m_LastCh!=COMMENT_CHAR*/)
 	{
 		PLINE;
 		printf(" LINE COMMENT ON\n");
@@ -1044,6 +1079,7 @@ void CompilerInputChar(Compiler* compiler, char ch){
 		PLINE;
 		printf(" MULTI COMMENT OFF!\n");
 		compiler->m_CommentMode=OP_NotSet;
+		//compiler
 	}
 	switch (compiler->m_Ch) {
 	case '\0': return;
@@ -1092,9 +1128,9 @@ void CompilerInputChar(Compiler* compiler, char ch){
 				mod = ObjGetMod(CompilerGetObj(compiler));
 				CompilerPopObj(compiler, true, NULL);
 				if (mod != OP_Imaginary) {
-					Expectations *exp;
-					CompilerPushExpectations(compiler, &exp);
-					ExpectationsInit(exp, 0,
+					Expects *exp;
+					CompilerPushExpects(compiler, &exp);
+					ExpectsInit(exp, 0,
 						"expected operator, print statement, or variable declaration",
 						"",
 						"PPP",
@@ -1289,9 +1325,12 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
 		}
 		//compiler->m_cOutput[0]='\0';
-		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncModsTypeName);
+		IBStrAppend(&compiler->m_CFile, cFuncModsTypeName);
+		IBStrAppend(&compiler->m_CFile, cFuncArgs);
+		IBStrAppend(&compiler->m_CFile, cFuncCode);
+		/*StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncModsTypeName);
 		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncArgs);
-		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncCode);
+		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncCode);*/
 		break;
 	}
 	case OP_CPrintfHaveFmtStr: {
@@ -1415,9 +1454,9 @@ void CompilerPrefix(Compiler* compiler){
 	Obj* obj;
 	/*for assigning func call ret val to var*/
 	if (compiler->m_Pfx == OP_Value && compiler->m_Ch == '@' && !compiler->m_Str[0]) {
-		Expectations* exp;
-		CompilerPushExpectations(compiler, &exp);
-		ExpectationsInit(exp, 1, "", "", "P", OP_Op);
+		Expects* exp;
+		CompilerPushExpects(compiler, &exp);
+		ExpectsInit(exp, 1, "", "", "P", OP_Op);
 	}
 	compiler->m_Pfx = fromPfxCh(compiler->m_Ch);
 	if(compiler->m_Pfx == OP_SpaceChar
@@ -1425,7 +1464,7 @@ void CompilerPrefix(Compiler* compiler){
 	if (compiler->m_Pfx == OP_Unknown) Err(OP_ErrUnknownPfx, "catastrophic err");
 	obj=CompilerGetObj(compiler);
 	if (compiler->m_Pfx != OP_Unknown
-		&& (!GetTask || GetExpectationsTop->pfxs.elemCount)
+		&& (!GetTask || GetExpectsTop->pfxs.elemCount)
 		&& !CompilerIsPfxExpected(compiler, compiler->m_Pfx)
 	)
 	{
@@ -1452,12 +1491,12 @@ void CompilerPrefix(Compiler* compiler){
 		break;
 	}
 	if (compiler->m_Pfx == OP_Op) {
-		Expectations* aps=NULL;
+		Expects* aps=NULL;
 		Task* t;
 		t = GetTask;
-		if(t) aps = GetExpectationsTop;
+		if(t) aps = GetExpectsTop;
 		if (aps && aps->life && --aps->life <= 0) {
-			IBVectorPop(GetExpectsStack, ExpectationsFree);
+			IBVectorPop(GetExpectsStack, ExpectsFree);
 		}
 	}
 }
@@ -1553,10 +1592,10 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		case OP_FuncWantCode: { /*printf*/
-			Expectations *ap;
+			Expects *ap;
 			Obj* o;
 			CompilerPushTask(compiler, OP_CPrintfHaveFmtStr, &ap);
-			ExpectationsInit(ap, 0, "expected fmt args or line end", 
+			ExpectsInit(ap, 0, "expected fmt args or line end", 
 				"",	"PPPP", OP_Value, OP_Name, OP_String, OP_LineEnd);
 			o=CompilerGetObj(compiler);
 			ObjSetStr(o, compiler->m_Str);
@@ -1610,13 +1649,13 @@ void CompilerStrPayload(Compiler* compiler){
 	case OP_VarType: /* % */
 		switch (GetTaskType) {
 		case OP_FuncWantCode: {
-			Expectations* exp;
+			Expects* exp;
 			CompilerPushObj(compiler, NULL);
 			CompilerGetObj(compiler)->var.type = compiler->m_NameOp;
 			CompilerGetObj(compiler)->var.mod = OP_NotSet;
 			SetObjType(OP_VarNeedName);
-			CompilerPushExpectations(compiler, &exp);
-			ExpectationsInit(exp, 0, "expected variable name", "", "P", OP_Name);
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0, "expected variable name", "", "P", OP_Name);
 			break;
 		}
 		}
@@ -1630,13 +1669,13 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_FuncHasName: {
 			Obj* o;
-			Expectations* exp;
+			Expects* exp;
 			CompilerPushObj(compiler, &o);
 			SetObjType(OP_FuncArgNameless);
 			o->arg.type = compiler->m_NameOp;
 			o->arg.mod = compiler->m_Pointer;
-			CompilerPushExpectations(compiler, &exp);
-			ExpectationsInit(exp, 0, "expected func arg name", "", "P", OP_Name);
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0, "expected func arg name", "", "P", OP_Name);
 			break;
 		}
 		}
@@ -1684,23 +1723,23 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		switch (GetObjType) {
 		case OP_CallNeedName: { /* =@call */
-			Expectations* exp;
+			Expects* exp;
 			SetObjType(OP_CallWantArgs);
 			PopPfxs();
-			CompilerPushExpectations(compiler, &exp);
-			ExpectationsInit(exp, 0, 
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0, 
 				"expected var type or line end after func name", "",
 				"PPP", 
 				OP_Name, OP_Value, OP_LineEnd);
 		}
 		case OP_Func: {
-			Expectations* exp;
+			Expects* exp;
 			SetObjType(OP_FuncHasName);
 			SetTaskType(OP_FuncHasName);
-			CompilerPushExpectations(compiler, &exp);
-			ExpectationsInit(exp, 0, "", "", 
-				"PPP", 
-				OP_VarType, OP_Op, OP_LineEnd);
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0, "", "", 
+				"PPPN", 
+				OP_VarType, OP_Op, OP_LineEnd, OP_Return);
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
 			break;
 		}
@@ -1712,13 +1751,13 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerPopObj(compiler, true, NULL);
 			break;
 		case OP_VarNeedName: {
-			Expectations* exp;
+			Expects* exp;
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
 			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->var.type);
 			SetObjType(OP_VarWantValue);
 			PopPfxs();
-			CompilerPushExpectations(compiler, &exp);
-			ExpectationsInit(exp, 0, 
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0, 
 				"expected value or line end after var name", 
 				"", 
 				"PP", 
@@ -1728,49 +1767,52 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		break;
 	}
-	case OP_Op: /* @ */
+	case OP_Op: { /* @ */
+		bool expected;
+		expected = CompilerIsNameOpExpected(compiler, compiler->m_NameOp);
+		if(!expected)Err(OP_ErrUnexpectedNameOP, "unexpected nameOP");
 		switch (compiler->m_NameOp) {
 		case OP_Space: {
-			Expectations *ap;
+			Expects* ap;
 			CompilerPushTask(compiler, OP_SpaceNeedName, &ap);
-			ExpectationsInit(ap, 0, "expected space name", "", "P", OP_Name);
+			ExpectsInit(ap, 0, "expected space name", "", "P", OP_Name);
 			break;
 		}
 		case OP_Thing: {
-			Expectations *ap;
+			Expects* ap;
 			CompilerPushTask(compiler, OP_ThingWantName, &ap);
-			ExpectationsInit(ap, 0, "expected thing name", "", "P", OP_Name);
+			ExpectsInit(ap, 0, "expected thing name", "", "P", OP_Name);
 			break;
 		}
 		case OP_dbgAssert: {
-			Expectations *ap;
+			Expects* ap;
 			CompilerPushTask(compiler, OP_dbgAssertWantArgs, &ap);
-			ExpectationsInit(ap, 0, "expected string", "", "P", OP_String);
+			ExpectsInit(ap, 0, "expected string", "", "P", OP_String);
 			break;
 		}
-		case OP_Call:{
+		case OP_Call: {
 			switch (GetObjType) {
 			case OP_VarWantValue: {
 				Obj* o;
-				Expectations* exp;
+				Expects* exp;
 				CompilerPushObj(compiler, &o);
 				ObjSetType(o, OP_CallNeedName);
-				CompilerPushExpectations(compiler, &exp);
-				ExpectationsInit(exp, 0, "expected function name", "", "P", OP_Name);
+				CompilerPushExpects(compiler, &exp);
+				ExpectsInit(exp, 0, "expected function name", "", "P", OP_Name);
 			}
 			}
 			break;
 		}
 		case OP_dbgBreak: {
-			__debugbreak();
-			compiler->m_TaskStack;
+			//__debugbreak();
+			//compiler->m_TaskStack;
 			break;
 		}
 		case OP_Imaginary: {
-			Expectations* exp;
+			Expects* exp;
 			ObjSetMod(CompilerGetObj(compiler), compiler->m_NameOp);
-			CompilerPushExpectations(compiler, &exp);
-			ExpectationsInit(exp, 0, "", "", "PN", OP_Op, OP_Func);
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0, "", "", "PN", OP_Op, OP_Func);
 			break;
 		}
 		case OP_Done:
@@ -1782,19 +1824,20 @@ void CompilerStrPayload(Compiler* compiler){
 				Obj* o;
 				IBVector* wo;
 				int idx;
+				assert(t);
 				PLINE;
 				printf(" Finishing function\n");
 				idx = 0;
-				t = NULL;
-				o=NULL;
+				//t = NULL;
+				o = NULL;
 				wo = &t->working;
-				while (o = (Obj*)IBVectorIterNext(wo,&idx)) {
+				while (o = (Obj*)IBVectorIterNext(wo, &idx)) {
 					/*TODO: could cache func obj index later*/
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						if (o->func.retType != OP_Void) {
-							Expectations* exp;
-							CompilerPushExpectations(compiler, &exp);
-							ExpectationsInit(exp, 0, "", "", "P", OP_Value);
+							Expects* exp;
+							CompilerPushExpects(compiler, &exp);
+							ExpectsInit(exp, 0, "", "", "P", OP_Value);
 							SetTaskType(OP_FuncNeedRetVal);
 						}
 						else {
@@ -1820,10 +1863,10 @@ void CompilerStrPayload(Compiler* compiler){
 				}
 			}
 			case OP_FuncHasName: {
-				Expectations* exp;
+				Expects* exp;
 				SetObjType(OP_FuncNeedsRetValType);
-				CompilerPushExpectations(compiler, &exp);
-				ExpectationsInit(exp, 0, "", "", "P", OP_VarType);
+				CompilerPushExpects(compiler, &exp);
+				ExpectsInit(exp, 0, "", "", "P", OP_VarType);
 				break;
 			}
 			default:
@@ -1833,9 +1876,9 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		case OP_Func: {
-			Expectations *ap;
+			Expects* ap;
 			CompilerPushTask(compiler, OP_FuncNeedName, &ap);
-			ExpectationsInit(ap, 0, "expected function name", "", "P", OP_Name);
+			ExpectsInit(ap, 0, "expected function name", "", "P", OP_Name);
 			SetObjType(compiler->m_NameOp);
 			CompilerGetObj(compiler)->func.retType = OP_Void;
 			CompilerGetObj(compiler)->func.retTypeMod = OP_NotSet;
@@ -1845,15 +1888,17 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Private:
 			CompilerGetObj(compiler)->privacy = compiler->m_NameOp;
 			break;
-		case OP_Use:{
-			Expectations *ap;
+		case OP_Use: {
+			Expects* ap;
 			CompilerPushTask(compiler, OP_UseNeedStr, &ap);
-			ExpectationsInit(ap, 0, "expected @use name", "", "P", OP_Name);
+			ExpectsInit(ap, 0, "expected @use name", "", "P", OP_Name);
 			break;
 		}
 		default:
 			Err(OP_ErrUnknownOpStr, "");
 		}
+		break;
+	}
 	}
 	compiler->m_Str[0] = '\0';
 	printf("Str payload complete\n");
@@ -1866,6 +1911,16 @@ void CompilerStrPayload(Compiler* compiler){
 }
 void CompilerExplainErr(Compiler* compiler, Op code) {
 	switch (code) {
+	case OP_ErrUnexpectedNameOP: {
+		Expects* exp;
+		Task* t;
+		t=GetTask;
+		assert(t);
+		exp = GetExpectsTop;
+		printf("NameOP \"@%s\" wasn't expected.\nExpected:\n", compiler->m_Str);
+		ExpectsPrint(exp);
+		break;
+	}
 	case OP_ErrUnknownPfx:
 		printf("This prefix \"%c\" is unknown!", compiler->m_Pfx);
 		break;
@@ -1883,18 +1938,18 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 		break;
 	case OP_ErrUnexpectedNextPfx: {
 		Op* oi;
-		Expectations *ap;
+		Expects *ap;
 		Task *t;
 		int idx;
 		t =GetTask;
-		ap=GetExpectationsTop;
+		ap=GetExpectsTop;
 		if(ap && t){
 			assert(ap->pfxs.elemCount);
 			printf("%s Unexpected next prefix %s. PfxIdx:%d Allowed:", 
 				ap->pfxErr, GetPfxName(compiler->m_Pfx), 
 					ap->pfxs.elemCount - 1);
 			idx = 0;
-			while (oi = (Op*)IBVectorIterNext(&GetExpectationsTop->pfxs,&idx)) {
+			while (oi = (Op*)IBVectorIterNext(&GetExpectsTop->pfxs,&idx)) {
 				printf("%s(%d),", GetPfxName(*oi), (int)*oi);
 			}
 		}else{
