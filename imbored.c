@@ -437,8 +437,9 @@ void IBStrInit(IBStr* str, size_t reserve){
 	assert(reserve > 0);
 	assert(str);
 	str->start = (char*)malloc(reserve);
+	assert(str->start);
 	str->end = str->start;
-	*str->start = '\0';
+	if(str->start) (*str->start) = '\0';
 }
 void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	assert(nullTerminated);
@@ -449,6 +450,7 @@ void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 size_t IBStrGetLen(IBStr* str) {
 	size_t len;
 	assert(str);
+	assert(str->end >= str->start);
 	len=str->end - str->start;
 	return len;
 }
@@ -460,12 +462,16 @@ char *IBStrAppend(IBStr* str, char *with) {
 	len = IBStrGetLen(str);
 	assert(len < 8192);
 	withLen = strlen(with);
+	if(!withLen) return str->start;
+	assert(withLen > 0);
+	assert(str->start);
 	ra = realloc(str->start, len + withLen + 1);
 	assert(ra);
 	if (ra) {
 		str->start = (char*)ra;
-		strcpy(str->end, with);
-		str->end = str->start + withLen;
+		strcat(str->start, with);
+		str->end = str->start + len + withLen;
+		return str->start;
 	}else {
 		assert(0);
 		exit(-1);
@@ -1966,6 +1972,10 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 int main(int argc, char** argv) {
 	IBDatabase db;
 	FILE* f;
+	/*IBStr str;
+	IBStrInit(&str, 1);
+	IBStrAppend(&str, "one ");
+	IBStrAppend(&str, "two");*/
 	char* fname = /*argv[1]*/"main.txt";
 	g_DB = &db;
 	IBDatabaseInit(g_DB);
