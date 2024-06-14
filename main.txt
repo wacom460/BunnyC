@@ -1,9 +1,4 @@
-@use $sys
+~@use $sys
 @func $main %i32 $argc %&&c8 $argv @ret %i32
-	%&? $a
-	%i32 $i~~~~
-	$a =@call $malloc =32
-	"Hello, %% %%" "world\n" $argc
-	@call $free $a
-	$i =20
-@@ $i
+	%&? $a =null
+@@ =0

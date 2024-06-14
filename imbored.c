@@ -222,9 +222,12 @@ typedef struct Expects {
 	char* pfxErr;
 	char* nameOpErr;
 	int life;
+	int lineNumInited;
 } Expects;
-void ExpectsInit(Expects* exp, int life,
+void _ExpectsInit(int LINENUM, Expects* exp, int life,
 	char* pfxErr, char* nameOpErr, char* fmt, ...);
+#define ExpectsInit(exp, life, pfxErr, nameOpErr, fmt, ...)\
+	_ExpectsInit(__LINE__, exp, life, pfxErr, nameOpErr, fmt, __VA_ARGS__);
 void ExpectsPrint(Expects* exp);
 void ExpectsFree(Expects* exp);
 typedef struct Task {
@@ -427,8 +430,6 @@ char* SysLibCodeStr =
 "@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
 "@ext @func $free %&? $ptr\n"
 "@ext @func $strdup %&c8 $str @ret %&c8\n"
-"\n"
-"@dbgBreak\n"
 "\n";
 
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
@@ -631,7 +632,7 @@ void ObjFree(Obj* o) {
 	if (o->name) free(o->name);
 	if (o->str) free(o->str);
 }
-void ExpectsInit(Expects* exp, int life, 
+void _ExpectsInit(int LINENUM, Expects* exp, int life, 
 	char *pfxErr, char* nameOpErr, char *fmt, ...) {
 	va_list args;
 	Op pfx;
@@ -642,6 +643,7 @@ void ExpectsInit(Expects* exp, int life,
 	exp->pfxErr=pfxErr;
 	exp->nameOpErr=nameOpErr;
 	exp->life=life;
+	exp->lineNumInited=LINENUM;
 	printf("Expect: { ");
 	va_start(args, fmt);
 	for (i = 0; i < strlen(fmt); i++) {
@@ -663,6 +665,19 @@ void ExpectsInit(Expects* exp, int life,
 	}
 	printf("}\n");
 	va_end(args);
+}
+void ExpectsPrint(Expects* ap) {
+	Op* oi;
+	int idx;
+	idx = 0;
+	printf("[LN:%d] Prefixes { ", ap->lineNumInited);
+	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
+		printf("%s(%d) ", GetPfxName(*oi), (int)*oi);
+	printf("}\nNameOps { ");
+	idx = 0;
+	while (oi = (Op*)IBVectorIterNext(&ap->nameOps, &idx))
+		printf("@%s(%d) ", GetOpName(*oi), (int)*oi);
+	printf("}\n");
 }
 void ExpectsFree(Expects* ap) {
 	IBVectorFreeSimple(&ap->pfxs);
@@ -825,19 +840,6 @@ void CompilerFree(Compiler* compiler) {
 	IBVectorFreeSimple(&compiler->m_StrReadPtrsStack);
 	IBVectorFree(&compiler->m_TaskStack, TaskFree);
 	NameInfoDBFree(&compiler->m_NameTypeCtx);
-}
-void ExpectsPrint(Expects* ap) {
-	Op* oi;
-	int idx;
-	idx = 0;
-	printf("Prefixes { ");
-	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
-		printf("%s(%d) ", GetPfxName(*oi), (int)*oi);
-	printf("}\nNameOps { ");
-	idx = 0;
-	while (oi = (Op*)IBVectorIterNext(&ap->nameOps, &idx))
-		printf("@%s(%d) ", GetOpName(*oi), (int)*oi);
-	printf("}\n");
 }
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects ** exectsDP) {
 	Task *t;
@@ -1133,8 +1135,8 @@ void CompilerInputChar(Compiler* compiler, char ch){
 					ExpectsInit(exp, 0,
 						"expected operator, print statement, or variable declaration",
 						"",
-						"PPP",
-						OP_Op, OP_String, OP_VarType);
+						"PPPN",
+						OP_Op, OP_String, OP_VarType, OP_Done);
 					SetTaskType(OP_FuncWantCode);
 				}
 				else {
