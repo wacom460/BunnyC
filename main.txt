@@ -1,4 +1,4 @@
-~@use $sys
+@use $sys
 @func $main %i32 $argc %&&c8 $argv @ret %i32
 	%&? $a =null
 @@ =0

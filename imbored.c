@@ -1980,14 +1980,13 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 int main(int argc, char** argv) {
 	IBDatabase db;
 	FILE* f;
-	/*IBStr str;
-	IBStrInit(&str, 1);
-	IBStrAppend(&str, "one ");
-	IBStrAppend(&str, "two");*/
-	char* fname = /*argv[1]*/"main.txt";
+	if (argc < 2) {
+		printf("Please specify a file\n");
+		return -1;
+	}
 	g_DB = &db;
 	IBDatabaseInit(g_DB);
-	f = fopen(fname, "r");
+	f = fopen(argv[1], "r");
 	if (f){
 		Compiler comp;
 		char ch;
