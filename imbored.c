@@ -91,13 +91,13 @@ size_t IBStrGetLen(IBStr* str);
 char *IBStrAppend(IBStr* str, char *with);
 typedef union IBVecData {
 	void* ptr;
-	struct Obj* obj;
-	struct Task* task;
-	Op* op;
-	unsigned char *boolean;
-	struct Expectations* expects;
-	struct NameInfoDB* niDB;
-	struct NameInfo* ni;
+	//struct Obj* obj;
+	//struct Task* task;
+	//Op* op;
+	//unsigned char *boolean;
+	//struct Expectations* expects;
+	//struct NameInfoDB* niDB;
+	//struct NameInfo* ni;
 } IBVecData;
 typedef struct IBVector {
 	size_t elemSize;
@@ -257,7 +257,6 @@ typedef struct Compiler {
 	bool m_StringMode;
 	bool m_StrAllowSpace;
 	Op m_CommentMode;
-	//int m_MultiLineOffCount;
 	NameInfoDB m_NameTypeCtx;	
 } Compiler;
 
@@ -400,6 +399,7 @@ OpNamePair opNames[] = {
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
 	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"UseNeedStr",OP_UseNeedStr},
 	{"sys", OP_UseStrSysLib},{"thing", OP_Thing},{"SpaceNeedName",OP_SpaceNeedName},
+	{"RootTask", OP_RootTask}
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -497,7 +497,7 @@ void* IBVectorIterNext(IBVector* vec, int* idx) {
 }
 IBVecData* IBVectorPush(IBVector* vec) {
 	IBVecData* topPtr;
-	if (vec->elemCount >= vec->slotCount) {
+	if (vec->elemCount + 1 > vec->slotCount) {
 		void* ra;
 		ra = NULL;
 		vec->slotCount++;
@@ -827,8 +827,9 @@ void ExpectationsPrint(Expectations* ap) {
 }
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expectations ** exectsDP) {
 	Task *t;
+	t = NULL;
 	printf(" Push task %s(%d)\n", GetOpName(taskOP),(int)taskOP);
-	IBVectorPush(&compiler->m_TaskStack);
+	t=(Task*)IBVectorPush(&compiler->m_TaskStack);
 	TaskInit(t, taskOP);
 	(*exectsDP) = (Expectations*)IBVectorPush(&t->expStack);
 }
