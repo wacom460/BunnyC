@@ -1,3 +1,3 @@
 @echo off
-drmemory x64/Debug/Build.exe
+drmemory x64/Debug/Build.exe main.txt
 pause
