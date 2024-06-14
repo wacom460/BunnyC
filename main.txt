@@ -1,4 +1,4 @@
-@use "sys"
+@use $sys
 ~~
 @ext @func $malloc %i32 $size @ret %&?
 @dbgAssert "taskType" "null"

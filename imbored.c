@@ -95,7 +95,7 @@ typedef union IBVecData {
 	struct Task* task;
 	Op* op;
 	unsigned char *boolean;
-	struct Expectations* apfxs;
+	struct Expectations* expects;
 	struct NameInfoDB* niDB;
 	struct NameInfo* ni;
 } IBVecData;
@@ -225,8 +225,8 @@ typedef struct Expectations {
 } Expectations;
 void ExpectationsInit(Expectations* exp, int life,
 	char* pfxErr, char* nameOpErr, char* fmt, ...);
-void AllowedPfxsPrint(Expectations* ap);
-void AllowedPfxsFree(Expectations* ap);
+void ExpectationsPrint(Expectations* exp);
+void ExpectationsFree(Expectations* exp);
 typedef struct Task {
 	Op type;
 	IBVector expStack; /*Expectations*/
@@ -269,10 +269,10 @@ void _Err(Compiler *compiler, Op code, char *msg);
 Obj* CompilerGetObj(Compiler* compiler);
 void CompilerInit(Compiler* compiler);
 void CompilerFree(Compiler* compiler);
-void _CompilerPushTask(Compiler* compiler, Op taskOP, Expectations** initialAPfxs);
-#define CompilerPushTask(compiler, taskOP, apfxsDP){\
+void _CompilerPushTask(Compiler* compiler, Op taskOP, Expectations** exectsDP);
+#define CompilerPushTask(compiler, taskOP, exectsDP){\
 	PLINE;\
-	_CompilerPushTask(compiler, taskOP, apfxsDP);\
+	_CompilerPushTask(compiler, taskOP, exectsDP);\
 }
 void _CompilerPopTask(Compiler* compiler);
 #define CompilerPopTask(compiler){\
@@ -301,7 +301,7 @@ void _CompilerPop(Compiler* compiler);
 }
 /*life:0 = infinite, -1 life each pfx*/
 void CompilerPushExpectations(Compiler* compiler, Expectations** expDP);
-void CompilerPopAllowedNextPfxs(Compiler* compiler);
+void CompilerPopExpectations(Compiler* compiler);
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx);
 /*NO NEWLINES AT END OF STR*/
 void CompilerTick(Compiler* compiler, FILE *f);
@@ -321,7 +321,7 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 }
 #define PopPfxs(){\
 	PLINE;\
-	CompilerPopAllowedNextPfxs(compiler);\
+	CompilerPopExpectations(compiler);\
 }
 Task* _GetTask(Compiler *compiler){
 	Task* ret;
@@ -333,8 +333,8 @@ Task* _GetTask(Compiler *compiler){
 	return ret;
 }
 #define GetTask _GetTask(compiler)
-#define GetAPfxsStack (GetTask ? &GetTask->expStack : NULL)
-#define GetAllowedPfxsTop ((Expectations*)IBVectorTop(GetAPfxsStack))
+#define GetExpectsStack (GetTask ? &GetTask->expStack : NULL)
+#define GetExpectationsTop ((Expectations*)IBVectorTop(GetExpectsStack))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
 #define GetTaskType (GetTask ? GetTask->type : OP_TaskStackEmpty)
 #define GetTaskCode   (GetTask->code1)
@@ -399,7 +399,7 @@ OpNamePair opNames[] = {
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
 	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"UseNeedStr",OP_UseNeedStr},
-	{"sys", OP_UseStrSysLib},{"thing", OP_Thing},
+	{"sys", OP_UseStrSysLib},{"thing", OP_Thing},{"SpaceNeedName",OP_SpaceNeedName},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -426,7 +426,7 @@ OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
 };
 char* SysLibCodeStr = 
-"@space \"sys\"\n"
+"@space $sys\n"
 "@ext @func $malloc %i32 $size @ret %&?\n"
 "@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
 "@ext @func $free %&? $ptr\n"
@@ -634,6 +634,7 @@ void ExpectationsInit(Expectations* exp, int life,
 	exp->pfxErr=pfxErr;
 	exp->nameOpErr=nameOpErr;
 	exp->life=life;
+	printf("Expect: { ");
 	va_start(args, fmt);
 	for (i = 0; i < strlen(fmt); i++) {
 		char ch = fmt[i];
@@ -641,18 +642,21 @@ void ExpectationsInit(Expectations* exp, int life,
 		case 'P': {
 			pfx=va_arg(args, Op);
 			IBVectorCopyPushOp(&exp->pfxs, pfx);
+			printf("Pfx:%s(%d) ", GetPfxName(pfx), (int)pfx);
 			break;
 		}
 		case 'N':{
 			nameOp=va_arg(args, Op);
 			IBVectorCopyPushOp(&exp->nameOps, nameOp);
+			printf("NameOP:%s(%d) ", GetOpName(nameOp), (int)nameOp);
 			break;
 		}
 		}
 	}
+	printf("}\n");
 	va_end(args);
 }
-void AllowedPfxsFree(Expectations* ap) {
+void ExpectationsFree(Expectations* ap) {
 	IBVectorFreeSimple(&ap->pfxs);
 	IBVectorFreeSimple(&ap->nameOps);
 }
@@ -664,7 +668,7 @@ void TaskInit(Task* t, Op type) {
 	t->code2[0] = '\0';
 }
 void TaskFree(Task* t) {
-	IBVectorFree(&t->expStack, AllowedPfxsFree);
+	IBVectorFree(&t->expStack, ExpectationsFree);
 	IBVectorFree(&t->working, ObjFree);
 }
 void _Err(Compiler *compiler, Op code, char *msg){
@@ -761,6 +765,8 @@ Obj* CompilerGetObj(Compiler* compiler) {
 }
 void CompilerInit(Compiler* compiler){
 	Obj* o;
+	Task* t;
+	Expectations* exp;
 	compiler->m_Running = true;
 	compiler->m_Line = 1;
 	compiler->m_Column = 1;
@@ -783,6 +789,8 @@ void CompilerInit(Compiler* compiler){
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
 	CompilerPush(compiler, OP_ModePrefixPass, false);
 	CompilerPushObj(compiler, &o);
+	CompilerPushTask(compiler, OP_RootTask, &exp);
+	ExpectationsInit(exp, 0, "Expected OP", "expected @func or @thing", "PNN", OP_Op, OP_Func, OP_Thing);
 }
 void CompilerFree(Compiler* compiler) {
 	if (compiler->m_StringMode)
@@ -810,19 +818,19 @@ void CompilerFree(Compiler* compiler) {
 	IBVectorFree(&compiler->m_TaskStack, TaskFree);
 	NameInfoDBFree(&compiler->m_NameTypeCtx);
 }
-void AllowedPfxsPrint(Expectations* ap) {
+void ExpectationsPrint(Expectations* ap) {
 	Op* oi;
 	int idx;
 	idx = 0;
 	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
 		printf("%s ", GetPfxName(*oi));
 }
-void _CompilerPushTask(Compiler* compiler, Op taskOP, Expectations **initialAPfxs) {
-	Task t;
+void _CompilerPushTask(Compiler* compiler, Op taskOP, Expectations ** exectsDP) {
+	Task *t;
 	printf(" Push task %s(%d)\n", GetOpName(taskOP),(int)taskOP);
-	TaskInit(&t, taskOP);
-	(*initialAPfxs) = (Expectations*)IBVectorPush(&t.expStack);
-	IBVectorCopyPush(&compiler->m_TaskStack, &t);
+	IBVectorPush(&compiler->m_TaskStack);
+	TaskInit(t, taskOP);
+	(*exectsDP) = (Expectations*)IBVectorPush(&t->expStack);
 }
 void _CompilerPopTask(Compiler* compiler) {
 	printf(" Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
@@ -937,14 +945,15 @@ void CompilerPushExpectations(Compiler* compiler, Expectations **expDP){
 	Task* t;
 	Expectations* exp;
 	t = GetTask;
+	assert(t);
 	assert(expDP);
 	assert(*expDP);
 	exp = (Expectations*)IBVectorPush(&t->expStack);
 	assert(exp);
 	(*expDP) = exp;
 }
-void CompilerPopAllowedNextPfxs(Compiler* compiler) {
-	IBVector* pfxsIb = &GetAllowedPfxsTop->pfxs;
+void CompilerPopExpectations(Compiler* compiler) {
+	IBVector* pfxsIb = &GetExpectationsTop->pfxs;
 	if (pfxsIb->elemCount) {
 		Op* oi;
 		int idx;
@@ -955,9 +964,9 @@ void CompilerPopAllowedNextPfxs(Compiler* compiler) {
 			printf("%s ", GetPfxName(*oi));
 		}
 		printf("} -> { ");
-		IBVectorPop(GetAPfxsStack, AllowedPfxsFree);
-		if (!GetAPfxsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
-		pfxsIb = &GetAllowedPfxsTop->pfxs;
+		IBVectorPop(GetExpectsStack, ExpectationsFree);
+		if (!GetExpectsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
+		pfxsIb = &GetExpectationsTop->pfxs;
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(pfxsIb,&idx)) {
 			printf("%s ", GetPfxName(*oi));
@@ -973,10 +982,10 @@ bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	t = NULL;
 	ap = NULL;
 	t = GetTask;
-	if(!t || !GetAPfxsStack->elemCount) return pfx == OP_Op;
+	if(!t || !GetExpectsStack->elemCount) return pfx == OP_Op;
 	idx = 0;
 	oi = NULL;
-	ap = GetAllowedPfxsTop;
+	ap = GetExpectationsTop;
 	if(ap) while (oi = (Op*)IBVectorIterNext(&ap->pfxs,&idx)) {
 		assert(oi);
 		if (oi && *oi == pfx) 
@@ -1416,7 +1425,7 @@ void CompilerPrefix(Compiler* compiler){
 	if (compiler->m_Pfx == OP_Unknown) Err(OP_ErrUnknownPfx, "catastrophic err");
 	obj=CompilerGetObj(compiler);
 	if (compiler->m_Pfx != OP_Unknown
-		&& (!GetTask || GetAllowedPfxsTop->pfxs.elemCount)
+		&& (!GetTask || GetExpectationsTop->pfxs.elemCount)
 		&& !CompilerIsPfxExpected(compiler, compiler->m_Pfx)
 	)
 	{
@@ -1446,9 +1455,9 @@ void CompilerPrefix(Compiler* compiler){
 		Expectations* aps=NULL;
 		Task* t;
 		t = GetTask;
-		if(t) aps = GetAllowedPfxsTop;
+		if(t) aps = GetExpectationsTop;
 		if (aps && aps->life && --aps->life <= 0) {
-			IBVectorPop(GetAPfxsStack, AllowedPfxsFree);
+			IBVectorPop(GetExpectsStack, ExpectationsFree);
 		}
 	}
 }
@@ -1526,25 +1535,6 @@ void CompilerStrPayload(Compiler* compiler){
 	{
 	case OP_String: { /* " */
 		switch(t->type){
-		case OP_UseNeedStr:{
-			Op lib;
-			lib = compiler->m_NameOp;
-			switch(lib){
-			case OP_UseStrSysLib:{
-				printf("Inputting system lib code to compiler\n");
-				//CompilerInputStr(compiler, SysLibCodeStr);
-				assert(!compiler->inputStr);
-				compiler->inputStr = SysLibCodeStr;
-				break;
-			}
-			default:{
-				
-				break;
-			}
-			}
-			CompilerPopTask(compiler);
-			break;
-		}
 		case OP_dbgAssertWantArgs: {
 			switch (GetOpFromNameList(compiler->m_Str, OP_dbgAssert)) {
 			case OP_TaskType:{
@@ -1653,6 +1643,25 @@ void CompilerStrPayload(Compiler* compiler){
 		break;
 	case OP_Name: { /* $ */
 		switch(t->type){
+		case OP_UseNeedStr: {
+			Op lib;
+			lib = compiler->m_NameOp;
+			switch (lib) {
+			case OP_UseStrSysLib: {
+				printf("Inputting system lib code to compiler\n");
+				//CompilerInputStr(compiler, SysLibCodeStr);
+				assert(!compiler->inputStr);
+				compiler->inputStr = SysLibCodeStr;
+				break;
+			}
+			default: {
+
+				break;
+			}
+			}
+			CompilerPopTask(compiler);
+			break;
+		}
 		case OP_SpaceNeedName: {
 			Obj* o;
 			CompilerPushObj(compiler, &o);
@@ -1747,7 +1756,7 @@ void CompilerStrPayload(Compiler* compiler){
 				CompilerPushObj(compiler, &o);
 				ObjSetType(o, OP_CallNeedName);
 				CompilerPushExpectations(compiler, &exp);
-				ExpectationsInit(exp, 0, "expected function name", "P", OP_Name);
+				ExpectationsInit(exp, 0, "expected function name", "", "P", OP_Name);
 			}
 			}
 			break;
@@ -1839,7 +1848,7 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Use:{
 			Expectations *ap;
 			CompilerPushTask(compiler, OP_UseNeedStr, &ap);
-			ExpectationsInit(ap, 0, "@use: Expected string", "", "P", OP_String);
+			ExpectationsInit(ap, 0, "expected @use name", "", "P", OP_Name);
 			break;
 		}
 		default:
@@ -1878,14 +1887,14 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 		Task *t;
 		int idx;
 		t =GetTask;
-		ap=GetAllowedPfxsTop;
+		ap=GetExpectationsTop;
 		if(ap && t){
 			assert(ap->pfxs.elemCount);
 			printf("%s Unexpected next prefix %s. PfxIdx:%d Allowed:", 
 				ap->pfxErr, GetPfxName(compiler->m_Pfx), 
 					ap->pfxs.elemCount - 1);
 			idx = 0;
-			while (oi = (Op*)IBVectorIterNext(&GetAllowedPfxsTop->pfxs,&idx)) {
+			while (oi = (Op*)IBVectorIterNext(&GetExpectationsTop->pfxs,&idx)) {
 				printf("%s(%d),", GetPfxName(*oi), (int)*oi);
 			}
 		}else{
