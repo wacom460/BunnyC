@@ -86,6 +86,7 @@ typedef struct IBStr {
 	char* end; //ptr of null terminator '\0'
 } IBStr;
 void IBStrInit(IBStr* str, size_t reserve);
+void IBStrFree(IBStr* str);
 void IBStrInitNTStr(IBStr* str, char* nullTerminated);
 size_t IBStrGetLen(IBStr* str);
 char *IBStrAppend(IBStr* str, char *with);
@@ -441,6 +442,9 @@ void IBStrInit(IBStr* str, size_t reserve){
 	assert(str->start);
 	str->end = str->start;
 	if(str->start) (*str->start) = '\0';
+}
+void IBStrFree(IBStr* str){
+	free(str->start);
 }
 void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	assert(nullTerminated);
@@ -833,13 +837,15 @@ void CompilerFree(Compiler* compiler) {
 		}
 		}
 	}
-	printf("-> Compilation complete <-\nC Header:\n%s\n\nC File:\n%s\n\n", compiler->m_CHeader.start, compiler->m_CFile.start);
-	//printf("%s", compiler->m_cOutput);
+	printf("-> Compilation complete <-\nC Header:\n%s\n\nC File:\n%s\n\n", 
+		compiler->m_CHeader.start, compiler->m_CFile.start);
 	IBVectorFree(&compiler->m_ObjStack, ObjFree);
 	IBVectorFreeSimple(&compiler->m_ModeStack);
 	IBVectorFreeSimple(&compiler->m_StrReadPtrsStack);
 	IBVectorFree(&compiler->m_TaskStack, TaskFree);
 	NameInfoDBFree(&compiler->m_NameTypeCtx);
+	IBStrFree(&compiler->m_CHeader);
+	IBStrFree(&compiler->m_CFile);
 }
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects ** exectsDP) {
 	Task *t;
