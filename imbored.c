@@ -347,10 +347,6 @@ Task* _GetTask(Compiler *compiler){
 		GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
-typedef struct PathAssertion {
-	Op start;
-	Op allowedToBecome[3];
-} PathAssertion;
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -365,10 +361,6 @@ void owStr(char** str, char* with);
 
 #ifndef IB_HEADER
 char* CompilerStringModeIgnoreChars = "";
-PathAssertion pathAssertions[] = {
-	{OP_NotSet, {OP_Any}},
-	{OP_Op, {OP_Func}},
-};
 OpNamePair opNames[] = {
 	{"null", OP_Null},{"no", OP_False},{"yes", OP_True},{"set", OP_Set},
 	{"call", OP_Call},{"add", OP_SetAdd},{"func", OP_Func},{"~", OP_Comment},
@@ -455,8 +447,10 @@ void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	str->end = str->start + strlen(nullTerminated);
 }
 size_t IBStrGetLen(IBStr* str) {
+	size_t len;
 	assert(str);
-	return str->end - str->start;
+	len=str->end - str->start;
+	return len;
 }
 char *IBStrAppend(IBStr* str, char *with) {
 	void* ra;
@@ -471,7 +465,7 @@ char *IBStrAppend(IBStr* str, char *with) {
 	if (ra) {
 		str->start = (char*)ra;
 		strcpy(str->end, with);
-		str->end += withLen;
+		str->end = str->start + withLen;
 	}else {
 		assert(0);
 		exit(-1);
@@ -1188,6 +1182,7 @@ char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type) {
 	case OP_i32:    return "d";
 	case OP_i64:    return "lld";
 	case OP_u64:    return "llu";
+	case OP_d64:    return "f";
 	case OP_f32:    return "f";
 	case OP_u32:    return "u";
 	case OP_Char:   return "c";
@@ -1812,7 +1807,7 @@ void CompilerStrPayload(Compiler* compiler){
 			Expects* exp;
 			ObjSetMod(CompilerGetObj(compiler), compiler->m_NameOp);
 			CompilerPushExpects(compiler, &exp);
-			ExpectsInit(exp, 0, "", "", "PN", OP_Op, OP_Func);
+			ExpectsInit(exp, 1, "", "", "PN", OP_Op, OP_Func);
 			break;
 		}
 		case OP_Done:
