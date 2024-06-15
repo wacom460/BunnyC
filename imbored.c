@@ -23,7 +23,6 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 */
 
 #define PLINE printf("[%d]", __LINE__)
-#define OBJ_NAME_LEN 64
 #define OP_NAME_LEN 32
 #define COMMENT_CHAR ('~')
 #define CODE_STR_MAX 512
@@ -92,13 +91,13 @@ size_t IBStrGetLen(IBStr* str);
 char *IBStrAppend(IBStr* str, char *with);
 typedef union IBVecData {
 	void* ptr;
-	struct Obj* obj;
+	/*struct Obj* obj;
 	struct Task* task;
 	Op* op;
 	unsigned char *boolean;
 	struct Expects* expects;
 	struct NameInfoDB* niDB;
-	struct NameInfo* ni;
+	struct NameInfo* ni;*/
 } IBVecData;
 typedef struct IBVector {
 	size_t elemSize;
@@ -431,6 +430,7 @@ char* SysLibCodeStr =
 "@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
 "@ext @func $free %&? $ptr\n"
 "@ext @func $strdup %&c8 $str @ret %&c8\n"
+"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
 "\n";
 
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
@@ -465,7 +465,7 @@ char *IBStrAppend(IBStr* str, char *with) {
 	size_t withLen;
 	assert(str);
 	len = IBStrGetLen(str);
-	assert(len < 8192);
+	//assert(len < 8192);
 	withLen = strlen(with);
 	if(!withLen) return str->start;
 	assert(withLen > 0);
@@ -776,7 +776,6 @@ Op fromPfxCh(char ch) {
 }
 void owStr(char** str, char* with) {
 	assert(str);
-	//assert(*str);
 	assert(with);
 	if (!with){
 		if(*str)free(*str);
@@ -934,7 +933,6 @@ void ObjSetMod(Obj* obj, Op mod) {
 }
 void _ObjSetName(Obj* obj, char* name) {
 	assert(obj);
-	//assert(obj->name);
 	printf(" obj name: %s -> %s\n", obj->name, name);
 	owStr(&obj->name, name);
 }
@@ -945,7 +943,6 @@ void ObjSetStr(Obj* obj, char* Str) {
 void ObjCopy(Obj* dst, Obj* src) {
 	assert(dst && src);
 	*dst=*src;
-	//memcpy(dst,src,sizeof(Obj));
 	dst->name = NULL;
 	dst->str = NULL;
 	if(src->name) owStr(&dst->name, src->name);
@@ -981,7 +978,7 @@ void CompilerPopExpects(Compiler* compiler) {
 		Op* oi;
 		int idx;
 
-		printf(" allowed pfxs POP: { ");
+		printf(" Expects POP: { ");
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(pfxsIb, &idx)) {
 			printf("%s ", GetPfxName(*oi));
@@ -1062,8 +1059,8 @@ void CompilerInputChar(Compiler* compiler, char ch){
 		compiler->m_Ch==COMMENT_CHAR/*&&
 		compiler->m_LastCh!=COMMENT_CHAR*/)
 	{
-		PLINE;
-		printf(" LINE COMMENT ON\n");
+		/*PLINE;
+		printf(" LINE COMMENT ON\n");*/
 		compiler->m_CommentMode = OP_Comment;
 		CompilerPush(compiler, OP_ModeComment, false);
 	}else if(compiler->m_CommentMode==OP_Comment&&
@@ -1072,8 +1069,8 @@ void CompilerInputChar(Compiler* compiler, char ch){
 				&&compiler->m_Ch==COMMENT_CHAR&&
 				m==OP_ModeComment)
 	{
-		PLINE;
-		printf(" MULTI COMMENT ON!!!!!!\n");
+		/*PLINE;
+		printf(" MULTI COMMENT ON!!!!!!\n");*/
 		CompilerPop(compiler);
 		CompilerPush(compiler, OP_ModeMultiLineComment, false);
 		compiler->m_CommentMode = OP_MultiLineComment;
@@ -1082,12 +1079,10 @@ void CompilerInputChar(Compiler* compiler, char ch){
 		compiler->m_LastCh==compiler->m_Ch && 
 				!compiler->m_StringMode
 				&&compiler->m_Ch==COMMENT_CHAR&&
-				m==OP_ModeMultiLineComment)
-	{
-		PLINE;
-		printf(" MULTI COMMENT OFF!\n");
+				m==OP_ModeMultiLineComment) {
+		/*PLINE;
+		printf(" MULTI COMMENT OFF!\n");*/
 		compiler->m_CommentMode=OP_NotSet;
-		//compiler
 	}
 	switch (compiler->m_Ch) {
 	case '\0': return;
@@ -1157,9 +1152,9 @@ void CompilerInputChar(Compiler* compiler, char ch){
 	m = GetMode;
 	compiler->m_Column++;
 	if (!nl && compiler->m_CommentMode == OP_NotSet) {
-		if(compiler->m_Ch == ' ') printf("-> SPACE (0x%x)\n",  compiler->m_Ch);
+		/*if(compiler->m_Ch == ' ') printf("-> SPACE (0x%x)\n",  compiler->m_Ch);
 		else printf("-> %c (0x%x) %d:%d\n", 
-			compiler->m_Ch, compiler->m_Ch, compiler->m_Line, compiler->m_Column);
+			compiler->m_Ch, compiler->m_Ch, compiler->m_Line, compiler->m_Column);*/
 		switch (m) {
 		case OP_ModeComment:
 		case OP_ModeMultiLineComment:
@@ -1305,12 +1300,13 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				StrConcat(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.type));
 				StrConcat(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.mod));
 				StrConcat(cFuncCode, CODE_STR_MAX, " ");
-				if(!o->name)Err(OP_ErrNOT_GOOD, "var name NULL");
+				if (!o->name)Err(OP_ErrNOT_GOOD, "var name NULL");
 				StrConcat(cFuncCode, CODE_STR_MAX, o->name);
-				StrConcat(cFuncCode, CODE_STR_MAX, "=");
-				/*snprintf(valBuf, 32, "%I64u", o->var.val.i64);*/
-				sprintf(valBuf, "%I64u", o->var.val.i64);
-				StrConcat(cFuncCode, 32, valBuf);
+				if (o->var.valSet) {
+					StrConcat(cFuncCode, CODE_STR_MAX, " = ");
+					sprintf(valBuf, "%d", o->var.val.i32);
+					StrConcat(cFuncCode, 32, valBuf);
+				}				
 				StrConcat(cFuncCode, CODE_STR_MAX, ";\n");
 				break;
 			}
@@ -1333,13 +1329,9 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 			StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
 		}
-		//compiler->m_cOutput[0]='\0';
 		IBStrAppend(&compiler->m_CFile, cFuncModsTypeName);
 		IBStrAppend(&compiler->m_CFile, cFuncArgs);
 		IBStrAppend(&compiler->m_CFile, cFuncCode);
-		/*StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncModsTypeName);
-		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncArgs);
-		StrConcat(compiler->m_cOutput, CODE_STR_MAX, cFuncCode);*/
 		break;
 	}
 	case OP_CPrintfHaveFmtStr: {
@@ -1548,15 +1540,15 @@ void CompilerStr(Compiler* compiler){
 			if (*(bool*)IBVectorTop(&compiler->m_StrReadPtrsStack)) {
 				switch (compiler->m_Pointer) {
 				case OP_NotSet:
-					printf("got pointer\n");
+					printf("Got pointer\n");
 					compiler->m_Pointer = OP_Pointer;
 					break;
 				case OP_Pointer:
-					printf("got double pointer\n");
+					printf("Got double pointer\n");
 					compiler->m_Pointer = OP_DoublePointer;
 					break;
 				case OP_DoublePointer:
-					printf("got tripple pointer\n");
+					printf("Got tripple pointer\n");
 					compiler->m_Pointer = OP_TripplePointer;
 					break;
 				case OP_TripplePointer:
@@ -1575,10 +1567,9 @@ void CompilerStrPayload(Compiler* compiler){
 	Task *t;
 	t=NULL;
 	t=GetTask;
-	printf("Doing Str payload\n");
 	strVal.i32=atoi(compiler->m_Str);
 	compiler->m_NameOp = GetOpFromName(compiler->m_Str);
-	printf("Str: %s\n", compiler->m_Str);
+	printf("StrPayload: %s\n", compiler->m_Str);
 	switch (compiler->m_Pfx)
 	{
 	case OP_String: { /* " */
@@ -1618,7 +1609,10 @@ void CompilerStrPayload(Compiler* compiler){
 	case OP_Value: { /*=*/
 		switch (GetObjType) {
 		case OP_VarWantValue: {
-			CompilerGetObj(compiler)->var.val = strVal;
+			Obj* o;
+			o = CompilerGetObj(compiler);
+			o->var.val = strVal;
+			o->var.valSet = true;
 			SetObjType(OP_VarComplete);
 			PopPfxs();
 			break;
@@ -1658,10 +1652,12 @@ void CompilerStrPayload(Compiler* compiler){
 	case OP_VarType: /* % */
 		switch (GetTaskType) {
 		case OP_FuncWantCode: {
+			Obj* o;
 			Expects* exp;
-			CompilerPushObj(compiler, NULL);
-			CompilerGetObj(compiler)->var.type = compiler->m_NameOp;
-			CompilerGetObj(compiler)->var.mod = OP_NotSet;
+			CompilerPushObj(compiler, &o);
+			o->var.type = compiler->m_NameOp;
+			o->var.mod = compiler->m_Pointer;
+			o->var.valSet = false;
 			SetObjType(OP_VarNeedName);
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "expected variable name", "", "P", OP_Name);
@@ -1846,7 +1842,12 @@ void CompilerStrPayload(Compiler* compiler){
 						if (o->func.retType != OP_Void) {
 							Expects* exp;
 							CompilerPushExpects(compiler, &exp);
-							ExpectsInit(exp, 0, "", "", "P", OP_Value);
+							if (o->func.retType == OP_c8 && o->func.retTypeMod == OP_Pointer) {
+								ExpectsInit(exp, 0, "", "", "PP", OP_Name, OP_String);
+							}
+							else {
+								ExpectsInit(exp, 0, "", "", "P", OP_Value);
+							}
 							SetTaskType(OP_FuncNeedRetVal);
 						}
 						else {
@@ -1914,7 +1915,9 @@ void CompilerStrPayload(Compiler* compiler){
 	CompilerPop(compiler);
 	if(compiler->m_StrReadPtrsStack.elemCount > 1)
 	{
-		if (*(bool*)IBVectorTop(&compiler->m_StrReadPtrsStack)) compiler->m_Pointer = OP_NotSet;
+		if (*(bool*)IBVectorTop(&compiler->m_StrReadPtrsStack)) {
+			compiler->m_Pointer = OP_NotSet;
+		}
 		IBVectorPop(&compiler->m_StrReadPtrsStack, NULL);
 	}
 }
@@ -1954,9 +1957,9 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 		ap=GetExpectsTop;
 		if(ap && t){
 			assert(ap->pfxs.elemCount);
-			printf("%s Unexpected next prefix %s. PfxIdx:%d Allowed:", 
+			printf("Err: \"%s\" Unexpected next prefix %s. Pfx idx:%d\nEnforced at line %d. Allowed:", 
 				ap->pfxErr, GetPfxName(compiler->m_Pfx), 
-					ap->pfxs.elemCount - 1);
+					ap->pfxs.elemCount - 1, ap->lineNumInited);
 			idx = 0;
 			while (oi = (Op*)IBVectorIterNext(&GetExpectsTop->pfxs,&idx)) {
 				printf("%s(%d),", GetPfxName(*oi), (int)*oi);
@@ -1990,11 +1993,9 @@ int main(int argc, char** argv) {
 	f = fopen(argv[1], "r");
 	if (f){
 		Compiler comp;
-		char ch;
 		CompilerInit(&comp);
-		while (comp.m_Running) {
+		while (comp.m_Running)
 			CompilerTick(&comp, f);
-		}
 		printf("Exiting\n");
 		CompilerFree(&comp);
 		getchar();
