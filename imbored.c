@@ -74,7 +74,6 @@ typedef enum Op { /* multiple uses */
 
 	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
 } Op;
-OpNamePair opNames[];
 #define CLAMP_IMP {\
 	return val < min ? min : val > max ? max : val;\
 }
