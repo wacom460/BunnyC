@@ -27,7 +27,7 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #define COMMENT_CHAR ('~')
 #define CODE_STR_MAX 512
 #define CompilerSTR_MAX 64
-#ifdef __TINYC__
+#if defined(__TINYC__) || defined(__GNUC__)
 #define __debugbreak()
 #endif
 #define DB __debugbreak();
@@ -127,18 +127,18 @@ void IBVectorFreeSimple(IBVector* vec);
 	IBVectorFreeSimple((vec));\
 }
 char* StrConcat(char* dest, int count, char* src);
-typedef union Val {
+typedef union {
 	unsigned char u8;
-	unsigned short u16;
-	unsigned int u32;
-	unsigned __int64 u64;
-	char i8;
-	char c8;
-	short i16;
-	int i32;
-	__int64 i64;
-	float f32;
-	double d64;
+		unsigned short u16;
+		unsigned int u32;
+		unsigned long long u64;
+		char i8;
+		char c8;
+		short i16;
+		int i32;
+		long long i64;
+		float f32;
+		double d64;
 } Val;
 typedef struct IB_Variable {
 	Op type;
@@ -604,7 +604,7 @@ void NameInfoDBInit(NameInfoDB* db) {
 void NameInfoDBAdd(NameInfoDB* db, char* name, Op type) {
 	NameInfo info;
 	info.type = type;
-	info.name = _strdup(name);
+	info.name = strdup(name);
 	IBVectorCopyPush(&db->pairs, &info);
 }
 Op NameInfoDBFindType(NameInfoDB* db, char* name) {
@@ -787,7 +787,7 @@ void owStr(char** str, char* with) {
 		return;
 	}
 	if (*str) free(*str);
-	*str = _strdup(with);
+	*str = strdup(with);
 	assert(*str);
 }
 Obj* CompilerGetObj(Compiler* compiler) {
@@ -956,17 +956,20 @@ void ObjCopy(Obj* dst, Obj* src) {
 	if(src->str) owStr(&dst->str, src->str);
 }
 void ObjPrint(Obj* obj) {
-	printf("[");
-	if (obj->type != OP_NotSet) {
-		printf("Type:%s(%d),", GetOpName(obj->type), (int)obj->type);
+	assert(obj);
+	if(obj){
+		printf("[");
+		if (obj->type != OP_NotSet) {
+			printf("Type:%s(%d),", GetOpName(obj->type), (int)obj->type);
+		}
+		if(obj->name)printf("Name:%s,", obj->name);
+		if (obj->str)printf("Str:%s,", obj->str);
+		if (obj->modifier != OP_NotSet) {
+			printf("Mod:%s,", GetOpName(obj->modifier));
+		}
+		/*if(u64)*/printf("Val:%d", obj->val.i32);
+		printf("]");
 	}
-	if(obj->name)printf("Name:%s,", obj->name);
-	if (obj->str)printf("Str:%s,", obj->str);
-	if (obj->modifier != OP_NotSet) {
-		printf("Mod:%s,", GetOpName(obj->modifier));
-	}
-	/*if(u64)*/printf("Val:%d", obj->val.i32);
-	printf("]");
 }
 void CompilerPushExpects(Compiler* compiler, Expects **expDP){
 	Task* t;
@@ -974,10 +977,12 @@ void CompilerPushExpects(Compiler* compiler, Expects **expDP){
 	t = GetTask;
 	assert(t);
 	assert(expDP);
-	assert(*expDP);
-	exp = (Expects*)IBVectorPush(&t->expStack);
-	assert(exp);
-	(*expDP) = exp;
+	if(expDP){
+		assert(*expDP);
+		exp = (Expects*)IBVectorPush(&t->expStack);
+		assert(exp);
+		(*expDP) = exp;
+	}	
 }
 void CompilerPopExpects(Compiler* compiler) {
 	IBVector* pfxsIb = &GetExpectsTop->pfxs;
@@ -1539,7 +1544,7 @@ void CompilerStr(Compiler* compiler){
 		case ' ': {
 			if (compiler->m_StrAllowSpace) break;
 			else {
-				CompilerStrPayload(compiler);
+					CompilerStrPayload(compiler);
 				return;
 			}
 		}
