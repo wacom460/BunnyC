@@ -1,0 +1,6 @@
+clear
+rm ./a.out
+#gcc -g3 -fsanitize=address -fsanitize=undefined -fsanitize=leak -ansi imbored.c
+gcc -g3 -ansi imbored.c
+#./a.out main.txt
+valgrind ./a.out main.txt
