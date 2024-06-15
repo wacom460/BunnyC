@@ -1982,6 +1982,7 @@ int main(int argc, char** argv) {
 	FILE* f;
 	if (argc < 2) {
 		printf("Please specify a file\n");
+		getchar();
 		return -1;
 	}
 	g_DB = &db;
