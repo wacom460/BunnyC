@@ -186,6 +186,7 @@ typedef struct FuncObj {
 	Val retVal;
 	Op retType;
 	Op retTypeMod;
+	struct Obj* thingHost;
 } FuncObj;
 typedef struct ArgObj {
 	Op type;
@@ -258,7 +259,8 @@ typedef struct Compiler {
 	Op m_Pfx;
 	char m_Str[CompilerSTR_MAX];
 	/*char m_cOutput[CODE_STR_MAX];*/
-	IBStr m_CHeader;/* .h */
+	IBStr m_CHeaderStructs;/* .h */
+	IBStr m_CHeaderFuncs;
 	IBStr m_CFile;/* .c */
 
 	IBVector m_ObjStack; /*Obj*/
@@ -827,10 +829,11 @@ void CompilerInit(Compiler* compiler){
 	compiler->m_Column = 1;
 	compiler->m_Pfx = OP_Null;
 	compiler->m_Str[0] = '\0';
-	IBStrInit(&compiler->m_CHeader, 1);
-	IBStrAppend(&compiler->m_CHeader, "#ifndef HEADER_H_\n#define HEADER_H_\n\n");
+	IBStrInit(&compiler->m_CHeaderStructs, 1);
+	IBStrInit(&compiler->m_CHeaderFuncs, 1);
+	IBStrAppend(&compiler->m_CHeaderStructs, "#ifndef HEADER_H_\n#define HEADER_H_\n\n");
 	IBStrInit(&compiler->m_CFile, 1);
-	IBStrAppend(&compiler->m_CFile, "#include \"header.h\"\n");
+	IBStrAppend(&compiler->m_CFile, "#include \"header.h\"\n\n");
 	compiler->m_Pointer = OP_NotSet;
 	compiler->m_Privacy = OP_NotSet;
 	compiler->m_NameOp = OP_Null;
@@ -872,15 +875,16 @@ void CompilerFree(Compiler* compiler) {
 		}
 		}
 	}
-	IBStrAppend(&compiler->m_CHeader, "\n#endif\n");
-	printf("-> Compilation complete <-\nC Header:\n%s\n\nC File:\n%s\n\n",
-		compiler->m_CHeader.start, compiler->m_CFile.start);
+	IBStrAppend(&compiler->m_CHeaderFuncs, "\n#endif\n");
+	printf("-> Compilation complete <-\nC Header:\n%s%s\n\nC File:\n%s\n\n",
+		compiler->m_CHeaderStructs.start, compiler->m_CHeaderFuncs.start, compiler->m_CFile.start);
 	IBVectorFree(&compiler->m_ObjStack, ObjFree);
 	IBVectorFreeSimple(&compiler->m_ModeStack);
 	IBVectorFreeSimple(&compiler->m_StrReadPtrsStack);
 	IBVectorFree(&compiler->m_TaskStack, TaskFree);
 	NameInfoDBFree(&compiler->m_NameTypeCtx);
-	IBStrFree(&compiler->m_CHeader);
+	IBStrFree(&compiler->m_CHeaderStructs);
+	IBStrFree(&compiler->m_CHeaderFuncs);
 	IBStrFree(&compiler->m_CFile);
 }
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task** taskDP) {
@@ -1352,7 +1356,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				IBStrAppend(&header, ";\n");
 				IBStrAppend(&footer, "} ");
 				IBStrAppend(&footer, o->name);
-				IBStrAppend(&footer, ";\n");
+				IBStrAppend(&footer, ";\n\n");
 
 				break;
 			}
@@ -1369,9 +1373,9 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 			}
 		}
-		IBStrAppend(&compiler->m_CHeader, header.start);
-		IBStrAppend(&compiler->m_CHeader, body.start);
-		IBStrAppend(&compiler->m_CHeader, footer.start);
+		IBStrAppend(&compiler->m_CHeaderStructs, header.start);
+		IBStrAppend(&compiler->m_CHeaderStructs, body.start);
+		IBStrAppend(&compiler->m_CHeaderStructs, footer.start);
 		IBStrFree(&header);
 		IBStrFree(&body);
 		IBStrFree(&footer);
@@ -1388,15 +1392,21 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		Obj* o;
 		int idx;
 		int i;
+		int argc;
 		char cFuncModsTypeName[CODE_STR_MAX];
+		char cFuncArgsThing[CODE_STR_MAX];
 		char cFuncArgs[CODE_STR_MAX];
+		char cFuncArgsEnd[CODE_STR_MAX];
 		char cFuncCode[CODE_STR_MAX];
 		bool imaginary;
 		Obj* funcObj;
 
+		argc = 0;
 		imaginary = false;
 		cFuncModsTypeName[0] = '\0';
 		cFuncArgs[0] = '\0';
+		cFuncArgsThing[0] = '\0';
+		cFuncArgsEnd[0] = '\0';
 		cFuncCode[0] = '\0';
 		funcObj = NULL;
 		for (i = 0; i < wObjs->elemCount; ++i) {
@@ -1405,7 +1415,9 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			case OP_FuncArgComplete: {/*multiple allowed*/
 				Op at;
 				at = o->arg.type;
+				argc++;
 				if (at == OP_Null)Err(OP_ErrNOT_GOOD, "arg type NULL");
+
 				if (cFuncArgs[0] != '\0') {
 					StrConcat(cFuncArgs, CODE_STR_MAX, ", ");
 				}
@@ -1434,8 +1446,20 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retTypeMod));
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");
 				if (!o->name)Err(OP_ErrNOT_GOOD, "func name NULL");
-				if(o->name)StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
+				if (o->name) {
+					if (o->func.thingHost) {
+						StrConcat(cFuncModsTypeName, CODE_STR_MAX, "ThingFUNC_");
+						StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->func.thingHost->name);
+						StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");
+					}
+					StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
+				}
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, "(");
+				if (o->func.thingHost) {
+					StrConcat(cFuncArgsThing, CODE_STR_MAX, "struct ");
+					StrConcat(cFuncArgsThing, CODE_STR_MAX, o->func.thingHost->name);
+					StrConcat(cFuncArgsThing, CODE_STR_MAX, "* ptr");
+				}
 				break;
 			}
 			}
@@ -1463,10 +1487,10 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 		}
 		if (imaginary) {
-			StrConcat(cFuncArgs, CODE_STR_MAX, ");\n\n");
+			StrConcat(cFuncArgsEnd, CODE_STR_MAX, ");\n\n");
 		}
 		else {
-			StrConcat(cFuncArgs, CODE_STR_MAX, "){\n");
+			StrConcat(cFuncArgsEnd, CODE_STR_MAX, "){\n");
 			StrConcat(cFuncCode, CODE_STR_MAX, GetTaskCodeP1);
 			if(!funcObj)Err(OP_ErrNOT_GOOD, "funcObj NULL");
 			if (funcObj->func.retType != OP_Void) {
@@ -1479,9 +1503,19 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 			StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
 		}
-		IBStrAppend(&compiler->m_CFile, cFuncModsTypeName);
-		IBStrAppend(&compiler->m_CFile, cFuncArgs);
-		IBStrAppend(&compiler->m_CFile, cFuncCode);
+		IBStrAppend(&compiler->m_CHeaderFuncs, cFuncModsTypeName);
+		IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgsThing);
+		if(argc) IBStrAppend(&compiler->m_CHeaderFuncs, ", ");
+		IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgs);
+		IBStrAppend(&compiler->m_CHeaderFuncs, ");\n");
+		if (!imaginary) {
+			IBStrAppend(&compiler->m_CFile, cFuncModsTypeName);
+			IBStrAppend(&compiler->m_CFile, cFuncArgsThing);
+			if (argc) IBStrAppend(&compiler->m_CFile, ", ");
+			IBStrAppend(&compiler->m_CFile, cFuncArgs);
+			IBStrAppend(&compiler->m_CFile, cFuncArgsEnd);
+			IBStrAppend(&compiler->m_CFile, cFuncCode);
+		}
 		break;
 	}
 	case OP_CPrintfHaveFmtStr: {
@@ -2096,7 +2130,26 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Func: {
 			Expects* ap;
 			Obj* o;
+			Task* t;
+			t = GetTask;
 			CompilerPushObj(compiler, &o);
+			if (t->type == OP_ThingWantContent) {
+				bool thingFound;
+				Obj* wo;
+				int idx;
+				thingFound = false;
+				idx = 0;
+				while (wo = (Obj*)IBVectorIterNext(&compiler->m_ObjStack, &idx)) {
+					if (wo->type == OP_Thing) {
+						thingFound = true;
+						o->func.thingHost = wo;
+					}
+				}
+				assert(thingFound);
+			}
+			else {
+				o->func.thingHost = NULL;
+			}
 			CompilerPushTask(compiler, OP_FuncNeedName, &ap, NULL);
 			ExpectsInit(ap, 0, "expected function name", "", "P", OP_Name);
 			o->type = compiler->m_NameOp;

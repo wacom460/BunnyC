@@ -5,4 +5,10 @@
 	
 	@priv @func $move %i32 $xDelta %i32 $yDelta
 	@@
+	@func $test
+	@@
 @@
+
+@func $main %i32 $argc %&&c8 $argc @ret %i32
+"Hello, %%" "world"
+@@ =0
