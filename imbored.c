@@ -25,7 +25,13 @@ compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
 */
 
+//#define DEBUGPRINTS
+
+#ifdef DEBUGPRINTS
 #define PLINE printf("[%d]", __LINE__)
+#else
+#define PLINE
+#endif
 #define OP_NAME_LEN 32
 #define COMMENT_CHAR ('~')
 #define CODE_STR_MAX 512
@@ -354,9 +360,6 @@ Task* _GetTask(Compiler *compiler){
 #define GetTaskCode   (GetTask->code1)
 #define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
-	PLINE;\
-	printf(" SetTaskType: %s(%d) -> %s(%d)\n", \
-		GetOpName(GetTaskType), (int)GetTaskType, GetOpName(tt), (int)tt);\
 	GetTask->type = tt;\
 }
 typedef struct OpNamePair {
@@ -661,7 +664,9 @@ void _ExpectsInit(int LINENUM, Expects* exp, int life,
 	exp->nameOpErr=nameOpErr;
 	exp->life=life;
 	exp->lineNumInited=LINENUM;
+#ifdef DEBUGPRINTS
 	printf("Expect: { ");
+#endif
 	va_start(args, fmt);
 	for (i = 0; i < strlen(fmt); i++) {
 		char ch = fmt[i];
@@ -669,28 +674,38 @@ void _ExpectsInit(int LINENUM, Expects* exp, int life,
 		case 'P': {
 			pfx=va_arg(args, Op);
 			IBVectorCopyPushOp(&exp->pfxs, pfx);
+#ifdef DEBUGPRINTS
 			printf("Pfx:%s(%d) ", GetPfxName(pfx), (int)pfx);
+#endif
 			break;
 		}
 		case 'N':{
 			nameOp=va_arg(args, Op);
 			IBVectorCopyPushOp(&exp->nameOps, nameOp);
+#ifdef DEBUGPRINTS
 			printf("NameOP:%s(%d) ", GetOpName(nameOp), (int)nameOp);
+#endif
 			break;
 		}
 		}
 	}
+#ifdef DEBUGPRINTS
 	printf("}\n");
+#endif
 	va_end(args);
 }
 void ExpectsPrint(Expects* ap) {
 	Op* oi;
 	int idx;
 	idx = 0;
-	printf("[LN:%d] Prefixes { ", ap->lineNumInited);
+	printf(
+#ifdef DEBUGPRINTS
+		"[LN:%d] "
+#endif
+		"Prefix { ", ap->lineNumInited);
 	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
 		printf("%s(%d) ", GetPfxName(*oi), (int)*oi);
-	printf("}\nNameOps { ");
+	printf("}\nNameOP { ");
 	idx = 0;
 	while (oi = (Op*)IBVectorIterNext(&ap->nameOps, &idx))
 		printf("@%s(%d) ", GetOpName(*oi), (int)*oi);
@@ -714,8 +729,8 @@ void TaskFree(Task* t) {
 	IBVectorFree(&t->working, ObjFree);
 }
 void _Err(Compiler *compiler, Op code, char *msg){
-	printf(" %s AT:line %u column %u. OP:\"%s\"(%d).\nWHY?: ",
-		msg, compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code);
+	printf("Error at %u:%u \"%s\"(%d). %s\n",
+		compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code, msg);
 	CompilerExplainErr(compiler, code);
 	printf("\nPress enter to break.");
 	getchar();
@@ -871,7 +886,9 @@ void CompilerFree(Compiler* compiler) {
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task** taskDP) {
 	Task* t;
 	assert(exectsDP);
+#ifdef DEBUGPRINTS
 	printf(" Push task %s(%d)\n", GetOpName(taskOP),(int)taskOP);
+#endif
 	t = (Task*)IBVectorPush(&compiler->m_TaskStack);
 	if(taskDP) (*taskDP) = t;
 	TaskInit(t, taskOP);
@@ -880,20 +897,28 @@ void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task**
 void _CompilerPopTask(Compiler* compiler) {
 	assert(compiler);
 	assert(GetTask);
+#ifdef DEBUGPRINTS
 	printf(" Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
+#endif
 	IBVectorPop(&compiler->m_TaskStack, TaskFree);
 }
 void _CompilerPushObj(Compiler* compiler, Obj** o) {
 	Obj *obj;
+#ifdef DEBUGPRINTS
 	printf(" Push obj: ");
+#endif
 	if (compiler->m_ObjStack.elemCount) {
+#ifdef DEBUGPRINTS
 		ObjPrint(CompilerGetObj(compiler));
 		printf(" -> ");
+#endif
 	}
 	obj = (Obj*)IBVectorPush(&compiler->m_ObjStack);
 	ObjInit(obj);
+#ifdef DEBUGPRINTS
 	ObjPrint(obj);
 	printf("\n");
+#endif
 	if (o) { (*o) = CompilerGetObj(compiler); }
 }
 void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
@@ -908,15 +933,21 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 		t = GetTask;
 		assert(t);
 		assert(o);
+#ifdef DEBUGPRINTS
 		printf(" To working: ");
+#endif
+#ifdef DEBUGPRINTS
 		ObjPrint(o);
 		printf("\n");
+#endif
 		newObjMem=(Obj*)IBVectorPush(&t->working);
 		assert(newObjMem);
 		ObjCopy(newObjMem, o);
 	}
+#ifdef DEBUGPRINTS
 	printf("Pop obj: ");
 	ObjPrint(o);
+#endif
 	if (compiler->m_ObjStack.elemCount == 1) {
 		ObjFree(o);
 		ObjInit(o);
@@ -925,16 +956,22 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 		IBVectorPop(&compiler->m_ObjStack, ObjFree);
 		o = CompilerGetObj(compiler);
 	}
+#ifdef DEBUGPRINTS
 	printf(" -> ");
+#endif
 	assert(compiler->m_ObjStack.elemCount);
+#ifdef DEBUGPRINTS
 	ObjPrint(o);
 	printf("\n");
+#endif
 	if(objDP) (*objDP) = o;
 }
 void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
 	compiler->m_StrAllowSpace = strAllowSpace;
 	IBVectorCopyPushOp(&compiler->m_ModeStack, mode);
+#ifdef DEBUGPRINTS
 	printf(" push: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
+#endif
 }
 void _CompilerPop(Compiler* compiler) {
 	Op type=OP_Null;
@@ -942,29 +979,41 @@ void _CompilerPop(Compiler* compiler) {
 	t = GetTask;
 	IBVectorPop(&compiler->m_ModeStack, NULL);
 	if(t)type=t->type;
+#ifdef DEBUGPRINTS
 	printf(" pop: to %s(%d) Task type:%s(%d)\n", GetOpName(GetMode), (int)GetMode, GetOpName(type), (int)type);
+#endif
 	assert(t->expStack.elemCount);
+#ifdef DEBUGPRINTS
 	ExpectsPrint(GetExpectsTop);
+#endif
 }
 Op ObjGetType(Obj* obj) { return obj->type; }
 void _ObjSetType(Obj* obj, Op type) {
+#ifdef DEBUGPRINTS
 	printf(" obj type: %s(%d) -> %s(%d)\n",
 		GetOpName(obj->type), (int)obj->type, GetOpName(type), (int)type);
+#endif
 	obj->type = type;
 }
 Op ObjGetMod(Obj* obj) { return obj->modifier; }
 void ObjSetMod(Obj* obj, Op mod) {
+#ifdef DEBUGPRINTS
 	printf("obj mod: %s(%d) -> %s(%d)\n",
 		GetOpName(obj->modifier), (int)obj->modifier, GetOpName(mod), (int)mod);
+#endif
 	obj->modifier = mod;
 }
 void _ObjSetName(Obj* obj, char* name) {
 	assert(obj);
+#ifdef DEBUGPRINTS
 	printf(" obj name: %s -> %s\n", obj->name, name);
+#endif
 	owStr(&obj->name, name);
 }
 void ObjSetStr(Obj* obj, char* Str) {
+#ifdef DEBUGPRINTS
 	printf("obj str: %s -> %s\n", obj->str, Str);
+#endif
 	owStr(&obj->str, Str);
 }
 void ObjCopy(Obj* dst, Obj* src) {
@@ -1010,20 +1059,24 @@ void CompilerPopExpects(Compiler* compiler) {
 		Op* oi;
 		int idx;
 
+#ifdef DEBUGPRINTS
 		printf(" Expects POP: { ");
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(pfxsIb, &idx)) {
 			printf("%s ", GetPfxName(*oi));
 		}
 		printf("} -> { ");
+#endif
 		IBVectorPop(GetExpectsStack, ExpectsFree);
 		if (!GetExpectsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
 		pfxsIb = &GetExpectsTop->pfxs;
+#ifdef DEBUGPRINTS
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(pfxsIb,&idx)) {
 			printf("%s ", GetPfxName(*oi));
 		}
 		printf("}\n");
+#endif
 	}
 }
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
@@ -1120,7 +1173,11 @@ void CompilerInputChar(Compiler* compiler, char ch){
 	case '\0': return;
 	case '\n': {
 		nl = true;
-		if(compiler->m_CommentMode==OP_NotSet)printf("Char():Line end\n");
+		if (compiler->m_CommentMode == OP_NotSet) {
+#ifdef DEBUGPRINTS
+			printf("Char():Line end\n");
+#endif
+		}
 		if (compiler->m_CommentMode == OP_Comment) {
 			CompilerPop(compiler);
 			compiler->m_CommentMode = OP_NotSet;
@@ -1252,7 +1309,9 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 	bool subTask;
 	t = GetTask;
 	assert(t);
+#ifdef DEBUGPRINTS
 	printf("PopAndDoTask()\n");
+#endif
 	if(!compiler->m_TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
 	wObjs = &t->working;
 	assert(wObjs);
@@ -1562,7 +1621,9 @@ void CompilerPrefix(Compiler* compiler){
 	{
 		Err(OP_ErrUnexpectedNextPfx, "");
 	}
+#ifdef DEBUGPRINTS
 	printf("PFX:%s(%d)\n", GetPfxName(compiler->m_Pfx), (int)compiler->m_Pfx);
+#endif
 	switch (compiler->m_Pfx) {
 	case OP_String: { /* " */
 		compiler->m_StringMode = true;
@@ -1631,15 +1692,21 @@ void CompilerStr(Compiler* compiler){
 			if (*(bool*)IBVectorTop(&compiler->m_StrReadPtrsStack)) {
 				switch (compiler->m_Pointer) {
 				case OP_NotSet:
+#ifdef DEBUGPRINTS
 					printf("Got pointer\n");
+#endif
 					compiler->m_Pointer = OP_Pointer;
 					break;
 				case OP_Pointer:
+#ifdef DEBUGPRINTS
 					printf("Got double pointer\n");
+#endif
 					compiler->m_Pointer = OP_DoublePointer;
 					break;
 				case OP_DoublePointer:
+#ifdef DEBUGPRINTS
 					printf("Got tripple pointer\n");
+#endif
 					compiler->m_Pointer = OP_TripplePointer;
 					break;
 				case OP_TripplePointer:
@@ -1660,7 +1727,9 @@ void CompilerStrPayload(Compiler* compiler){
 	t=GetTask;
 	strVal.i32=atoi(compiler->m_Str);
 	compiler->m_NameOp = GetOpFromName(compiler->m_Str);
+#ifdef DEBUGPRINTS
 	printf("StrPayload: %s\n", compiler->m_Str);
+#endif
 	switch (compiler->m_Pfx)
 	{
 	case OP_String: { /* " */
@@ -1726,7 +1795,9 @@ void CompilerStrPayload(Compiler* compiler){
 				idx = 0;
 				while (o = (Obj*)IBVectorIterNext(&t->working,&idx)) {
 					if (ObjGetType(o) == OP_FuncSigComplete) {
+#ifdef DEBUGPRINTS
 						printf("Finishing func got ret value\n");
+#endif
 						o->func.retVal = strVal;
 						PopExpects();
 						SetTaskType(OP_Func);
@@ -1813,7 +1884,9 @@ void CompilerStrPayload(Compiler* compiler){
 			lib = compiler->m_NameOp;
 			switch (lib) {
 			case OP_UseStrSysLib: {
+#ifdef DEBUGPRINTS
 				printf("Inputting system lib code to compiler\n");
+#endif
 				/*CompilerInputStr(compiler, SysLibCodeStr);*/
 				assert(!compiler->inputStr);
 				compiler->inputStr = SysLibCodeStr;
@@ -1962,8 +2035,10 @@ void CompilerStrPayload(Compiler* compiler){
 				IBVector* wo;
 				int idx;
 				assert(t);
+#ifdef DEBUGPRINTS
 				PLINE;
 				printf(" Finishing function\n");
+#endif
 				idx = 0;
 				/*t = NULL;*/
 				o = NULL;
@@ -1996,7 +2071,9 @@ void CompilerStrPayload(Compiler* compiler){
 			Op objT = GetObjType;
 			switch (objT) {
 			case OP_FuncArgComplete: {
+#ifdef DEBUGPRINTS
 				printf("what\n");
+#endif
 				CompilerPopObj(compiler, true, NULL);
 				if (GetObjType != OP_FuncHasName) {
 					Err(OP_ErrNOT_GOOD, "expected FuncHasName");
@@ -2045,7 +2122,9 @@ void CompilerStrPayload(Compiler* compiler){
 	}
 	}
 	compiler->m_Str[0] = '\0';
+#ifdef DEBUGPRINTS
 	printf("Str payload complete\n");
+#endif
 	CompilerPop(compiler);
 	if(compiler->m_StrReadPtrsStack.elemCount > 1)
 	{
@@ -2110,9 +2189,11 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 	default:
 		printf("Err msg unimplemented for %s", GetOpName(code));
 	}
-	printf("\nOBJ:");
+#ifdef DEBUGPRINTS
+	printf("OBJ:");
 	ObjPrint(CompilerGetObj(compiler));
 	printf("\n");
+#endif
 }
 int main(int argc, char** argv) {
 	IBDatabase db;
@@ -2130,7 +2211,9 @@ int main(int argc, char** argv) {
 		CompilerInit(&comp);
 		while (comp.m_Running)
 			CompilerTick(&comp, f);
+#ifdef DEBUGPRINTS
 		printf("Exiting\n");
+#endif
 		CompilerFree(&comp);
 		getchar();
 		fclose(f);

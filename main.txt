@@ -4,6 +4,5 @@
 	@pub %i32 $y
 	
 	@priv @func $move %i32 $xDelta %i32 $yDelta
-		
 	@@
 @@
