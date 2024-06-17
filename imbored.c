@@ -76,6 +76,7 @@ typedef enum Op { /* multiple uses */
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
 	OP_ErrQuadriplePointersNOT_ALLOWED, OP_ErrUnknownOpStr,
 	OP_ErrProtectedSlot,OP_ErrUnknownPfx,OP_ErrUnexpectedNameOP,
+	OP_ErrDirtyTaskStack,
 
 	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
 } Op;
@@ -408,6 +409,7 @@ OpNamePair opNames[] = {
 	{"RootTask", OP_RootTask},{"ErrUnknownPfx",OP_ErrUnknownPfx},
 	{"ErrUnexpectedNameOP",OP_ErrUnexpectedNameOP},{"ThingWantName",OP_ThingWantName},
 	{"ThingWantContent",OP_ThingWantContent},{"SpaceHasName",OP_SpaceHasName},
+	{"ErrDirtyTaskStack",OP_ErrDirtyTaskStack}
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -839,6 +841,8 @@ void CompilerFree(Compiler* compiler) {
 	if (compiler->m_StringMode)
 		Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
 	if(compiler->m_Str[0]) CompilerStrPayload(compiler);
+	if(GetTaskType != OP_RootTask)Err(OP_ErrDirtyTaskStack,
+		"Reached end of file not at root task");
 	if (compiler->m_TaskStack.elemCount) {
 		switch (((Task*)IBVectorTop(&compiler->m_TaskStack))->type) {
 		case OP_FuncNeedRetVal:
@@ -1943,6 +1947,9 @@ void CompilerStrPayload(Compiler* compiler){
 			if (!compiler->m_TaskStack.elemCount) Err(OP_ErrNoTask, "");
 			switch (GetTaskType) {
 			case OP_ThingWantContent: {
+				Obj* o;
+				o = CompilerGetObj(compiler);
+				assert(o->type == OP_Thing);
 				CompilerPopObj(compiler, true, NULL);
 				assert(GetObjType == OP_NotSet);
 				CompilerPopAndDoTask(compiler);
@@ -2011,9 +2018,11 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_Func: {
 			Expects* ap;
+			Obj* o;
+			CompilerPushObj(compiler, &o);
 			CompilerPushTask(compiler, OP_FuncNeedName, &ap, NULL);
 			ExpectsInit(ap, 0, "expected function name", "", "P", OP_Name);
-			SetObjType(compiler->m_NameOp);
+			o->type = compiler->m_NameOp;
 			CompilerGetObj(compiler)->func.retType = OP_Void;
 			CompilerGetObj(compiler)->func.retTypeMod = OP_NotSet;
 			break;

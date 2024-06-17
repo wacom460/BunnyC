@@ -2,6 +2,7 @@
 	@pub %&c8 $name
 	@pub %i32 $x
 	@pub %i32 $y
+	
 	@priv @func $move %i32 $xDelta %i32 $yDelta
 		
 	@@
