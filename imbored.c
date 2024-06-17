@@ -1,3 +1,4 @@
+/* THIS FILE IS STRICT ANSI C89 ONLY */
 /*define IB_HEADER to use in TCC and get definitions only*/
 /*
 #define IB_HEADER
@@ -12,11 +13,13 @@
 #define bool char
 #define true 1
 #define false 0
-
+#ifdef _MSC_VER
+#define strdup _strdup
+#endif
 /*
 not actually a compiler
 ascii only, maybe utf8 later...
-transpile to C89
+transpile to ANSI C89
 no order of operations, sequential ONLY
 compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
@@ -91,13 +94,13 @@ size_t IBStrGetLen(IBStr* str);
 char *IBStrAppend(IBStr* str, char *with);
 typedef union IBVecData {
 	void* ptr;
-	/*struct Obj* obj;
+	struct Obj* obj;
 	struct Task* task;
 	Op* op;
 	unsigned char *boolean;
 	struct Expects* expects;
 	struct NameInfoDB* niDB;
-	struct NameInfo* ni;*/
+	struct NameInfo* ni;
 } IBVecData;
 typedef struct IBVector {
 	size_t elemSize;
@@ -325,7 +328,7 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 	PLINE;\
 	pushAllowedNextPfxs(pfxs, msg, life);\
 }
-#define PopPfxs(){\
+#define PopExpects(){\
 	PLINE;\
 	CompilerPopExpects(compiler);\
 }
@@ -804,7 +807,9 @@ void CompilerInit(Compiler* compiler){
 	compiler->m_Pfx = OP_Null;
 	compiler->m_Str[0] = '\0';
 	IBStrInit(&compiler->m_CHeader, 1);
+	IBStrAppend(&compiler->m_CHeader, "#ifndef HEADER_H_\n#define HEADER_H_\n\n");
 	IBStrInit(&compiler->m_CFile, 1);
+	IBStrAppend(&compiler->m_CFile, "#include \"header.h\"\n");
 	compiler->m_Pointer = OP_NotSet;
 	compiler->m_NameOp = OP_Null;
 	compiler->m_Ch = '\0';
@@ -843,6 +848,7 @@ void CompilerFree(Compiler* compiler) {
 		}
 		}
 	}
+	IBStrAppend(&compiler->m_CHeader, "\n#endif\n");
 	printf("-> Compilation complete <-\nC Header:\n%s\n\nC File:\n%s\n\n",
 		compiler->m_CHeader.start, compiler->m_CFile.start);
 	IBVectorFree(&compiler->m_ObjStack, ObjFree);
@@ -928,6 +934,8 @@ void _CompilerPop(Compiler* compiler) {
 	IBVectorPop(&compiler->m_ModeStack, NULL);
 	if(t)type=t->type;
 	printf(" pop: to %s(%d) Task type:%s(%d)\n", GetOpName(GetMode), (int)GetMode, GetOpName(type), (int)type);
+	assert(t->expStack.elemCount);
+	ExpectsPrint(GetExpectsTop);
 }
 Op ObjGetType(Obj* obj) { return obj->type; }
 void _ObjSetType(Obj* obj, Op type) {
@@ -1142,7 +1150,7 @@ void CompilerInputChar(Compiler* compiler, char ch){
 			case OP_FuncHasName: {
 				Op mod;
 				SetObjType(OP_FuncSigComplete);
-				PopPfxs();
+				PopExpects();
 				mod = ObjGetMod(CompilerGetObj(compiler));
 				CompilerPopObj(compiler, true, NULL);
 				if (mod != OP_Imaginary) {
@@ -1185,7 +1193,7 @@ void CompilerInputChar(Compiler* compiler, char ch){
 		}
 	}
 	if (nl) {
-		if (CompilerIsPfxExpected(compiler, OP_LineEnd)) PopPfxs();
+		if (CompilerIsPfxExpected(compiler, OP_LineEnd)) PopExpects();
 		compiler->m_Column = 0;
 		compiler->m_Line++;
 	}
@@ -1242,6 +1250,55 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 	if(!wObjs->elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
 	subTask = false;
 	switch (t->type) {
+	case OP_ThingWantContent: {
+		IBStr header;
+		IBStr body;
+		IBStr footer;
+		Obj* o;
+		int idx;
+
+		IBStrInit(&header, 1);
+		IBStrInit(&body, 1);
+		IBStrInit(&footer, 1);
+		idx = 0;
+		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
+			switch (o->type) {
+			case OP_Thing: {
+				assert(o->name);
+				assert(*o->name);
+				
+				//TODO:
+				//assert that this name is unique
+				//blindly trusting for now
+
+				IBStrAppend(&header, "struct ");
+				IBStrAppend(&header, o->name);
+				IBStrAppend(&header, " {\n");
+
+				IBStrAppend(&footer, "} ");
+				IBStrAppend(&footer, o->name);
+				IBStrAppend(&footer, ";\n");
+
+				break;
+			}
+			case OP_VarComplete: {
+				IBStrAppend(&body, GetCEqu(o->var.type));
+				IBStrAppend(&body, GetCEqu(o->var.mod));
+				IBStrAppend(&body, " ");
+				IBStrAppend(&body, o->name);
+				IBStrAppend(&body, ";\n");
+				break;
+			}
+			}
+		}
+		IBStrAppend(&compiler->m_CHeader, header.start);
+		IBStrAppend(&compiler->m_CHeader, body.start);
+		IBStrAppend(&compiler->m_CHeader, footer.start);
+		IBStrFree(&header);
+		IBStrFree(&body);
+		IBStrFree(&footer);
+		break;
+	}
 	case OP_SpaceHasName: {
 
 		break;
@@ -1629,7 +1686,7 @@ void CompilerStrPayload(Compiler* compiler){
 			o->var.val = strVal;
 			o->var.valSet = true;
 			SetObjType(OP_VarComplete);
-			PopPfxs();
+			PopExpects();
 			break;
 		}
 		}
@@ -1652,7 +1709,7 @@ void CompilerStrPayload(Compiler* compiler){
 					if (ObjGetType(o) == OP_FuncSigComplete) {
 						printf("Finishing func got ret value\n");
 						o->func.retVal = strVal;
-						PopPfxs();
+						PopExpects();
 						SetTaskType(OP_Func);
 						CompilerPopAndDoTask(compiler);
 						break;
@@ -1667,9 +1724,14 @@ void CompilerStrPayload(Compiler* compiler){
 	case OP_VarType: /* % */
 		switch (GetTaskType) {
 		case OP_ThingWantContent: {
-			Task* t;
+			Obj* o;
 			Expects* exp;
-			CompilerPushTask(compiler, OP_VarNeedName, &exp, &t);
+			CompilerPushObj(compiler, &o);
+			o->var.type = compiler->m_NameOp;
+			o->var.mod = compiler->m_Pointer;
+			o->var.valSet = false;
+			SetObjType(OP_VarNeedName);
+			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "expected variable name", "", "P", OP_Name);
 			break;
 		}
@@ -1709,7 +1771,6 @@ void CompilerStrPayload(Compiler* compiler){
 		break;
 	case OP_Name: { /* $ */
 		switch(t->type){
-
 		case OP_ThingWantName: {
 			Obj* o;
 			Expects* exp;
@@ -1722,8 +1783,8 @@ void CompilerStrPayload(Compiler* compiler){
 			t->type = OP_ThingWantContent;
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "expected vartype (%)", "expected @pub, @priv, or @func", 
-				"PPNNN", 
-				OP_Op, OP_VarType, OP_Func, OP_Public, OP_Private);
+				"PPNNNN", 
+				OP_Op, OP_VarType, OP_Func, OP_Public, OP_Private, OP_Done);
 			break;
 		}
 		case OP_UseNeedStr: {
@@ -1765,11 +1826,27 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		}
+
+
 		switch (GetObjType) {
+		case OP_VarNeedName: {
+			Expects* exp;
+			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
+			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->var.type);
+			SetObjType(OP_VarWantValue);
+			PopExpects();
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0,
+				"expected value or line end after var name",
+				"",
+				"PP",
+				OP_Value, OP_LineEnd);
+			break;
+		}
 		case OP_CallNeedName: { /* =@call */
 			Expects* exp;
 			SetObjType(OP_CallWantArgs);
-			PopPfxs();
+			PopExpects();
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0,
 				"expected var type or line end after func name", "",
@@ -1789,25 +1866,11 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_FuncArgNameless:
 			SetObjType(OP_FuncArgComplete);
-			PopPfxs();
+			PopExpects();
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
 			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->arg.type);
 			CompilerPopObj(compiler, true, NULL);
 			break;
-		case OP_VarNeedName: {
-			Expects* exp;
-			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
-			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->var.type);
-			SetObjType(OP_VarWantValue);
-			PopPfxs();
-			CompilerPushExpects(compiler, &exp);
-			ExpectsInit(exp, 0,
-				"expected value or line end after var name",
-				"",
-				"PP",
-				OP_Value, OP_LineEnd);
-			break;
-		}
 		}
 		break;
 	}
@@ -1862,6 +1925,12 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Done:
 			if (!compiler->m_TaskStack.elemCount) Err(OP_ErrNoTask, "");
 			switch (GetTaskType) {
+			case OP_ThingWantContent: {
+				CompilerPopObj(compiler, true, NULL);
+				assert(GetObjType == OP_NotSet);
+				CompilerPopAndDoTask(compiler);
+				break;
+			}
 			case OP_Func:
 			case OP_FuncHasName:
 			case OP_FuncWantCode: {

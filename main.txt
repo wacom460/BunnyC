@@ -1,10 +1,4 @@
-@use $sys
+@thing $entity
+%&c8 $name
 
-@thing $t1
 @@
-
-@func $main %i32 $argc %&&c8 $argv @ret %i32
-	%i32 $a =42069
-	$a =400
-	"Hello %%" "world"
-@@ =0
