@@ -1349,11 +1349,12 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 
 				IBStrAppend(&header, "struct ");
 				IBStrAppend(&header, o->name);
-				IBStrAppend(&header, " {\n\t");			
+				IBStrAppend(&header, " {\n");
+				/*IBStrAppend(&header, "\t");
 				IBStrAppend(&header, ThingStructTypeHeaderVarType);
 				IBStrAppend(&header, " ");
 				IBStrAppend(&header, ThingStructTypeHeaderVarName);
-				IBStrAppend(&header, ";\n");
+				IBStrAppend(&header, ";\n");*/
 				IBStrAppend(&footer, "} ");
 				IBStrAppend(&footer, o->name);
 				IBStrAppend(&footer, ";\n\n");
@@ -1448,7 +1449,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				if (!o->name)Err(OP_ErrNOT_GOOD, "func name NULL");
 				if (o->name) {
 					if (o->func.thingHost) {
-						StrConcat(cFuncModsTypeName, CODE_STR_MAX, "ThingFUNC_");
+						//StrConcat(cFuncModsTypeName, CODE_STR_MAX, "ThingFUNC_");
 						StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->func.thingHost->name);
 						StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");
 					}
@@ -1503,15 +1504,18 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			}
 			StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
 		}
-		IBStrAppend(&compiler->m_CHeaderFuncs, cFuncModsTypeName);
-		IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgsThing);
-		if(argc) IBStrAppend(&compiler->m_CHeaderFuncs, ", ");
-		IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgs);
-		IBStrAppend(&compiler->m_CHeaderFuncs, ");\n");
+		if (strcmp(funcObj->name, "main"))
+		{
+			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncModsTypeName);
+			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgsThing);
+			if (argc && funcObj->func.thingHost) IBStrAppend(&compiler->m_CHeaderFuncs, ", ");
+			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgs);
+			IBStrAppend(&compiler->m_CHeaderFuncs, ");\n");
+		}
 		if (!imaginary) {
 			IBStrAppend(&compiler->m_CFile, cFuncModsTypeName);
 			IBStrAppend(&compiler->m_CFile, cFuncArgsThing);
-			if (argc) IBStrAppend(&compiler->m_CFile, ", ");
+			if (argc && funcObj->func.thingHost) IBStrAppend(&compiler->m_CFile, ", ");
 			IBStrAppend(&compiler->m_CFile, cFuncArgs);
 			IBStrAppend(&compiler->m_CFile, cFuncArgsEnd);
 			IBStrAppend(&compiler->m_CFile, cFuncCode);
