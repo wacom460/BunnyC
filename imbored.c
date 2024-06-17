@@ -30,6 +30,8 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #define COMMENT_CHAR ('~')
 #define CODE_STR_MAX 512
 #define CompilerSTR_MAX 64
+#define ThingStructTypeHeaderVarType ("int")
+#define ThingStructTypeHeaderVarName ("__thingTYPE")
 #if defined(__TINYC__) || defined(__GNUC__)
 #define __debugbreak()
 #endif
@@ -51,7 +53,7 @@ typedef enum Op { /* multiple uses */
 
 	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct,
 	OP_VarType,	OP_LineEnd,	OP_Comment, OP_MultiLineComment,
-	OP_Public, OP_Private, 	OP_Imaginary, OP_Void, OP_Set, OP_SetAdd,
+	OP_Public, OP_Private, OP_Imaginary, OP_Void, OP_Set, OP_SetAdd,
 	OP_Call, OP_Colon, OP_Dot, 	OP_Add, OP_Subtract, OP_Multiply,
 	OP_Divide, OP_AddEq, OP_SubEq, OP_MultEq, OP_DivEq, OP_Equals,
 	OP_NotEquals, OP_LessThan, OP_GreaterThan, OP_LessThanOrEquals,
@@ -187,6 +189,7 @@ typedef struct VarObj {
 	bool valSet;
 	Op type;
 	Op mod;
+	Op privacy;
 } VarObj;
 char* GetOpName(Op op);
 typedef struct Obj {
@@ -258,6 +261,7 @@ typedef struct Compiler {
 
 	char* inputStr;
 	Op m_Pointer;
+	Op m_Privacy;
 	Op m_NameOp;
 	char m_Ch;
 	char m_LastCh;
@@ -811,6 +815,7 @@ void CompilerInit(Compiler* compiler){
 	IBStrInit(&compiler->m_CFile, 1);
 	IBStrAppend(&compiler->m_CFile, "#include \"header.h\"\n");
 	compiler->m_Pointer = OP_NotSet;
+	compiler->m_Privacy = OP_NotSet;
 	compiler->m_NameOp = OP_Null;
 	compiler->m_Ch = '\0';
 	compiler->m_LastCh = '\0';
@@ -1254,12 +1259,16 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		IBStr header;
 		IBStr body;
 		IBStr footer;
+		IBStr hFile;
+		IBStr cFile;
 		Obj* o;
 		int idx;
 
 		IBStrInit(&header, 1);
 		IBStrInit(&body, 1);
 		IBStrInit(&footer, 1);
+		IBStrInit(&hFile, 1);
+		IBStrInit(&cFile, 1);
 		idx = 0;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
@@ -1273,20 +1282,26 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 
 				IBStrAppend(&header, "struct ");
 				IBStrAppend(&header, o->name);
-				IBStrAppend(&header, " {\n");
-
+				IBStrAppend(&header, " {\n\t");			
+				IBStrAppend(&header, ThingStructTypeHeaderVarType);
+				IBStrAppend(&header, " ");
+				IBStrAppend(&header, ThingStructTypeHeaderVarName);
+				IBStrAppend(&header, ";\n");
 				IBStrAppend(&footer, "} ");
 				IBStrAppend(&footer, o->name);
 				IBStrAppend(&footer, ";\n");
 
 				break;
 			}
+			case OP_VarWantValue:
 			case OP_VarComplete: {
+				IBStrAppend(&body, "\t");
 				IBStrAppend(&body, GetCEqu(o->var.type));
 				IBStrAppend(&body, GetCEqu(o->var.mod));
 				IBStrAppend(&body, " ");
 				IBStrAppend(&body, o->name);
 				IBStrAppend(&body, ";\n");
+				//default values will be stored in db
 				break;
 			}
 			}
@@ -1729,6 +1744,8 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerPushObj(compiler, &o);
 			o->var.type = compiler->m_NameOp;
 			o->var.mod = compiler->m_Pointer;
+			o->var.privacy=compiler->m_Privacy;
+			compiler->m_Privacy = OP_NotSet;
 			o->var.valSet = false;
 			SetObjType(OP_VarNeedName);
 			CompilerPushExpects(compiler, &exp);
@@ -2003,8 +2020,8 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_Public:
 		case OP_Private:
-			assert(GetObjType == OP_NotSet);
-			CompilerGetObj(compiler)->privacy = compiler->m_NameOp;
+			assert(compiler->m_Privacy == OP_NotSet);//wasnt reset
+			compiler->m_Privacy = compiler->m_NameOp;
 			break;
 		case OP_Use: {
 			Expects* ap;
