@@ -6,6 +6,7 @@
 	@priv @func $move %i32 $xDelta %i32 $yDelta
 	@@
 	@func $test
+	"fuck"
 	@@
 @@
 

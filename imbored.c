@@ -2157,13 +2157,15 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerPushTask(compiler, OP_FuncNeedName, &ap, NULL);
 			ExpectsInit(ap, 0, "expected function name", "", "P", OP_Name);
 			o->type = compiler->m_NameOp;
+			o->privacy = compiler->m_Privacy;
+			compiler->m_Privacy = OP_NotSet;
 			CompilerGetObj(compiler)->func.retType = OP_Void;
 			CompilerGetObj(compiler)->func.retTypeMod = OP_NotSet;
 			break;
 		}
 		case OP_Public:
 		case OP_Private:
-			assert(compiler->m_Privacy == OP_NotSet);//wasnt reset
+			//assert(compiler->m_Privacy == OP_NotSet);//wasnt reset
 			compiler->m_Privacy = compiler->m_NameOp;
 			break;
 		case OP_Use: {
