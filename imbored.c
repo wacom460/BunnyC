@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+//#include <assert.h>
 #include <stdarg.h>
 #define bool char
 #define true 1
@@ -42,6 +42,16 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #define __debugbreak()
 #endif
 #define DB __debugbreak();
+
+#define IBASSERT(x, errMsg){\
+	if(!(x)) {\
+		PLINE;\
+		printf("Assertion failed!!! -> %s\n%s", errMsg, #x);\
+		DB;\
+		exit(-1);\
+	}\
+}
+#define assert(x) IBASSERT(x, "")
 
 struct IBDatabase* g_DB;
 
@@ -186,7 +196,7 @@ typedef struct FuncObj {
 	Val retVal;
 	Op retType;
 	Op retTypeMod;
-	struct Obj* thingHost;
+	struct Task* thingTask;
 } FuncObj;
 typedef struct ArgObj {
 	Op type;
@@ -287,7 +297,10 @@ void _Err(Compiler *compiler, Op code, char *msg);
 	_Err(compiler, code, msg);\
 }
 Obj* CompilerGetObj(Compiler* compiler);
+Obj* CompilerFindWorkingObjUnderIndex(Compiler* compiler, int index, Op type);
+Obj* CompilerFindWorkingObjUnderTop(Compiler* compiler, Op type);
 void CompilerInit(Compiler* compiler);
+Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type);
 void CompilerFree(Compiler* compiler);
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task** taskDP);
 #define CompilerPushTask(compiler, taskOP, exectsDP, taskDP){\
@@ -350,7 +363,7 @@ Task* _GetTask(Compiler *compiler){
 	ret = NULL;
 	if (compiler->m_TaskStack.elemCount) {
 		ret = (Task*)IBVectorTop(&compiler->m_TaskStack);
-		assert(ret);
+		if(!ret)Err(OP_ErrNOT_GOOD, "catastrophic failure");
 	}
 	return ret;
 }
@@ -452,7 +465,7 @@ char* SysLibCodeStr =
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
 void IBStrInit(IBStr* str, size_t reserve){
-	assert(reserve > 0);
+	IBASSERT(reserve > 0, "Reserve must be > 0");
 	assert(str);
 	str->start = (char*)malloc(reserve);
 	assert(str->start);
@@ -821,6 +834,27 @@ void owStr(char** str, char* with) {
 Obj* CompilerGetObj(Compiler* compiler) {
 	return (Obj*)IBVectorTop(&compiler->m_ObjStack);
 }
+Obj* CompilerFindWorkingObjUnderIndex(Compiler* compiler, int index, Op type) {
+	int i;
+	if(compiler->m_ObjStack.elemCount < 2)Err(OP_ErrNOT_GOOD, "Not enough objects on stack");
+	if(index >= compiler->m_ObjStack.elemCount)Err(OP_ErrNOT_GOOD, "Index out of bounds");
+	for (i = index - 1; i >= 0;) {
+		Obj* o;
+		o = (Obj*)IBVectorGet(&compiler->m_ObjStack, i--);
+		if (o->type == type) return o;
+	}
+	return NULL;
+}
+Obj* CompilerFindWorkingObjUnderTop(Compiler* compiler, Op type){
+	Obj* o;
+	int i;
+	if(compiler->m_ObjStack.elemCount < 2) return NULL;
+	for (i = compiler->m_ObjStack.elemCount - 1; i >= 0;) {
+		o = (Obj*)IBVectorGet(&compiler->m_ObjStack, i--);
+		if (o->type == type) return o;
+	}
+	return NULL;
+}
 void CompilerInit(Compiler* compiler){
 	Obj* o;
 	Expects* exp;
@@ -853,6 +887,18 @@ void CompilerInit(Compiler* compiler){
 	CompilerPushObj(compiler, &o);
 	CompilerPushTask(compiler, OP_RootTask, &exp, NULL);
 	ExpectsInit(exp, 0, "", "", "PNNNNN", OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Thing, OP_Space);
+}
+Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type){
+	int i;
+	if(compiler->m_TaskStack.elemCount < 2)Err(OP_ErrNOT_GOOD, "Not enough tasks on stack");
+	if(index == -1) index = compiler->m_TaskStack.elemCount - 1;
+	if(index >= compiler->m_TaskStack.elemCount)Err(OP_ErrNOT_GOOD, "Index out of bounds");
+	for (i = index - 1; i >= 0;) {
+		Task* t;
+		t = (Task*)IBVectorGet(&compiler->m_TaskStack, i--);
+		if (t->type == type) return t;
+	}
+	return NULL;
 }
 void CompilerFree(Compiler* compiler) {
 	assert(compiler);
@@ -1022,7 +1068,7 @@ void ObjSetStr(Obj* obj, char* Str) {
 }
 void ObjCopy(Obj* dst, Obj* src) {
 	assert(dst && src);
-	*dst=*src;
+	memcpy(dst, src, sizeof(Obj));
 	dst->name = NULL;
 	dst->str = NULL;
 	if(src->name) owStr(&dst->name, src->name);
@@ -1040,7 +1086,7 @@ void ObjPrint(Obj* obj) {
 		if (obj->modifier != OP_NotSet) {
 			printf("Mod:%s,", GetOpName(obj->modifier));
 		}
-		/*if(u64)*/printf("Val:%d", obj->val.i32);
+		printf("Val:%d", obj->val.i32);
 		printf("]");
 	}
 }
@@ -1401,7 +1447,9 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		char cFuncCode[CODE_STR_MAX];
 		bool imaginary;
 		Obj* funcObj;
+		Obj* thingObj;
 
+		thingObj = NULL;
 		argc = 0;
 		imaginary = false;
 		cFuncModsTypeName[0] = '\0';
@@ -1448,17 +1496,26 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");
 				if (!o->name)Err(OP_ErrNOT_GOOD, "func name NULL");
 				if (o->name) {
-					if (o->func.thingHost) {
-						//StrConcat(cFuncModsTypeName, CODE_STR_MAX, "ThingFUNC_");
-						StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->func.thingHost->name);
-						StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");
+					if (o->func.thingTask)
+					{
+						Obj* wo;
+						int idx;
+						idx = 0;
+						while (wo = IBVectorIterNext(&o->func.thingTask->working, &idx))
+						{
+							if (wo->type == OP_Thing) {
+								StrConcat(cFuncModsTypeName, CODE_STR_MAX, wo->name);
+								StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");
+								thingObj = wo;
+							}
+						}
 					}
 					StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
 				}
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, "(");
-				if (o->func.thingHost) {
+				if (thingObj) {
 					StrConcat(cFuncArgsThing, CODE_STR_MAX, "struct ");
-					StrConcat(cFuncArgsThing, CODE_STR_MAX, o->func.thingHost->name);
+					StrConcat(cFuncArgsThing, CODE_STR_MAX, thingObj->name);
 					StrConcat(cFuncArgsThing, CODE_STR_MAX, "* ptr");
 				}
 				break;
@@ -1508,14 +1565,14 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		{
 			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncModsTypeName);
 			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgsThing);
-			if (argc && funcObj->func.thingHost) IBStrAppend(&compiler->m_CHeaderFuncs, ", ");
+			if (argc && thingObj) IBStrAppend(&compiler->m_CHeaderFuncs, ", ");
 			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgs);
 			IBStrAppend(&compiler->m_CHeaderFuncs, ");\n");
 		}
 		if (!imaginary) {
 			IBStrAppend(&compiler->m_CFile, cFuncModsTypeName);
 			IBStrAppend(&compiler->m_CFile, cFuncArgsThing);
-			if (argc && funcObj->func.thingHost) IBStrAppend(&compiler->m_CFile, ", ");
+			if (argc && thingObj) IBStrAppend(&compiler->m_CFile, ", ");
 			IBStrAppend(&compiler->m_CFile, cFuncArgs);
 			IBStrAppend(&compiler->m_CFile, cFuncArgsEnd);
 			IBStrAppend(&compiler->m_CFile, cFuncCode);
@@ -2136,31 +2193,16 @@ void CompilerStrPayload(Compiler* compiler){
 			Obj* o;
 			Task* t;
 			t = GetTask;
+			assert(t);
 			CompilerPushObj(compiler, &o);
-			if (t->type == OP_ThingWantContent) {
-				bool thingFound;
-				Obj* wo;
-				int idx;
-				thingFound = false;
-				idx = 0;
-				while (wo = (Obj*)IBVectorIterNext(&compiler->m_ObjStack, &idx)) {
-					if (wo->type == OP_Thing) {
-						thingFound = true;
-						o->func.thingHost = wo;
-					}
-				}
-				assert(thingFound);
-			}
-			else {
-				o->func.thingHost = NULL;
-			}
+			o->func.thingTask = t->type == OP_ThingWantContent ? t : NULL;
 			CompilerPushTask(compiler, OP_FuncNeedName, &ap, NULL);
 			ExpectsInit(ap, 0, "expected function name", "", "P", OP_Name);
 			o->type = compiler->m_NameOp;
 			o->privacy = compiler->m_Privacy;
 			compiler->m_Privacy = OP_NotSet;
-			CompilerGetObj(compiler)->func.retType = OP_Void;
-			CompilerGetObj(compiler)->func.retTypeMod = OP_NotSet;
+			o->func.retType = OP_Void;
+			o->func.retTypeMod = OP_NotSet;
 			break;
 		}
 		case OP_Public:
