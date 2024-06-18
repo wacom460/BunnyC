@@ -25,7 +25,7 @@ compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
 */
 
-#define DEBUGPRINTS
+//#define DEBUGPRINTS
 
 #ifdef DEBUGPRINTS
 #define PLINE printf("[%d]", __LINE__)
@@ -151,16 +151,16 @@ void IBVectorFreeSimple(IBVector* vec);
 char* StrConcat(char* dest, int count, char* src);
 typedef union {
 	unsigned char u8;
-		unsigned short u16;
-		unsigned int u32;
-		unsigned long long u64;
-		char i8;
-		char c8;
-		short i16;
-		int i32;
-		long long i64;
-		float f32;
-		double d64;
+	unsigned short u16;
+	unsigned int u32;
+	unsigned long long u64;
+	char i8;
+	char c8;
+	short i16;
+	int i32;
+	long long i64;
+	float f32;
+	double d64;
 } Val;
 typedef struct IB_Variable {
 	Op type;
@@ -345,6 +345,7 @@ void CompilerTick(Compiler* compiler, FILE *f);
 void CompilerInputChar(Compiler* compiler, char ch);
 void CompilerInputStr(Compiler* compiler, char* str);
 void CompilerPopAndDoTask(Compiler* compiler);
+Val CompilerStrToVal(Compiler* compiler, char* str, Op expectedType);
 char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type);
 void CompilerPrefix(Compiler* compiler);
 void CompilerStr(Compiler* compiler);
@@ -427,7 +428,7 @@ OpNamePair opNames[] = {
 	{"RootTask", OP_RootTask},{"ErrUnknownPfx",OP_ErrUnknownPfx},
 	{"ErrUnexpectedNameOP",OP_ErrUnexpectedNameOP},{"ThingWantName",OP_ThingWantName},
 	{"ThingWantContent",OP_ThingWantContent},{"SpaceHasName",OP_SpaceHasName},
-	{"ErrDirtyTaskStack",OP_ErrDirtyTaskStack}
+	{"ErrDirtyTaskStack",OP_ErrDirtyTaskStack},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -921,8 +922,13 @@ void CompilerFree(Compiler* compiler) {
 		}
 	}
 	IBStrAppend(&compiler->m_CHeaderFuncs, "\n#endif\n");
+#ifdef DEBUGPRINTS
 	printf("-> Compilation complete <-\nC Header:\n%s%s\n\nC File:\n%s\n\n",
 		compiler->m_CHeaderStructs.start, compiler->m_CHeaderFuncs.start, compiler->m_CFile.start);
+#else
+	printf("%s%s\n%s\n",
+		compiler->m_CHeaderStructs.start, compiler->m_CHeaderFuncs.start, compiler->m_CFile.start);
+#endif
 	IBVectorFree(&compiler->m_ObjStack, ObjFree);
 	IBVectorFreeSimple(&compiler->m_ModeStack);
 	IBVectorFreeSimple(&compiler->m_StrReadPtrsStack);
@@ -1322,6 +1328,22 @@ void CompilerInputStr(Compiler* compiler, char* str)
 	int i;
 	for (i = 0; str[i] != '\0'; i++)
 		CompilerInputChar(compiler, str[i]);
+}
+Val CompilerStrToVal(Compiler* compiler, char* str, Op expectedType) {
+	Val ret;
+	switch (expectedType) {
+	case OP_c8:
+	case OP_i16:
+	case OP_u32:
+	case OP_u8:
+	case OP_u16:
+	case OP_i32: { ret.i32 = atoi(str); break; }
+	case OP_i64:
+	case OP_u64: { ret.u64 = atoll(str); break; }
+	case OP_f32:
+	case OP_d64: { ret.d64 = atof(str); break; }
+	}
+	return ret;
 }
 char* CompilerGetCPrintfFmtForType(Compiler* compiler, Op type) {
 	switch (type) {
@@ -1936,7 +1958,8 @@ void CompilerStrPayload(Compiler* compiler){
 #ifdef DEBUGPRINTS
 						printf("Finishing func got ret value\n");
 #endif
-						o->func.retVal = strVal;
+
+						o->func.retVal = CompilerStrToVal(compiler, compiler->m_Str, o->func.retType);
 						PopExpects();
 						SetTaskType(OP_Func);
 						CompilerPopAndDoTask(compiler);
@@ -2280,6 +2303,10 @@ void CompilerStrPayload(Compiler* compiler){
 }
 void CompilerExplainErr(Compiler* compiler, Op code) {
 	switch (code) {
+	case OP_FuncNeedRetVal: {
+		printf("You forgot to return a value from the function");
+		break;
+	}
 	case OP_ErrUnexpectedNameOP: {
 		Expects* exp;
 		Task* t;
@@ -2291,7 +2318,7 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 		break;
 	}
 	case OP_ErrUnknownPfx:
-		printf("This prefix \"%c\" is unknown!", compiler->m_Pfx);
+		printf("This prefix \"%c\" is unknown!", compiler->m_Ch);
 		break;
 	case OP_ErrUnknownOpStr:
 		printf("Unknown OP str @%s\n", compiler->m_Str);
