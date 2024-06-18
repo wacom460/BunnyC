@@ -456,13 +456,12 @@ OpNamePair dbgAssertsNP[] = {
 };
 char* SysLibCodeStr =
 "@space $sys\n"
-"@ext @func $malloc %i32 $size @ret %&?\n"
-"@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
-"@ext @func $free %&? $ptr\n"
-"@ext @func $strdup %&c8 $str @ret %&c8\n"
-"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
+"@ext @junt $malloc %i32 $size @ret %&?\n"
+"@ext @junt $realloc %&? $ptr %i32 $newSize @ret %&?\n"
+"@ext @junt $free %&? $ptr\n"
+"@ext @junt $strdup %&c8 $str @ret %&c8\n"
+"@ext @junt $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
 "\n";
-
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
 void IBStrInit(IBStr* str, size_t reserve){
@@ -2035,7 +2034,7 @@ void CompilerStrPayload(Compiler* compiler){
 			ObjSetType(o, OP_Thing);
 			t->type = OP_ThingWantContent;
 			CompilerPushExpects(compiler, &exp);
-			ExpectsInit(exp, 0, "expected vartype (%)", "expected @pub, @priv, or @func", 
+			ExpectsInit(exp, 0, "expected vartype (%)", "expected @pub, @priv, or @junt", 
 				"PPNNNN", 
 				OP_Op, OP_VarType, OP_Func, OP_Public, OP_Private, OP_Done);
 			break;
