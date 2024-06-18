@@ -34,7 +34,7 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #endif
 #define OP_NAME_LEN 32
 #define COMMENT_CHAR ('~')
-#define CODE_STR_MAX 512
+//#define CODE_STR_MAX 512
 #define CompilerSTR_MAX 64
 #define ThingStructTypeHeaderVarType ("int")
 #define ThingStructTypeHeaderVarName ("__thingTYPE")
@@ -126,10 +126,7 @@ typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
 	int slotCount;
-	int protectedSlotCount;/*cant pop past this, if 0 then unaffecting*/
 	size_t dataSize;
-	//IBVecData** dataList;/*pointers to each slot*/
-	IBVecData* dataListA[IBVECDataListCount];
 	IBVecData* data;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize);
@@ -141,7 +138,6 @@ void IBVectorCopyPushBool(IBVector* vec, bool val);
 void IBVectorCopyPushOp(IBVector* vec, Op val);
 IBVecData* IBVectorTop(IBVector* vec);
 IBVecData* IBVectorFront(IBVector* vec);
-void IBVectorRepopulateDataList(IBVector* vec);
 void IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
 void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
 void IBVectorFreeSimple(IBVector* vec);
@@ -262,8 +258,10 @@ typedef struct Task {
 	Op type;
 	IBVector expStack; /*Expects*/
 	IBVector working;/*Obj*/
-	char code1[CODE_STR_MAX];
-	char code2[CODE_STR_MAX];
+	/*char code1[CODE_STR_MAX];
+	char code2[CODE_STR_MAX];*/
+	IBStr code1;
+	IBStr code2;
 } Task;
 void TaskInit(Task* t, Op type);
 void TaskFree(Task* t);
@@ -376,8 +374,6 @@ Task* _GetTask(Compiler *compiler){
 #define GetExpectsTop ((Expects*)IBVectorTop(GetExpectsStack))
 #define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
 #define GetTaskType (GetTask ? GetTask->type : OP_TaskStackEmpty)
-#define GetTaskCode   (GetTask->code1)
-#define GetTaskCodeP1 (GetTask->code2)
 #define SetTaskType(tt) {\
 	GetTask->type = tt;\
 }
@@ -497,17 +493,17 @@ char *IBStrAppend(IBStr* str, char *with) {
 	size_t len;
 	size_t withLen;
 	assert(str);
-	len = IBStrGetLen(str);
-	/* assert(len < 8192); */
 	withLen = strlen(with);
 	if(!withLen) return str->start;
 	assert(withLen > 0);
 	assert(str->start);
+	len = IBStrGetLen(str);
 	ra = realloc(str->start, len + withLen + 1);
 	assert(ra);
 	if (ra) {
 		str->start = (char*)ra;
-		strcat(str->start, with);
+		memcpy(str->start + len, with, withLen);
+		*(str->start + len + withLen) = '\0';
 		str->end = str->start + len + withLen;
 		return str->start;
 	}else {
@@ -520,20 +516,13 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	void* m;
 	vec->elemSize = elemSize;
 	vec->elemCount = 0;
-	vec->slotCount = 8;
-	vec->protectedSlotCount = 0;
+	vec->slotCount = 1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	vec->data = NULL;
-	memset(vec->dataListA, NULL, sizeof(IBVecData*) * IBVECDataListCount);
-	/*m=malloc(vec->slotCount * sizeof(IBVecData*));
-	assert(m);
-	vec->dataList = (IBVecData**)m;
-	assert(vec->dataList);*/
 	m=malloc(vec->dataSize);
 	assert(m);
 	vec->data = m;
 	assert(vec->data);
-	//(*vec->dataList) = vec->data;
 	memset(vec->data, 0, vec->dataSize);
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
@@ -558,12 +547,8 @@ IBVecData* IBVectorPush(IBVector* vec) {
 		ra = realloc(vec->data, vec->dataSize);
 		assert(ra);
 		if(ra)vec->data = ra;
-		IBVectorRepopulateDataList(vec);
-		/*ra=realloc(vec->dataList, vec->slotCount * sizeof(IBVecData*));
-		if (ra)vec->dataList = ra;*/
 	}
 	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
-	if(vec->elemCount < IBVECDataListCount) *(vec->dataListA + vec->elemCount) = topPtr;
 	vec->elemCount++;
 	return topPtr;
 }
@@ -590,25 +575,12 @@ IBVecData* IBVectorFront(IBVector* vec) {
 	assert(vec->data);
 	return vec->data;
 }
-void IBVectorRepopulateDataList(IBVector* vec){
-	IBVecData* data;
-	int idx;
-	idx = 0;
-	while(data = IBVectorIterNext(vec, &idx)) {
-		vec->dataListA[idx] = data;
-	}
-}
 void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	void* ra;
 	assert(vec);
-	if (vec->protectedSlotCount && vec->elemCount <= vec->protectedSlotCount) {
-		assert(0);
-		exit(-1);
-	}
 	if(vec->elemCount <= 0) return;
 	if(freeFunc) freeFunc((void*)IBVectorGet(vec, vec->elemCount - 1));
 	vec->elemCount--;
-	vec->dataListA[vec->elemCount] = NULL;
 	vec->slotCount=vec->elemCount;
 	if(vec->slotCount<1)vec->slotCount=1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
@@ -618,11 +590,6 @@ void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 		assert(ra);
 		if (ra) vec->data = ra;
 		assert(vec->data);
-		IBVectorRepopulateDataList(vec);
-		/*ra=realloc(vec->dataList, vec->slotCount * sizeof(IBVecData*));
-		assert(ra);
-		if(ra)vec->dataList = ra;
-		assert(vec->dataList);*/
 	}
 }
 void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
@@ -641,13 +608,6 @@ void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 			memcpy(ra, IBVectorGet(vec, 1), newSize);
 			free(vec->data);
 			vec->data = ra;
-		}
-		ra = malloc(vec->slotCount * sizeof(IBVecData*));
-		assert(ra);
-		if (ra) {
-			memcpy(ra, vec->dataListA + 1, vec->slotCount * sizeof(IBVecData*));
-			free(ra);
-			memcpy(vec->dataListA, ra, vec->slotCount * sizeof(IBVecData*));
 		}
 	}
 }
@@ -772,8 +732,10 @@ void TaskInit(Task* t, Op type) {
 	IBVectorInit(&t->working, sizeof(Obj));
 	IBVectorInit(&t->expStack, sizeof(Expects));
 	t->type = type;
-	t->code1[0] = '\0';
-	t->code2[0] = '\0';
+	/*t->code1[0] = '\0';
+	t->code2[0] = '\0';*/
+	IBStrInit(&t->code1, 1);
+	IBStrInit(&t->code2, 1);
 }
 void TaskFree(Task* t) {
 	assert(t);
@@ -1477,11 +1439,11 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		int idx;
 		int i;
 		int argc;
-		char cFuncModsTypeName[CODE_STR_MAX];
-		char cFuncArgsThing[CODE_STR_MAX];
-		char cFuncArgs[CODE_STR_MAX];
-		char cFuncArgsEnd[CODE_STR_MAX];
-		char cFuncCode[CODE_STR_MAX];
+		IBStr cFuncModsTypeName;
+		IBStr cFuncArgsThing;
+		IBStr cFuncArgs;
+		IBStr cFuncArgsEnd;
+		IBStr cFuncCode;
 		bool imaginary;
 		Obj* funcObj;
 		Obj* thingObj;
@@ -1489,11 +1451,12 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		thingObj = NULL;
 		argc = 0;
 		imaginary = false;
-		cFuncModsTypeName[0] = '\0';
-		cFuncArgs[0] = '\0';
-		cFuncArgsThing[0] = '\0';
-		cFuncArgsEnd[0] = '\0';
-		cFuncCode[0] = '\0';
+		IBStrInit(&cFuncModsTypeName, 1);
+		IBStrInit(&cFuncArgsThing, 1);
+		IBStrInit(&cFuncArgs, 1);
+		IBStrInit(&cFuncArgsEnd, 1);
+		IBStrInit(&cFuncCode, 1);
+		idx = 0;
 		funcObj = NULL;
 		for (i = 0; i < wObjs->elemCount; ++i) {
 			o = (Obj*)IBVectorGet(wObjs, i);
@@ -1504,14 +1467,14 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				argc++;
 				if (at == OP_Null)Err(OP_ErrNOT_GOOD, "arg type NULL");
 
-				if (cFuncArgs[0] != '\0') {
-					StrConcat(cFuncArgs, CODE_STR_MAX, ", ");
+				if (cFuncArgs.start[0] != '\0') {
+					IBStrAppend(&cFuncArgs, ", ");
 				}
-				StrConcat(cFuncArgs, CODE_STR_MAX, GetCEqu(o->arg.type));
-				StrConcat(cFuncArgs, CODE_STR_MAX, GetCEqu(o->arg.mod));
-				StrConcat(cFuncArgs, CODE_STR_MAX, " ");
+				IBStrAppend(&cFuncArgs, GetCEqu(o->arg.type));
+				IBStrAppend(&cFuncArgs, GetCEqu(o->arg.mod));
+				IBStrAppend(&cFuncArgs, " ");
 				if (!o->name)Err(OP_ErrNOT_GOOD, "arg name NULL");
-				StrConcat(cFuncArgs, CODE_STR_MAX, o->name);
+				IBStrAppend(&cFuncArgs, o->name);
 				break;
 			}
 			case OP_FuncSigComplete: {
@@ -1525,12 +1488,17 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				funcObj = o;
 				mod = ObjGetMod(o);
 				if (mod != OP_NotSet) {
-					StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(mod));
-					StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");
+					/*StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(mod));
+					StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");*/
+					IBStrAppend(&cFuncModsTypeName, GetCEqu(mod));
+					IBStrAppend(&cFuncModsTypeName, " ");
 				}
-				StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retType));
+				/*StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retType));
 				StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retTypeMod));
-				StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");
+				StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");*/
+				IBStrAppend(&cFuncModsTypeName, GetCEqu(o->func.retType));
+				IBStrAppend(&cFuncModsTypeName, GetCEqu(o->func.retTypeMod));
+				IBStrAppend(&cFuncModsTypeName, " ");
 				if (!o->name)Err(OP_ErrNOT_GOOD, "func name NULL");
 				if (o->name) {
 					if (o->func.thingTask)
@@ -1540,18 +1508,25 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 						idx = 0;
 						wo = CompilerFindStackObjUnderTop(compiler, OP_Thing);
 						if (wo) {
-							StrConcat(cFuncModsTypeName, CODE_STR_MAX, wo->name);
-							StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");
+							/*StrConcat(cFuncModsTypeName, CODE_STR_MAX, wo->name);
+							StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");*/
+							IBStrAppend(&cFuncModsTypeName, wo->name);
+							IBStrAppend(&cFuncModsTypeName, "_");
 							thingObj = wo;
 						}
 					}
-					StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
+					//StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
+					IBStrAppend(&cFuncModsTypeName, o->name);
 				}
-				StrConcat(cFuncModsTypeName, CODE_STR_MAX, "(");
+				//StrConcat(cFuncModsTypeName, CODE_STR_MAX, "(");
+				IBStrAppend(&cFuncModsTypeName, "(");
 				if (thingObj) {
-					StrConcat(cFuncArgsThing, CODE_STR_MAX, "struct ");
+					/*StrConcat(cFuncArgsThing, CODE_STR_MAX, "struct ");
 					StrConcat(cFuncArgsThing, CODE_STR_MAX, thingObj->name);
-					StrConcat(cFuncArgsThing, CODE_STR_MAX, "* ptr");
+					StrConcat(cFuncArgsThing, CODE_STR_MAX, "* ptr");*/
+					IBStrAppend(&cFuncArgsThing, "struct ");
+					IBStrAppend(&cFuncArgsThing, thingObj->name);
+					IBStrAppend(&cFuncArgsThing, "* ptr");
 				}
 				break;
 			}
@@ -1563,54 +1538,72 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			case OP_VarComplete: {
 				char valBuf[32];
 				valBuf[0] = '\0';
-				StrConcat(cFuncCode, CODE_STR_MAX, "\t");
+				/*StrConcat(cFuncCode, CODE_STR_MAX, "\t");
 				StrConcat(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.type));
 				StrConcat(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.mod));
-				StrConcat(cFuncCode, CODE_STR_MAX, " ");
+				StrConcat(cFuncCode, CODE_STR_MAX, " ");*/
+				IBStrAppend(&cFuncCode, "\t");
+				IBStrAppend(&cFuncCode, GetCEqu(o->var.type));
+				IBStrAppend(&cFuncCode, GetCEqu(o->var.mod));
+				IBStrAppend(&cFuncCode, " ");
 				if (!o->name)Err(OP_ErrNOT_GOOD, "var name NULL");
-				StrConcat(cFuncCode, CODE_STR_MAX, o->name);
+				//StrConcat(cFuncCode, CODE_STR_MAX, o->name);
+				IBStrAppend(&cFuncCode, o->name);
 				if (o->var.valSet) {
-					StrConcat(cFuncCode, CODE_STR_MAX, " = ");
-					sprintf(valBuf, "%d", o->var.val.i32);
-					StrConcat(cFuncCode, 32, valBuf);
+					//StrConcat(cFuncCode, CODE_STR_MAX, " = ");
+					IBStrAppend(&cFuncCode, " = ");
+					Val2Str(valBuf, 32, o->var.val, o->var.type);
+					//StrConcat(cFuncCode, 32, valBuf);
+					//sprintf(valBuf, "%d", o->var.val.i32);
+					//StrConcat(cFuncCode, 32, valBuf);
+					IBStrAppend(&cFuncCode, valBuf);
+
 				}
-				StrConcat(cFuncCode, CODE_STR_MAX, ";\n");
+				//StrConcat(cFuncCode, CODE_STR_MAX, ";\n");
+				IBStrAppend(&cFuncCode, ";\n");
 				break;
 			}
 			}
 		}
 		if (imaginary) {
-			StrConcat(cFuncArgsEnd, CODE_STR_MAX, ");\n\n");
+			//StrConcat(cFuncArgsEnd, CODE_STR_MAX, ");\n\n");
+			IBStrAppend(&cFuncArgsEnd, ");\n\n");
 		}
 		else {
-			StrConcat(cFuncArgsEnd, CODE_STR_MAX, "){\n");
-			StrConcat(cFuncCode, CODE_STR_MAX, GetTaskCodeP1);
+			/*StrConcat(cFuncArgsEnd, CODE_STR_MAX, "){\n");
+			StrConcat(cFuncCode, CODE_STR_MAX, GetTaskCodeP1);*/
+			IBStrAppend(&cFuncArgsEnd, "){\n");
+			IBStrAppend(&cFuncCode, GetTask->code1.start);
 			if(!funcObj)Err(OP_ErrNOT_GOOD, "funcObj NULL");
 			if (funcObj->func.retType != OP_Void) {
 				char valBuf[32];
 				valBuf[0] = '\0';
-				StrConcat(cFuncCode, CODE_STR_MAX, "\treturn ");
+				//StrConcat(cFuncCode, CODE_STR_MAX, "\treturn ");
+				IBStrAppend(&cFuncCode, "\treturn ");
 				Val2Str(valBuf, 32, funcObj->func.retVal, funcObj->func.retType);
-				StrConcat(cFuncCode, 32, valBuf);
-				StrConcat(cFuncCode, CODE_STR_MAX, ";\n");
+				/*StrConcat(cFuncCode, 32, valBuf);
+				StrConcat(cFuncCode, CODE_STR_MAX, ";\n");*/
+				IBStrAppend(&cFuncCode, valBuf);
+				IBStrAppend(&cFuncCode, ";\n");
 			}
-			StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
+			//StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
+			IBStrAppend(&cFuncCode, "}\n\n");
 		}
 		if (strcmp(funcObj->name, "main"))
 		{
-			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncModsTypeName);
-			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgsThing);
+			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncModsTypeName.start);
+			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgsThing.start);
 			if (argc && thingObj) IBStrAppend(&compiler->m_CHeaderFuncs, ", ");
-			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgs);
+			IBStrAppend(&compiler->m_CHeaderFuncs, cFuncArgs.start);
 			IBStrAppend(&compiler->m_CHeaderFuncs, ");\n");
 		}
 		if (!imaginary) {
-			IBStrAppend(&compiler->m_CFile, cFuncModsTypeName);
-			IBStrAppend(&compiler->m_CFile, cFuncArgsThing);
+			IBStrAppend(&compiler->m_CFile, cFuncModsTypeName.start);
+			IBStrAppend(&compiler->m_CFile, cFuncArgsThing.start);
 			if (argc && thingObj) IBStrAppend(&compiler->m_CFile, ", ");
-			IBStrAppend(&compiler->m_CFile, cFuncArgs);
-			IBStrAppend(&compiler->m_CFile, cFuncArgsEnd);
-			IBStrAppend(&compiler->m_CFile, cFuncCode);
+			IBStrAppend(&compiler->m_CFile, cFuncArgs.start);
+			IBStrAppend(&compiler->m_CFile, cFuncArgsEnd.start);
+			IBStrAppend(&compiler->m_CFile, cFuncCode.start);
 		}
 		break;
 	}
@@ -1622,7 +1615,8 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		subTask = true;
 		if (GetTask && wObjs->elemCount) {
 			fmtObj = (Obj*)wObjs->data;
-			StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
+			//StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
+			IBStrAppend(&GetTask->code1, "\tprintf(\"");
 			firstPercent = false;
 			varIdx = 1;
 			for (i = 0; i < (int)strlen(fmtObj->str); ++i) {
@@ -1631,7 +1625,8 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				switch (c) {
 				case '%':{
 						if (!firstPercent) {
-							StrConcat(GetTaskCode, CODE_STR_MAX, "%");
+							//StrConcat(GetTaskCode, CODE_STR_MAX, "%");
+							IBStrAppend(&GetTask->code1, "%");
 							firstPercent = true;
 						}
 						else {
@@ -1645,14 +1640,14 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 							switch (voT) {
 							case OP_Name:{
 								Op type = NameInfoDBFindType(&compiler->m_NameTypeCtx, vo->name);
-								StrConcat(GetTaskCode, CODE_STR_MAX,
+								IBStrAppend(&GetTask->code1, 
 									CompilerGetCPrintfFmtForType(compiler, type));
 								break;
 							}
 							case OP_String:
 								assert(vo->var.type==OP_String);
 							case OP_Value:{
-								StrConcat(GetTaskCode, CODE_STR_MAX,
+								IBStrAppend(&GetTask->code1,
 									CompilerGetCPrintfFmtForType(compiler, vo->var.type));
 								break;
 							}
@@ -1671,41 +1666,52 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 					char chBuf[2];
 					chBuf[0] = c;
 					chBuf[1] = '\0';
-					StrConcat(GetTaskCode, CODE_STR_MAX, chBuf);
+					//StrConcat(GetTaskCode, CODE_STR_MAX, chBuf);
+					IBStrAppend(&GetTask->code1, chBuf);
 					break;
 				}
 				}
 			}
-			StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
+			//StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
+			IBStrAppend(&GetTask->code1, "\"");
 			if (wObjs->elemCount > 1) {
-				StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
+				//StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
+				IBStrAppend(&GetTask->code1, ", ");
 			}
 			for (i = 1; i < wObjs->elemCount; ++i) {
 				Obj* o;
 				o = (Obj*)IBVectorGet(wObjs, i);
 				switch (ObjGetType(o)) {
 				case OP_Name: {
-					StrConcat(GetTaskCode, CODE_STR_MAX, o->name);
+					//StrConcat(GetTaskCode, CODE_STR_MAX, o->name);
+					IBStrAppend(&GetTask->code1, o->name);
 					break;
 				}
 				case OP_String: {
-					StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
+					/*StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
 					StrConcat(GetTaskCode, CODE_STR_MAX, o->str);
-					StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
+					StrConcat(GetTaskCode, CODE_STR_MAX, "\"");*/
+					IBStrAppend(&GetTask->code1, "\"");
+					IBStrAppend(&GetTask->code1, o->str);
+					IBStrAppend(&GetTask->code1, "\"");
 					break;
 				}
 				case OP_Value: {
 					char valBuf[32];
 					valBuf[0] = '\0';
 					Val2Str(valBuf, 32, o->val, o->var.type);
-					StrConcat(GetTaskCode, 32, valBuf);
+					//StrConcat(GetTaskCode, 32, valBuf);
+					IBStrAppend(&GetTask->code1, valBuf);
+					break;
 				}
 				}
 				if (i < wObjs->elemCount - 1) {
-					StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
+					//StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
+					IBStrAppend(&GetTask->code1, ", ");
 				}
 			}
-			StrConcat(GetTaskCode, CODE_STR_MAX, ");\n");
+			//StrConcat(GetTaskCode, CODE_STR_MAX, ");\n");
+			IBStrAppend(&GetTask->code1, ");\n");
 		}
 		break;
 	}
@@ -1714,13 +1720,15 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		switch (GetTaskType) {
 		case OP_CPrintfHaveFmtStr: {
 			if (compiler->m_TaskStack.elemCount - 2 >= 0) {
-				char theCode[CODE_STR_MAX];
-				theCode[0] = '\0';
-				strcpy(theCode, GetTaskCode);
+				/*char theCode[CODE_STR_MAX];
+				theCode[0] = '\0';*/
+				IBStr theCode;
+				IBStrInit(&theCode, 1);
+				IBStrAppend(&theCode, GetTask->code1.start);
 				CompilerPopTask(compiler);
 				switch (GetTaskType) {
 				case OP_FuncWantCode: {
-					StrConcat(GetTaskCodeP1, CODE_STR_MAX, theCode);
+					IBStrAppend(&GetTask->code1, theCode.start);
 					break;
 				}
 				}
