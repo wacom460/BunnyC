@@ -34,7 +34,6 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #endif
 #define OP_NAME_LEN 32
 #define COMMENT_CHAR ('~')
-//#define CODE_STR_MAX 512
 #define CompilerSTR_MAX 64
 #define ThingStructTypeHeaderVarType ("int")
 #define ThingStructTypeHeaderVarName ("__thingTYPE")
@@ -2292,11 +2291,9 @@ void CompilerStrPayload(Compiler* compiler){
 	printf("Str payload complete\n");
 #endif
 	CompilerPop(compiler);
-	if(compiler->m_StrReadPtrsStack.elemCount > 1)
-	{
-		if (*(bool*)IBVectorTop(&compiler->m_StrReadPtrsStack)) {
+	if(compiler->m_StrReadPtrsStack.elemCount > 1){
+		if (*(bool*)IBVectorTop(&compiler->m_StrReadPtrsStack))
 			compiler->m_Pointer = OP_NotSet;
-		}
 		IBVectorPop(&compiler->m_StrReadPtrsStack, NULL);
 	}
 }
