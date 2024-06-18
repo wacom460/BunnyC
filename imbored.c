@@ -1005,7 +1005,7 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 		ObjFree(o);
 		ObjInit(o);
 	}
-	else {
+	else if (compiler->m_ObjStack.elemCount > 1) {
 		IBVectorPop(&compiler->m_ObjStack, ObjFree);
 		o = CompilerGetObj(compiler);
 	}
@@ -1100,7 +1100,6 @@ void CompilerPushExpects(Compiler* compiler, Expects **expDP){
 	assert(t);
 	assert(expDP);
 	if(expDP){
-		assert(*expDP);
 		exp = (Expects*)IBVectorPush(&t->expStack);
 		assert(exp);
 		(*expDP) = exp;
