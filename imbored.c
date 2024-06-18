@@ -116,17 +116,20 @@ typedef union IBVecData {
 	struct Obj* obj;
 	struct Task* task;
 	Op* op;
-	unsigned char *boolean;
+	bool *boolean;
 	struct Expects* expects;
 	struct NameInfoDB* niDB;
 	struct NameInfo* ni;
 } IBVecData;
+#define IBVECDataListCount 100
 typedef struct IBVector {
 	size_t elemSize;
 	int elemCount;
 	int slotCount;
 	int protectedSlotCount;/*cant pop past this, if 0 then unaffecting*/
 	size_t dataSize;
+	//IBVecData** dataList;/*pointers to each slot*/
+	IBVecData* dataListA[IBVECDataListCount];
 	IBVecData* data;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize);
@@ -138,6 +141,7 @@ void IBVectorCopyPushBool(IBVector* vec, bool val);
 void IBVectorCopyPushOp(IBVector* vec, Op val);
 IBVecData* IBVectorTop(IBVector* vec);
 IBVecData* IBVectorFront(IBVector* vec);
+void IBVectorRepopulateDataList(IBVector* vec);
 void IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
 void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
 void IBVectorFreeSimple(IBVector* vec);
@@ -297,8 +301,8 @@ void _Err(Compiler *compiler, Op code, char *msg);
 	_Err(compiler, code, msg);\
 }
 Obj* CompilerGetObj(Compiler* compiler);
-Obj* CompilerFindWorkingObjUnderIndex(Compiler* compiler, int index, Op type);
-Obj* CompilerFindWorkingObjUnderTop(Compiler* compiler, Op type);
+Obj* CompilerFindStackObjUnderIndex(Compiler* compiler, int index, Op type);
+Obj* CompilerFindStackObjUnderTop(Compiler* compiler, Op type);
 void CompilerInit(Compiler* compiler);
 Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type);
 void CompilerFree(Compiler* compiler);
@@ -393,7 +397,7 @@ void owStr(char** str, char* with);
 char* CompilerStringModeIgnoreChars = "";
 OpNamePair opNames[] = {
 	{"null", OP_Null},{"no", OP_False},{"yes", OP_True},{"set", OP_Set},
-	{"call", OP_Call},{"add", OP_SetAdd},{"func", OP_Func},{"~", OP_Comment},
+	{"call", OP_Call},{"add", OP_SetAdd},{"exec", OP_Func},{"~", OP_Comment},
 	{"%", OP_VarType},{"Value", OP_Value},{"@", OP_Done},{"ret", OP_Return},
 	{"ext", OP_Imaginary},{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
 	{"build", OP_Build},{"space", OP_Space},{"+", OP_Add},{"-", OP_Subtract},
@@ -423,7 +427,7 @@ OpNamePair opNames[] = {
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
 	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"UseNeedStr",OP_UseNeedStr},
-	{"sys", OP_UseStrSysLib},{"thing", OP_Thing},{"SpaceNeedName",OP_SpaceNeedName},
+	{"sys", OP_UseStrSysLib},{"junt", OP_Thing},{"SpaceNeedName",OP_SpaceNeedName},
 	{"RootTask", OP_RootTask},{"ErrUnknownPfx",OP_ErrUnknownPfx},
 	{"ErrUnexpectedNameOP",OP_ErrUnexpectedNameOP},{"ThingWantName",OP_ThingWantName},
 	{"ThingWantContent",OP_ThingWantContent},{"SpaceHasName",OP_SpaceHasName},
@@ -448,7 +452,7 @@ OpNamePair cEquivelents[] = {
 	{"(", OP_ParenthesisOpen},{")", OP_ParenthesisClose},
 	{"{", OP_ScopeOpen},{"}", OP_ScopeClose},
 	{"", OP_NotSet},
-	{"extern", OP_Imaginary},
+	{"extern", OP_Imaginary},{"float", OP_f32},{"double", OP_d64},
 };
 OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
@@ -520,10 +524,16 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->protectedSlotCount = 0;
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	vec->data = NULL;
+	memset(vec->dataListA, NULL, sizeof(IBVecData*) * IBVECDataListCount);
+	/*m=malloc(vec->slotCount * sizeof(IBVecData*));
+	assert(m);
+	vec->dataList = (IBVecData**)m;
+	assert(vec->dataList);*/
 	m=malloc(vec->dataSize);
 	assert(m);
 	vec->data = m;
 	assert(vec->data);
+	//(*vec->dataList) = vec->data;
 	memset(vec->data, 0, vec->dataSize);
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
@@ -547,9 +557,13 @@ IBVecData* IBVectorPush(IBVector* vec) {
 		assert(vec->data);
 		ra = realloc(vec->data, vec->dataSize);
 		assert(ra);
-		vec->data = ra;
+		if(ra)vec->data = ra;
+		IBVectorRepopulateDataList(vec);
+		/*ra=realloc(vec->dataList, vec->slotCount * sizeof(IBVecData*));
+		if (ra)vec->dataList = ra;*/
 	}
 	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
+	if(vec->elemCount < IBVECDataListCount) *(vec->dataListA + vec->elemCount) = topPtr;
 	vec->elemCount++;
 	return topPtr;
 }
@@ -576,6 +590,14 @@ IBVecData* IBVectorFront(IBVector* vec) {
 	assert(vec->data);
 	return vec->data;
 }
+void IBVectorRepopulateDataList(IBVector* vec){
+	IBVecData* data;
+	int idx;
+	idx = 0;
+	while(data = IBVectorIterNext(vec, &idx)) {
+		vec->dataListA[idx] = data;
+	}
+}
 void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	void* ra;
 	assert(vec);
@@ -586,32 +608,47 @@ void IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	if(vec->elemCount <= 0) return;
 	if(freeFunc) freeFunc((void*)IBVectorGet(vec, vec->elemCount - 1));
 	vec->elemCount--;
+	vec->dataListA[vec->elemCount] = NULL;
 	vec->slotCount=vec->elemCount;
 	if(vec->slotCount<1)vec->slotCount=1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	if(vec->elemCount){
 		assert(vec->data);
 		ra = realloc(vec->data, vec->dataSize);
+		assert(ra);
 		if (ra) vec->data = ra;
 		assert(vec->data);
+		IBVectorRepopulateDataList(vec);
+		/*ra=realloc(vec->dataList, vec->slotCount * sizeof(IBVecData*));
+		assert(ra);
+		if(ra)vec->dataList = ra;
+		assert(vec->dataList);*/
 	}
 }
 void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 	size_t newSize;
 	void *ra;
 	if(vec->elemCount < 1) return;
-	if(vec->elemCount == 1){
-		vec->elemCount--;
-		return;
-	}
-	newSize=(vec->dataSize * vec->elemCount) - vec->dataSize;
-	assert(newSize>=vec->dataSize);
-	ra = malloc(newSize);
-	assert(ra);
-	if(ra){
-		memcpy(ra, IBVectorGet(vec, 1), newSize);
-		free(vec->data);
-		vec->data = ra;
+	vec->elemCount--;
+	vec->slotCount = vec->elemCount;
+	if (vec->slotCount < 1)vec->slotCount = 1;
+	if(vec->elemCount > 1){
+		newSize = (vec->dataSize * vec->elemCount) - vec->dataSize;
+		assert(newSize >= vec->dataSize);
+		ra = malloc(newSize);
+		assert(ra);
+		if (ra) {
+			memcpy(ra, IBVectorGet(vec, 1), newSize);
+			free(vec->data);
+			vec->data = ra;
+		}
+		ra = malloc(vec->slotCount * sizeof(IBVecData*));
+		assert(ra);
+		if (ra) {
+			memcpy(ra, vec->dataListA + 1, vec->slotCount * sizeof(IBVecData*));
+			free(ra);
+			memcpy(vec->dataListA, ra, vec->slotCount * sizeof(IBVecData*));
+		}
 	}
 }
 void IBVectorFreeSimple(IBVector* vec) {
@@ -834,7 +871,7 @@ void owStr(char** str, char* with) {
 Obj* CompilerGetObj(Compiler* compiler) {
 	return (Obj*)IBVectorTop(&compiler->m_ObjStack);
 }
-Obj* CompilerFindWorkingObjUnderIndex(Compiler* compiler, int index, Op type) {
+Obj* CompilerFindStackObjUnderIndex(Compiler* compiler, int index, Op type) {
 	int i;
 	if(compiler->m_ObjStack.elemCount < 2)Err(OP_ErrNOT_GOOD, "Not enough objects on stack");
 	if(index >= compiler->m_ObjStack.elemCount)Err(OP_ErrNOT_GOOD, "Index out of bounds");
@@ -845,7 +882,7 @@ Obj* CompilerFindWorkingObjUnderIndex(Compiler* compiler, int index, Op type) {
 	}
 	return NULL;
 }
-Obj* CompilerFindWorkingObjUnderTop(Compiler* compiler, Op type){
+Obj* CompilerFindStackObjUnderTop(Compiler* compiler, Op type){
 	Obj* o;
 	int i;
 	if(compiler->m_ObjStack.elemCount < 2) return NULL;
@@ -1501,13 +1538,11 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 						Obj* wo;
 						int idx;
 						idx = 0;
-						while (wo = IBVectorIterNext(&o->func.thingTask->working, &idx))
-						{
-							if (wo->type == OP_Thing) {
-								StrConcat(cFuncModsTypeName, CODE_STR_MAX, wo->name);
-								StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");
-								thingObj = wo;
-							}
+						wo = CompilerFindStackObjUnderTop(compiler, OP_Thing);
+						if (wo) {
+							StrConcat(cFuncModsTypeName, CODE_STR_MAX, wo->name);
+							StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");
+							thingObj = wo;
 						}
 					}
 					StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
@@ -1852,7 +1887,7 @@ void CompilerStrPayload(Compiler* compiler){
 			CompilerPushTask(compiler, OP_CPrintfHaveFmtStr, &ap, NULL);
 			ExpectsInit(ap, 0, "expected fmt args or line end",
 				"",	"PPPP", OP_Value, OP_Name, OP_String, OP_LineEnd);
-			o=CompilerGetObj(compiler);
+			CompilerPushObj(compiler, &o);
 			ObjSetStr(o, compiler->m_Str);
 			ObjSetType(o, OP_CPrintfFmtStr);
 			CompilerPopObj(compiler, true, NULL);

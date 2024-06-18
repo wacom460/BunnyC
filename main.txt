@@ -1,17 +1,5 @@
-@thing $entity
-	~@pub %&c8 $name
-	~@pub %i32 $x
-	~@pub %i32 $y
-	
-	~@priv @func $move %i32 $xDelta %i32 $yDelta
-	~@@
-
-	@func $test
-	"hi %%" "a"
+@junt $entity
+	@exec $test
+		"test %%" "hi"
 	@@
 @@
-
-~~@func $main %i32 $argc %&&c8 $argc @ret %i32
-	%i64 $a
-	"Hello, %%" "world"
-@@ =0~~
