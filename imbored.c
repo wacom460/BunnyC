@@ -25,7 +25,7 @@ compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
 */
 
-//#define DEBUGPRINTS
+#define DEBUGPRINTS
 
 #ifdef DEBUGPRINTS
 #define PLINE printf("[%d]", __LINE__)
