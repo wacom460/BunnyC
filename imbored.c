@@ -15,6 +15,7 @@
 #define bool char
 #define true 1
 #define false 0
+#define BoolStr(b) (b ? "true" : "false")
 #ifdef _MSC_VER
 #define strdup _strdup
 #endif
@@ -396,6 +397,7 @@ void _Err(Compiler *compiler, Op code, char *msg);
 	_Err(compiler, code, msg);\
 }
 Obj* CompilerGetObj(Compiler* compiler);
+void CompilerPrintVecData(Compiler* compiler, IBVecData* data, Op type);
 void CompilerVecPrint(Compiler* compiler, IBVector* vec);
 Obj* CompilerFindStackObjUnderIndex(Compiler* compiler, int index, Op type);
 Obj* CompilerFindStackObjUnderTop(Compiler* compiler, Op type);
@@ -488,7 +490,7 @@ char* GetPfxName(Op op);
 Op GetOpFromName(char* name);
 Op GetOpFromNameList(char* name, Op list);
 Op fromPfxCh(char ch);
-void owStr(char** str, char* with);
+void OverwriteStr(char** str, char* with);
 
 #ifndef IB_HEADER
 char* CompilerStringModeIgnoreChars = "";
@@ -579,7 +581,7 @@ void IBStrFree(IBStr* str){
 void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	assert(nullTerminated);
 	assert(str);
-	owStr(&str->start, nullTerminated);
+	OverwriteStr(&str->start, nullTerminated);
 	str->end = str->start + strlen(nullTerminated);
 }
 size_t IBStrGetLen(IBStr* str) {
@@ -845,8 +847,10 @@ void _Err(Compiler *compiler, Op code, char *msg){
 	printf("Error at %u:%u \"%s\"(%d). %s\n",
 		compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code, msg);
 	CompilerExplainErr(compiler, code);
+#ifdef DEBUGPRINTS
 	CompilerVecPrint(compiler, &compiler->m_ObjStack);
 	CompilerVecPrint(compiler, &compiler->m_TaskStack);
+#endif
 	printf("\nPress enter to break.");
 	getchar();
 	__debugbreak();
@@ -919,7 +923,7 @@ Op fromPfxCh(char ch) {
 	default: return OP_Unknown;
 	}
 }
-void owStr(char** str, char* with) {
+void OverwriteStr(char** str, char* with) {
 	assert(str);
 	assert(with);
 	if (!with){
@@ -933,6 +937,95 @@ void owStr(char** str, char* with) {
 }
 Obj* CompilerGetObj(Compiler* compiler) {
 	return (Obj*)IBVectorTop(&compiler->m_ObjStack);
+}
+void CompilerPrintVecData(Compiler* compiler, IBVecData* data, Op type){
+	if (!data)return;
+	switch (type) {
+	case OP_Op: {
+		Op op = *(Op*)data;
+		DbgFmt("%s(%d)\n", GetOpName(op), (int)op);
+		break;
+	}
+	case OP_Obj: {
+		Obj* obj = (Obj*)data;
+		DbgFmt("OBJ -> [\n"
+			"\t\tType: %s(%d)\n"
+			"\t\tModifier: %s(%d)\n"
+			"\t\tPrivacy: %s(%d)\n"
+			"\t\tName: %s\n"
+			"\t\tStr: %s\n"
+			"\t\tVal as i32: %d\n"
+			"\t\tFunc: -> [\n"
+			"\t\t\tRet val as i32: %d\n"
+			"\t\t\tRet type: %s(%d)\n"
+			"\t\t\tRet type mod: %s(%d)\n"
+			"\t\t\tThing task: -> [\n",
+			GetOpName(obj->type), (int)obj->type,
+			GetOpName(obj->modifier), (int)obj->modifier,
+			GetOpName(obj->privacy), (int)obj->privacy,
+			obj->name, obj->str,
+			obj->val.i32,
+			obj->func.retVal.i32, 
+			GetOpName(obj->func.retType), (int)obj->func.retType,
+			GetOpName(obj->func.retTypeMod), (int)obj->func.retTypeMod
+		);
+		CompilerPrintVecData(compiler, obj->func.thingTask, OP_Task);
+		DbgFmt(
+			"\t\t]\n"
+			"\t\tVar -> [\n"
+			"\t\t\tVal as i32: %d\n"
+			"\t\t\tVal set: %s\n"
+			"\t\t\tType: %s(%d)\n"
+			"\t\t\tModifier: %s(%d)\n"
+			"\t\t\tPrivacy: %s(%d)\n"
+			"\t\t]\n"
+			"\t\tArg -> [\n"
+			"\t\t\tType: %s(%d)\n"
+			"\t\t\tMod: %s(%d)\n"
+			"\t\t]\n",
+			obj->var.val.i32,
+			BoolStr(obj->var.valSet),
+			GetOpName(obj->var.type), (int)obj->var.type,
+			GetOpName(obj->var.mod), (int)obj->var.mod,
+			GetOpName(obj->var.privacy), (int)obj->var.privacy,
+			GetOpName(obj->arg.type), (int)obj->arg.type,
+			GetOpName(obj->arg.mod), (int)obj->arg.mod
+		);
+		DbgFmt("\t]\n", "");
+		break;
+	}
+	case OP_Expects: {
+		Expects* exp = (Expects*)data;
+		DbgFmt("EXPECTS -> [\n"
+			"\t\tpfxErr: %s\n"
+			"\t\tnameOpErr: %s\n"
+			"\t\tlife: %d\n"
+			"\t\tlineNumInited: %d\n"
+			"\t\tpfxs:\n",
+			exp->pfxErr, exp->nameOpErr, exp->life, exp->lineNumInited);
+		CompilerVecPrint(compiler, &exp->pfxs);
+		DbgFmt("\t\tnameOps:\n", "");
+		CompilerVecPrint(compiler, &exp->nameOps);
+		DbgFmt("]\n", "");
+		break;
+	}
+	case OP_Task: {
+		Task* task = (Task*)data;
+		DbgFmt("TASK -> [\n"
+			"\tType: %s(%d)\n"
+			"\tCode1:\n%s(%d)\n"
+			"\tCode2:\n%s(%d)\n"
+			"\tWorking objs:\n",
+			GetOpName(task->type), (int)task->type);
+		CompilerVecPrint(compiler, &task->working);
+		DbgFmt("\tExpects:\n", "");
+		CompilerVecPrint(compiler, &task->expStack);
+		DbgFmt("]\n", "");
+		break;
+	}
+	default:
+		break;
+	}
 }
 void CompilerVecPrint(Compiler* compiler, IBVector* vec) {
 	int idx;
@@ -960,69 +1053,18 @@ void CompilerVecPrint(Compiler* compiler, IBVector* vec) {
 		DbgFmt("TASKs", "");
 		break;
 	}
-	default:
+	default: {
+		CompilerPushColor(compiler, IBFgMAGENTA);
 		DbgFmt("UNKNOWN!", "");
+		break;
+	}
 	}
 	DbgFmt(" vec -> [\n", "");
 	data = NULL;
 	idx = 0;
 	while (data = IBVectorIterNext(vec, &idx)) {
 		DbgFmt("\t(%d)", idx);
-		switch (vec->type) {
-		case OP_Op: {
-			Op op = *(Op*)data;
-			DbgFmt("%s(%d)\n", GetOpName(op), (int)op);
-			break;
-		}
-		case OP_Obj: {
-			Obj* obj = (Obj*)data;
-			DbgFmt("OBJ -> [\n"
-				"\t\tType: %s(%d)\n"
-				"\t\tModifier: %s(%d)\n"
-				"\t\tPrivacy: %s(%d)\n"
-				"\t\tName: %s\n"
-				"\t\tStr: %s\n"
-				"\t\tVal as i32: %d\n",
-				GetOpName(obj->type), (int)obj->type,
-				GetOpName(obj->modifier), (int)obj->modifier,
-				GetOpName(obj->privacy), (int)obj->privacy,
-				obj->name, obj->str,
-				obj->val.i32);
-			DbgFmt("\t]\n", "");
-			break;
-		}
-		case OP_Expects: {
-			Expects* exp = (Expects*)data;
-			DbgFmt("EXPECTS -> [\n"
-				"\t\tpfxErr: %s\n"
-				"\t\tnameOpErr: %s\n"
-				"\t\tlife: %d\n"
-				"\t\tlineNumInited: %d\n"
-				"\t\tpfxs:\n",
-				exp->pfxErr, exp->nameOpErr, exp->life, exp->lineNumInited);
-			CompilerVecPrint(compiler, &exp->pfxs);
-			DbgFmt("\t\tnameOps:\n", "");
-			CompilerVecPrint(compiler, &exp->nameOps);
-			DbgFmt("]\n", "");
-			break;
-		}
-		case OP_Task: {
-			Task* task = (Task*)data;
-			DbgFmt("TASK -> [\n"
-				"\tType: %s(%d)\n"
-				"\tCode1:\n%s(%d)\n"
-				"\tCode2:\n%s(%d)\n"
-				"\tWorking objs:\n",
-				GetOpName(task->type), (int)task->type);
-			CompilerVecPrint(compiler, &task->working);
-			DbgFmt("\tExpects:\n", "");
-			CompilerVecPrint(compiler, &task->expStack);
-			DbgFmt("]\n", "");
-			break;
-		}
-		default:
-			break;
-		}
+		CompilerPrintVecData(compiler, data, vec->type);		
 	}
 	switch (vec->type) {
 	case OP_Obj:
@@ -1260,19 +1302,19 @@ void ObjSetMod(Obj* obj, Op mod) {
 void _ObjSetName(Obj* obj, char* name) {
 	assert(obj);
 	DbgFmt(" obj name: %s -> %s\n", obj->name, name);
-	owStr(&obj->name, name);
+	OverwriteStr(&obj->name, name);
 }
 void ObjSetStr(Obj* obj, char* Str) {
 	DbgFmt("obj str: %s -> %s\n", obj->str, Str);
-	owStr(&obj->str, Str);
+	OverwriteStr(&obj->str, Str);
 }
 void ObjCopy(Obj* dst, Obj* src) {
 	assert(dst && src);
 	memcpy(dst, src, sizeof(Obj));
 	dst->name = NULL;
 	dst->str = NULL;
-	if(src->name) owStr(&dst->name, src->name);
-	if(src->str) owStr(&dst->str, src->str);
+	if(src->name) OverwriteStr(&dst->name, src->name);
+	if(src->str) OverwriteStr(&dst->str, src->str);
 }
 void ObjPrint(Obj* obj) {
 	assert(obj);
