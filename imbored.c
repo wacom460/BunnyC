@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 #define bool char
 #define true 1
 #define false 0
@@ -23,6 +26,48 @@ no order of operations, sequential ONLY
 compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
 */
+
+#define COL(x) SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), x)
+
+typedef enum IBColor {
+	IBFgWHITE = 
+		FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
+	IBFgRED = 
+		FOREGROUND_RED,
+	IBFgGREEN =
+		FOREGROUND_GREEN,
+	IBFgBLUE =
+		FOREGROUND_BLUE,
+	IBFgYELLOW =
+		FOREGROUND_RED | FOREGROUND_GREEN,
+	IBFgCYAN =
+		FOREGROUND_BLUE | FOREGROUND_GREEN,
+	IBFgMAGENTA =
+		FOREGROUND_RED | FOREGROUND_BLUE,
+	IBFgBROWN =
+		FOREGROUND_RED | FOREGROUND_GREEN,
+
+	//todo bg colors
+}IBColor;
+
+void IBSetColor(IBColor col);
+
+#define FGWHITE \
+	IBSetColor(IBFgWHITE)
+#define FGRED \
+	IBSetColor(IBFgRED)
+#define FGGREEN \
+	IBSetColor(IBFgGREEN)
+#define FGBLUE \
+	IBSetColor(IBFgBLUE)
+#define FGYELLOW \
+	IBSetColor(IBFgYELLOW)
+#define FGCYAN \
+	IBSetColor(IBFgCYAN)
+#define FGMAGENTA \
+	IBSetColor(IBFgMAGENTA)
+#define FGBROWN \
+	IBSetColor(IBFgBROWN)
 
 #define DEBUGPRINTS
 
@@ -53,7 +98,6 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 
 #ifdef DEBUGPRINTS
 #define DbgFmt(x, ...){\
-	PLINE;\
 	printf(x, __VA_ARGS__);\
 }
 #else
@@ -85,7 +129,7 @@ typedef enum Op { /* multiple uses */
 	OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
 	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,OP_RootTask,
 	OP_Thing,OP_ThingWantName,OP_ThingWantContent,OP_SpaceNeedName,
-	OP_SpaceHasName,
+	OP_SpaceHasName, OP_Obj, OP_Bool, OP_Task, OP_IBColor,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -93,7 +137,8 @@ typedef enum Op { /* multiple uses */
 	OP_i32, OP_i64, OP_f32, OP_d64, OP_Pointer, OP_DoublePointer,
 	OP_TripplePointer, OP_CompilerFlags, OP_dbgBreak, OP_dbgAssert,
 	OP_dbgAssertWantArgs,OP_TaskType, OP_TaskStack, OP_NotEmpty,
-	OP_TabChar,OP_UseNeedStr,OP_UseStrSysLib,
+	OP_TabChar,OP_UseNeedStr,OP_UseStrSysLib,OP_NameInfoDB,
+	OP_NameInfo,OP_Expects,
 
 	OP_NotFound, OP_Error, OP_ErrNOT_GOOD, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
@@ -130,18 +175,21 @@ typedef union IBVecData {
 } IBVecData;
 typedef struct IBVector {
 	size_t elemSize;
+	Op type;
 	int elemCount;
 	int slotCount;
 	size_t dataSize;
 	IBVecData* data;/*DATA BLOCK*/
 } IBVector;
-void IBVectorInit(IBVector* vec, size_t elemSize);
+void IBVectorInit(IBVector* vec, size_t elemSize, Op type);
+void IBVecPrint(IBVector* vec);
 IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* IBVectorIterNext(IBVector* vec, int* idx);
 IBVecData* IBVectorPush(IBVector* vec);
 void IBVectorCopyPush(IBVector* vec, void* elem);
 void IBVectorCopyPushBool(IBVector* vec, bool val);
 void IBVectorCopyPushOp(IBVector* vec, Op val);
+void IBVectorCopyPushIBColor(IBVector* vec, IBColor col);
 IBVecData* IBVectorTop(IBVector* vec);
 IBVecData* IBVectorFront(IBVector* vec);
 void IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
@@ -264,8 +312,6 @@ typedef struct Task {
 	Op type;
 	IBVector expStack; /*Expects*/
 	IBVector working;/*Obj*/
-	/*char code1[CODE_STR_MAX];
-	char code2[CODE_STR_MAX];*/
 	IBStr code1;
 	IBStr code2;
 } Task;
@@ -284,6 +330,7 @@ typedef struct Compiler {
 	IBVector m_ModeStack; /*Op*/
 	IBVector m_TaskStack; /*Task*/
 	IBVector m_StrReadPtrsStack; /*bool*/
+	IBVector m_ColorStack; /*IBColor*/
 
 	char* inputStr;
 	Op m_Pointer;
@@ -297,7 +344,6 @@ typedef struct Compiler {
 	Op m_CommentMode;
 	NameInfoDB m_NameTypeCtx;
 } Compiler;
-
 void _Err(Compiler *compiler, Op code, char *msg);
 #define Err(code, msg){\
 	PLINE;\
@@ -309,6 +355,8 @@ Obj* CompilerFindStackObjUnderTop(Compiler* compiler, Op type);
 void CompilerInit(Compiler* compiler);
 Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type);
 void CompilerFree(Compiler* compiler);
+void CompilerPushColor(Compiler* compiler, IBColor col);
+void CompilerPopColor(Compiler* compiler);
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task** taskDP);
 #define CompilerPushTask(compiler, taskOP, exectsDP, taskDP){\
 	PLINE;\
@@ -461,6 +509,7 @@ OpNamePair dbgAssertsNP[] = {
 };
 char* SysLibCodeStr =
 "@space $sys\n"
+"@pub\n"
 "@ext @exec $malloc %i32 $size @ret %&?\n"
 "@ext @exec $realloc %&? $ptr %i32 $newSize @ret %&?\n"
 "@ext @exec $free %&? $ptr\n"
@@ -517,9 +566,10 @@ char *IBStrAppend(IBStr* str, char *with) {
 	}
 	return NULL;
 }
-void IBVectorInit(IBVector* vec, size_t elemSize) {
+void IBVectorInit(IBVector* vec, size_t elemSize, Op type) {
 	void* m;
 	vec->elemSize = elemSize;
+	vec->type = type;
 	vec->elemCount = 0;
 	vec->slotCount = 1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
@@ -529,6 +579,18 @@ void IBVectorInit(IBVector* vec, size_t elemSize) {
 	vec->data = m;
 	assert(vec->data);
 	memset(vec->data, 0, vec->dataSize);
+}
+void IBVecPrint(IBVector* vec){
+	switch (vec->type) {
+		case OP_NameInfoDB:
+			break;
+		case OP_NameInfo:
+			break;
+		case OP_Expects:
+			break;
+		default:
+			break;
+	}
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
@@ -565,6 +627,9 @@ void IBVectorCopyPushBool(IBVector* vec, bool val) {
 }
 void IBVectorCopyPushOp(IBVector* vec, Op val) {
 	IBVectorCopyPush(vec, &val);
+}
+void IBVectorCopyPushIBColor(IBVector* vec, IBColor col){
+	IBVectorCopyPush(vec, &col);
 }
 IBVecData* IBVectorTop(IBVector* vec) {
 	assert(vec);
@@ -630,7 +695,7 @@ void NameInfoFree(NameInfo* info) {
 	free(info->name);
 }
 void NameInfoDBInit(NameInfoDB* db) {
-	IBVectorInit(&db->pairs, sizeof(NameInfo));
+	IBVectorInit(&db->pairs, sizeof(NameInfo), OP_NameInfo);
 }
 void NameInfoDBAdd(NameInfoDB* db, char* name, Op type) {
 	NameInfo info;
@@ -675,8 +740,8 @@ void _ExpectsInit(int LINENUM, Expects* exp, int life,
 	Op pfx;
 	Op nameOp;
 	int i;
-	IBVectorInit(&exp->pfxs, sizeof(Op));
-	IBVectorInit(&exp->nameOps, sizeof(Op));
+	IBVectorInit(&exp->pfxs, sizeof(Op), OP_Op);
+	IBVectorInit(&exp->nameOps, sizeof(Op), OP_Op);
 	exp->pfxErr=pfxErr;
 	exp->nameOpErr=nameOpErr;
 	exp->life=life;
@@ -729,11 +794,9 @@ void ExpectsFree(Expects* ap) {
 	IBVectorFreeSimple(&ap->nameOps);
 }
 void TaskInit(Task* t, Op type) {
-	IBVectorInit(&t->working, sizeof(Obj));
-	IBVectorInit(&t->expStack, sizeof(Expects));
+	IBVectorInit(&t->working, sizeof(Obj), OP_Obj);
+	IBVectorInit(&t->expStack, sizeof(Expects), OP_Expects);
 	t->type = type;
-	/*t->code1[0] = '\0';
-	t->code2[0] = '\0';*/
 	IBStrInit(&t->code1, 1);
 	IBStrInit(&t->code2, 1);
 }
@@ -743,6 +806,7 @@ void TaskFree(Task* t) {
 	IBVectorFree(&t->working, ObjFree);
 }
 void _Err(Compiler *compiler, Op code, char *msg){
+	FGRED;
 	printf("Error at %u:%u \"%s\"(%d). %s\n",
 		compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code, msg);
 	CompilerExplainErr(compiler, code);
@@ -868,7 +932,7 @@ void CompilerInit(Compiler* compiler){
 	IBStrInit(&compiler->m_CFile, 1);
 	IBStrAppend(&compiler->m_CFile, "#include \"header.h\"\n\n");
 	compiler->m_Pointer = OP_NotSet;
-	compiler->m_Privacy = OP_NotSet;
+	compiler->m_Privacy = OP_Public;
 	compiler->m_NameOp = OP_Null;
 	compiler->m_Ch = '\0';
 	compiler->m_LastCh = '\0';
@@ -877,15 +941,19 @@ void CompilerInit(Compiler* compiler){
 	compiler->m_CommentMode = OP_NotSet;
 	compiler->inputStr = NULL;
 	NameInfoDBInit(&compiler->m_NameTypeCtx);
-	IBVectorInit(&compiler->m_ObjStack, sizeof(Obj));
-	IBVectorInit(&compiler->m_ModeStack, sizeof(Op));
-	IBVectorInit(&compiler->m_StrReadPtrsStack, sizeof(bool));
-	IBVectorInit(&compiler->m_TaskStack, sizeof(Task));
+	IBVectorInit(&compiler->m_ObjStack, sizeof(Obj), OP_Obj);
+	IBVectorInit(&compiler->m_ModeStack, sizeof(Op), OP_Op);
+	IBVectorInit(&compiler->m_StrReadPtrsStack, sizeof(bool), OP_Bool);
+	IBVectorInit(&compiler->m_TaskStack, sizeof(Task), OP_Task);
+	IBVectorInit(&compiler->m_ColorStack, sizeof(IBColor), OP_IBColor);
+	IBVectorCopyPushIBColor(&compiler->m_ColorStack, IBFgWHITE);
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
 	CompilerPush(compiler, OP_ModePrefixPass, false);
 	CompilerPushObj(compiler, &o);
 	CompilerPushTask(compiler, OP_RootTask, &exp, NULL);
-	ExpectsInit(exp, 0, "", "", "PNNNNN", OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Thing, OP_Space);
+	ExpectsInit(exp, 0, "", "", "PNNNNNNN", 
+		OP_Op, OP_Use, OP_Imaginary, OP_Func, 
+		OP_Thing, OP_Space, OP_Public, OP_Private);
 }
 Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type){
 	int i;
@@ -928,6 +996,7 @@ void CompilerFree(Compiler* compiler) {
 	printf("%s%s\n%s\n",
 		compiler->m_CHeaderStructs.start, compiler->m_CHeaderFuncs.start, compiler->m_CFile.start);
 #endif
+	IBVectorFreeSimple(&compiler->m_ColorStack);
 	IBVectorFree(&compiler->m_ObjStack, ObjFree);
 	IBVectorFreeSimple(&compiler->m_ModeStack);
 	IBVectorFreeSimple(&compiler->m_StrReadPtrsStack);
@@ -1942,7 +2011,6 @@ void CompilerStrPayload(Compiler* compiler){
 			o->var.type = compiler->m_NameOp;
 			o->var.mod = compiler->m_Pointer;
 			o->var.privacy=compiler->m_Privacy;
-			compiler->m_Privacy = OP_NotSet;
 			o->var.valSet = false;
 			SetObjType(OP_VarNeedName);
 			CompilerPushExpects(compiler, &exp);
@@ -2220,14 +2288,12 @@ void CompilerStrPayload(Compiler* compiler){
 			ExpectsInit(ap, 0, "expected function name", "", "P", OP_Name);
 			o->type = compiler->m_NameOp;
 			o->privacy = compiler->m_Privacy;
-			compiler->m_Privacy = OP_NotSet;
 			o->func.retType = OP_Void;
 			o->func.retTypeMod = OP_NotSet;
 			break;
 		}
 		case OP_Public:
 		case OP_Private:
-			//assert(compiler->m_Privacy == OP_NotSet);//wasnt reset
 			compiler->m_Privacy = compiler->m_NameOp;
 			break;
 		case OP_Use: {
@@ -2317,6 +2383,9 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 	ObjPrint(CompilerGetObj(compiler));
 	DbgFmt("\n","");
 #endif
+}
+void IBSetColor(IBColor col) {
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), col);
 }
 int main(int argc, char** argv) {
 	IBDatabase db;
