@@ -24,7 +24,7 @@ compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
 */
 
-//#define DEBUGPRINTS
+#define DEBUGPRINTS
 
 #ifdef DEBUGPRINTS
 #define PLINE printf("[%d]", __LINE__)
@@ -461,11 +461,11 @@ OpNamePair dbgAssertsNP[] = {
 };
 char* SysLibCodeStr =
 "@space $sys\n"
-"@ext @junt $malloc %i32 $size @ret %&?\n"
-"@ext @junt $realloc %&? $ptr %i32 $newSize @ret %&?\n"
-"@ext @junt $free %&? $ptr\n"
-"@ext @junt $strdup %&c8 $str @ret %&c8\n"
-"@ext @junt $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
+"@ext @exec $malloc %i32 $size @ret %&?\n"
+"@ext @exec $realloc %&? $ptr %i32 $newSize @ret %&?\n"
+"@ext @exec $free %&? $ptr\n"
+"@ext @exec $strdup %&c8 $str @ret %&c8\n"
+"@ext @exec $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
 "\n";
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP

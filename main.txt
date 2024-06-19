@@ -1,9 +1,1 @@
-~@use $sys
-@junt $entity
-%u64 $rape
-@exec $test @ret %i64
-"test %%\nrape %%" "hi" $rape
-@@ =20
-@@
-@exec $main %i32 $argc %&&c8 $argv @ret %i32
-@@ =0
+@use $sys
