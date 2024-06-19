@@ -27,9 +27,10 @@ compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
 */
 
-#define COL(x) SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), x)
-
+//console colors
+#ifdef _WIN32
 typedef enum IBColor {
+	//fg
 	IBFgWHITE = 
 		FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
 	IBFgRED = 
@@ -46,9 +47,54 @@ typedef enum IBColor {
 		FOREGROUND_RED | FOREGROUND_BLUE,
 	IBFgBROWN =
 		FOREGROUND_RED | FOREGROUND_GREEN,
+	IBFgIntensity =
+		FOREGROUND_INTENSITY,
 
-	//todo bg colors
+	//bg
+	IBBgWHITE =
+		BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE,
+	IBBgRED =
+		BACKGROUND_RED,
+	IBBgGREEN =
+		BACKGROUND_GREEN,
+	IBBgBLUE =
+		BACKGROUND_BLUE,
+	IBBgYELLOW =
+		BACKGROUND_RED | BACKGROUND_GREEN,
+	IBBgCYAN =
+		BACKGROUND_BLUE | BACKGROUND_GREEN,
+	IBBgMAGENTA =
+		BACKGROUND_RED | BACKGROUND_BLUE,
+	IBBgBROWN =
+		BACKGROUND_RED | BACKGROUND_GREEN,
+	IBBgIntensity =
+		BACKGROUND_INTENSITY
 }IBColor;
+#else//unix soon
+typedef enum IBColor {
+	//fg
+	IBFgWHITE,
+	IBFgRED,
+	IBFgGREEN,
+	IBFgBLUE,
+	IBFgYELLOW,
+	IBFgCYAN,
+	IBFgMAGENTA,
+	IBFgBROWN,
+	IBFgIntensity,
+
+	//bg
+	IBBgWHITE,
+	IBBgRED,
+	IBBgGREEN,
+	IBBgBLUE,
+	IBBgYELLOW,
+	IBBgCYAN,
+	IBBgMAGENTA,
+	IBBgBROWN,
+	IBBgIntensity
+}IBColor;
+#endif
 
 void IBSetColor(IBColor col);
 
@@ -89,6 +135,7 @@ void IBSetColor(IBColor col);
 #define IBASSERT(x, errMsg){\
 	if(!(x)) {\
 		PLINE;\
+		FGRED;\
 		printf("Assertion failed!!! -> %s\n%s", errMsg, #x);\
 		DB;\
 		exit(-1);\
@@ -182,7 +229,6 @@ typedef struct IBVector {
 	IBVecData* data;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize, Op type);
-void IBVecPrint(IBVector* vec);
 IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* IBVectorIterNext(IBVector* vec, int* idx);
 IBVecData* IBVectorPush(IBVector* vec);
@@ -350,6 +396,7 @@ void _Err(Compiler *compiler, Op code, char *msg);
 	_Err(compiler, code, msg);\
 }
 Obj* CompilerGetObj(Compiler* compiler);
+void CompilerVecPrint(Compiler* compiler, IBVector* vec);
 Obj* CompilerFindStackObjUnderIndex(Compiler* compiler, int index, Op type);
 Obj* CompilerFindStackObjUnderTop(Compiler* compiler, Op type);
 void CompilerInit(Compiler* compiler);
@@ -580,18 +627,6 @@ void IBVectorInit(IBVector* vec, size_t elemSize, Op type) {
 	assert(vec->data);
 	memset(vec->data, 0, vec->dataSize);
 }
-void IBVecPrint(IBVector* vec){
-	switch (vec->type) {
-		case OP_NameInfoDB:
-			break;
-		case OP_NameInfo:
-			break;
-		case OP_Expects:
-			break;
-		default:
-			break;
-	}
-}
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
 	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
@@ -810,6 +845,8 @@ void _Err(Compiler *compiler, Op code, char *msg){
 	printf("Error at %u:%u \"%s\"(%d). %s\n",
 		compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code, msg);
 	CompilerExplainErr(compiler, code);
+	CompilerVecPrint(compiler, &compiler->m_ObjStack);
+	CompilerVecPrint(compiler, &compiler->m_TaskStack);
 	printf("\nPress enter to break.");
 	getchar();
 	__debugbreak();
@@ -897,6 +934,107 @@ void owStr(char** str, char* with) {
 Obj* CompilerGetObj(Compiler* compiler) {
 	return (Obj*)IBVectorTop(&compiler->m_ObjStack);
 }
+void CompilerVecPrint(Compiler* compiler, IBVector* vec) {
+	int idx;
+	IBVecData* data;
+
+	assert(vec);
+	switch (vec->type) {
+	case OP_Op: {
+		CompilerPushColor(compiler, IBFgCYAN);
+		DbgFmt("OPs","")
+		break;
+	}
+	case OP_Obj: {
+		CompilerPushColor(compiler, IBFgYELLOW);
+		DbgFmt("OBJs", "");
+		break;
+	}
+	case OP_Expects: {
+		CompilerPushColor(compiler, IBFgRED);
+		DbgFmt("EXPECTs", "");
+		break;
+	}
+	case OP_Task: {
+		CompilerPushColor(compiler, IBFgBLUE);
+		DbgFmt("TASKs", "");
+		break;
+	}
+	default:
+		DbgFmt("UNKNOWN!", "");
+	}
+	DbgFmt(" vec -> [\n", "");
+	data = NULL;
+	idx = 0;
+	while (data = IBVectorIterNext(vec, &idx)) {
+		DbgFmt("\t(%d)", idx);
+		switch (vec->type) {
+		case OP_Op: {
+			Op op = *(Op*)data;
+			DbgFmt("%s(%d)\n", GetOpName(op), (int)op);
+			break;
+		}
+		case OP_Obj: {
+			Obj* obj = (Obj*)data;
+			DbgFmt("OBJ -> [\n"
+				"\t\tType: %s(%d)\n"
+				"\t\tModifier: %s(%d)\n"
+				"\t\tPrivacy: %s(%d)\n"
+				"\t\tName: %s\n"
+				"\t\tStr: %s\n"
+				"\t\tVal as i32: %d\n",
+				GetOpName(obj->type), (int)obj->type,
+				GetOpName(obj->modifier), (int)obj->modifier,
+				GetOpName(obj->privacy), (int)obj->privacy,
+				obj->name, obj->str,
+				obj->val.i32);
+			DbgFmt("\t]\n", "");
+			break;
+		}
+		case OP_Expects: {
+			Expects* exp = (Expects*)data;
+			DbgFmt("EXPECTS -> [\n"
+				"\t\tpfxErr: %s\n"
+				"\t\tnameOpErr: %s\n"
+				"\t\tlife: %d\n"
+				"\t\tlineNumInited: %d\n"
+				"\t\tpfxs:\n",
+				exp->pfxErr, exp->nameOpErr, exp->life, exp->lineNumInited);
+			CompilerVecPrint(compiler, &exp->pfxs);
+			DbgFmt("\t\tnameOps:\n", "");
+			CompilerVecPrint(compiler, &exp->nameOps);
+			DbgFmt("]\n", "");
+			break;
+		}
+		case OP_Task: {
+			Task* task = (Task*)data;
+			DbgFmt("TASK -> [\n"
+				"\tType: %s(%d)\n"
+				"\tCode1:\n%s(%d)\n"
+				"\tCode2:\n%s(%d)\n"
+				"\tWorking objs:\n",
+				GetOpName(task->type), (int)task->type);
+			CompilerVecPrint(compiler, &task->working);
+			DbgFmt("\tExpects:\n", "");
+			CompilerVecPrint(compiler, &task->expStack);
+			DbgFmt("]\n", "");
+			break;
+		}
+		default:
+			break;
+		}
+	}
+	switch (vec->type) {
+	case OP_Obj:
+	case OP_Expects:
+	case OP_Task:
+	case OP_Op: {
+		DbgFmt("]\n");
+		break;
+	}
+	}
+	CompilerPopColor(compiler);
+}
 Obj* CompilerFindStackObjUnderIndex(Compiler* compiler, int index, Op type) {
 	int i;
 	if(compiler->m_ObjStack.elemCount < 2)Err(OP_ErrNOT_GOOD, "Not enough objects on stack");
@@ -946,7 +1084,7 @@ void CompilerInit(Compiler* compiler){
 	IBVectorInit(&compiler->m_StrReadPtrsStack, sizeof(bool), OP_Bool);
 	IBVectorInit(&compiler->m_TaskStack, sizeof(Task), OP_Task);
 	IBVectorInit(&compiler->m_ColorStack, sizeof(IBColor), OP_IBColor);
-	IBVectorCopyPushIBColor(&compiler->m_ColorStack, IBFgWHITE);
+	CompilerPushColor(compiler, IBFgWHITE);
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
 	CompilerPush(compiler, OP_ModePrefixPass, false);
 	CompilerPushObj(compiler, &o);
@@ -1005,6 +1143,15 @@ void CompilerFree(Compiler* compiler) {
 	IBStrFree(&compiler->m_CHeaderStructs);
 	IBStrFree(&compiler->m_CHeaderFuncs);
 	IBStrFree(&compiler->m_CFile);
+}
+void CompilerPushColor(Compiler* compiler, IBColor col){
+	IBVectorCopyPushIBColor(&compiler->m_ColorStack, col);
+	IBSetColor(col);
+}
+void CompilerPopColor(Compiler* compiler){
+	IBVectorPop(&compiler->m_ColorStack, NULL);
+	assert(compiler->m_ColorStack.elemCount);
+	IBSetColor(*(IBColor*)IBVectorTop(&compiler->m_ColorStack));
 }
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task** taskDP) {
 	Task* t;
@@ -2385,7 +2532,9 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 #endif
 }
 void IBSetColor(IBColor col) {
+#ifdef _WIN32
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), col);
+#endif
 }
 int main(int argc, char** argv) {
 	IBDatabase db;
