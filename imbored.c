@@ -176,8 +176,9 @@ typedef enum Op { /* multiple uses */
 	OP_ParenthesisOpen, OP_ParenthesisClose, OP_BracketOpen,
 	OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
 	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,OP_RootTask,
-	OP_Thing,OP_ThingWantName,OP_ThingWantContent,OP_SpaceNeedName,
-	OP_SpaceHasName, OP_Obj, OP_Bool, OP_Task, OP_IBColor,
+	OP_Thing,OP_ThingWantName,OP_ThingWantContent,OP_ThingWantRepr,
+	OP_SpaceNeedName,OP_SpaceHasName, OP_Obj, OP_Bool,
+	OP_Task, OP_IBColor,OP_Repr,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -530,7 +531,8 @@ OpNamePair opNames[] = {
 	{"RootTask", OP_RootTask},{"ErrUnknownPfx",OP_ErrUnknownPfx},
 	{"ErrUnexpectedNameOP",OP_ErrUnexpectedNameOP},{"ThingWantName",OP_ThingWantName},
 	{"ThingWantContent",OP_ThingWantContent},{"SpaceHasName",OP_SpaceHasName},
-	{"ErrDirtyTaskStack",OP_ErrDirtyTaskStack},
+	{"ErrDirtyTaskStack",OP_ErrDirtyTaskStack},{"repr", OP_Repr},{"NotEmpty",OP_NotEmpty},
+	{"ThingWantRepr",OP_ThingWantRepr},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -1427,10 +1429,12 @@ void CompilerTick(Compiler* compiler, FILE* f){
 /*NO NEWLINES AT END OF STR*/
 void CompilerInputChar(Compiler* compiler, char ch){
 	Op m;
+	Task* t;
 	bool nl;
 	compiler->m_Ch = ch;
 	nl = false;
 	m=GetMode;
+	t = GetTask;
 	if(compiler->m_CommentMode==OP_NotSet&&
 		compiler->m_Ch==COMMENT_CHAR/*&&
 		compiler->m_LastCh!=COMMENT_CHAR*/)
@@ -1489,6 +1493,10 @@ void CompilerInputChar(Compiler* compiler, char ch){
 		}
 		}
 		switch(GetTaskType){
+		case OP_ThingWantRepr: {
+			t->type = OP_ThingWantContent;
+			break;
+		}
 			case OP_CPrintfHaveFmtStr: {
 				CompilerPopAndDoTask(compiler);
 				break;
@@ -2193,6 +2201,11 @@ void CompilerStrPayload(Compiler* compiler){
 	}
 	case OP_VarType: /* % */
 		switch (GetTaskType) {
+		case OP_ThingWantRepr: {
+			t->type = OP_ThingWantContent;
+			PopExpects();
+			break;
+		}
 		case OP_ThingWantContent: {
 			Obj* o;
 			Expects* exp;
@@ -2251,11 +2264,17 @@ void CompilerStrPayload(Compiler* compiler){
 			assert(compiler->m_Str[0]!='\0');
 			ObjSetName(o, compiler->m_Str);
 			ObjSetType(o, OP_Thing);
-			t->type = OP_ThingWantContent;
+			t->type = OP_ThingWantRepr;
+			PopExpects();
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0, "", "",
+				"PPN",
+				OP_Op, OP_LineEnd, OP_Repr);
+			/*t->type = OP_ThingWantContent;
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "expected vartype (%)", "expected @pub, @priv, or @junt", 
 				"PPNNNN", 
-				OP_Op, OP_VarType, OP_Func, OP_Public, OP_Private, OP_Done);
+				OP_Op, OP_VarType, OP_Func, OP_Public, OP_Private, OP_Done);*/
 			break;
 		}
 		case OP_UseNeedStr: {
@@ -2349,6 +2368,18 @@ void CompilerStrPayload(Compiler* compiler){
 		expected = CompilerIsNameOpExpected(compiler, compiler->m_NameOp);
 		if(!expected)Err(OP_ErrUnexpectedNameOP, "unexpected nameOP");
 		switch (compiler->m_NameOp) {
+		case OP_Repr: {
+			switch (t->type) {
+			case OP_ThingWantRepr: {
+				Expects* exp;
+				//t->type = OP_ThingWantContent;
+				CompilerPushExpects(compiler, &exp);
+				ExpectsInit(exp, 0, "expected vartype (%)", "", "P", OP_VarType);
+				break;
+			}
+			}
+			break;
+		}
 		case OP_Space: {
 			Expects* ap;
 			CompilerPushTask(compiler, OP_SpaceNeedName, &ap, NULL);
