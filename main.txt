@@ -1,3 +1,4 @@
 @junt $time @repr %u64
-	
+@@
+@exec $main
 @@

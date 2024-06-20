@@ -638,7 +638,7 @@ IBVecData* IBVectorGet(IBVector* vec, int idx) {
 void* IBVectorIterNext(IBVector* vec, int* idx) {
 	assert(idx);
 	assert(vec);
-	if (!vec) return NULL;
+	if (!vec || !idx) return NULL;
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (char*)vec->data + vec->elemSize * (*idx)++;
 }
@@ -672,10 +672,7 @@ void IBVectorCopyPushIBColor(IBVector* vec, IBColor col){
 }
 IBVecData* IBVectorTop(IBVector* vec) {
 	assert(vec);
-	if (vec->elemCount <= 0) {
-		__debugbreak();
-		return NULL;
-	}
+	if (vec->elemCount <= 0) return NULL;
 	return (IBVecData*)((char*)vec->data + ((vec->elemCount - 1) * vec->elemSize));
 }
 IBVecData* IBVectorFront(IBVector* vec) {
@@ -1361,7 +1358,7 @@ void CompilerPopExpects(Compiler* compiler) {
 		DbgFmt("} -> { ","");
 #endif
 		IBVectorPop(GetExpectsStack, ExpectsFree);
-		if (!GetExpectsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
+		//if (!GetExpectsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
 		pfxsIb = &GetExpectsTop->pfxs;
 #ifdef DEBUGPRINTS
 		idx = 0;
@@ -2258,18 +2255,18 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_ThingWantName: {
 			Obj* o;
 			Expects* exp;
-			assert(GetObjCount == 1);
-			assert(GetObjType == OP_NotSet);
+			/*assert(GetObjCount == 1);
+			assert(GetObjType == OP_NotSet);*/
 			CompilerPushObj(compiler, &o);
 			assert(compiler->m_Str[0]!='\0');
 			ObjSetName(o, compiler->m_Str);
 			ObjSetType(o, OP_Thing);
 			t->type = OP_ThingWantRepr;
 			PopExpects();
-			CompilerPushExpects(compiler, &exp);
+			/*CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "", "",
 				"PPN",
-				OP_Op, OP_LineEnd, OP_Repr);
+				OP_Op, OP_LineEnd, OP_Repr);*/
 			/*t->type = OP_ThingWantContent;
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "expected vartype (%)", "expected @pub, @priv, or @junt", 
@@ -2389,6 +2386,10 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Thing: {
 			Expects* ap;
 			CompilerPushTask(compiler, OP_ThingWantName, &ap, NULL);
+			ExpectsInit(ap, 0, "", "", "PNN", OP_Op, OP_Done);
+			CompilerPushExpects(compiler, &ap);
+			ExpectsInit(ap, 0, "", "", "PPN", OP_Op, OP_LineEnd, OP_Repr);
+			CompilerPushExpects(compiler, &ap);
 			ExpectsInit(ap, 0, "expected thing name", "", "P", OP_Name);
 			break;
 		}
