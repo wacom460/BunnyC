@@ -434,6 +434,16 @@ Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type);
 void CompilerFree(Compiler* compiler);
 void CompilerPushColor(Compiler* compiler, IBColor col);
 void CompilerPopColor(Compiler* compiler);
+void _CompilerPushCodeBlock(Compiler* compiler, IBCodeBlock** cbDP);
+#define CompilerPushCodeBlock(compiler, cbDP){\
+	PLINE;\
+	_CompilerPushCodeBlock(compiler, cbDP);\
+}
+void _CompilerPopCodeBlock(Compiler* compiler);
+#define CompilerPopCodeBlock(compiler){\
+	PLINE;\
+	_CompilerPopCodeBlock(compiler);\
+}
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task** taskDP);
 #define CompilerPushTask(compiler, taskOP, exectsDP, taskDP){\
 	PLINE;\
@@ -1215,7 +1225,13 @@ Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type){
 void CompilerFree(Compiler* compiler) {
 	Task* t;
 	Obj* o;
+	IBCodeBlock* cb;
 	assert(compiler);
+	assert(compiler->m_CodeBlockStack.elemCount == 1);
+	cb=(IBCodeBlock*)IBVectorTop(&compiler->m_CodeBlockStack);
+	assert(!(IBStrGetLen(&cb->variables) + 
+		IBStrGetLen(&cb->code) + 
+		IBStrGetLen(&cb->footerCode)));
 	o=CompilerGetObj(compiler);
 	if (compiler->m_StringMode)
 		Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
@@ -1264,6 +1280,17 @@ void CompilerPopColor(Compiler* compiler){
 	IBVectorPop(&compiler->m_ColorStack, NULL);
 	assert(compiler->m_ColorStack.elemCount);
 	IBSetColor(*(IBColor*)IBVectorTop(&compiler->m_ColorStack));
+}
+void _CompilerPushCodeBlock(Compiler* compiler, IBCodeBlock** cbDP){
+	assert(cbDP);
+	DbgFmt(" Push code block\n");
+	(*cbDP)=(IBCodeBlock*)IBVectorPush(&compiler->m_CodeBlockStack);
+	IBCodeBlockInit(*cbDP);
+}
+void _CompilerPopCodeBlock(Compiler* compiler){
+	assert(compiler->m_CodeBlockStack.elemCount > 1);
+	DbgFmt(" Pop code block\n");
+	IBVectorPop(&compiler->m_CodeBlockStack, IBCodeBlockFree);
 }
 void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task** taskDP) {
 	Task* t;
