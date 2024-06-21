@@ -178,7 +178,7 @@ typedef enum Op { /* multiple uses */
 	OP_RootTask,OP_Thing,OP_ThingWantName,OP_ThingWantContent,
 	OP_ThingWantRepr,OP_SpaceNeedName,OP_SpaceHasName, OP_Obj, OP_Bool,
 	OP_Task, OP_IBColor,OP_Repr,OP_IfNeedLVal,OP_IfNeedMidOP,OP_IfNeedRVal,
-	OP_IfBlockWantCode,
+	OP_IfFinished, OP_IfBlockWantCode, OP_IBCodeBlock,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -264,6 +264,13 @@ typedef union {
 	float f32;
 	double d64;
 } Val;
+typedef struct IBCodeBlock {
+	IBStr variables;
+	IBStr code;
+	IBStr footerCode;
+} IBCodeBlock;
+void IBCodeBlockInit(IBCodeBlock* block);
+void IBCodeBlockFree(IBCodeBlock* block);
 typedef struct IB_Variable {
 	Op type;
 	IBStr name;
@@ -364,6 +371,11 @@ typedef struct Expects {
 } Expects;
 void _ExpectsInit(int LINENUM, Expects* exp, int life,
 	char* pfxErr, char* nameOpErr, char* fmt, ...);
+/*special fmt chars :
+* 'P': pfx
+* 'N': nameOP
+* 'c': code block macro (adds OP_Op, OP_If, OP_VarType... etc)
+*/
 #define ExpectsInit(exp, life, pfxErr, nameOpErr, fmt, ...)\
 	_ExpectsInit(__LINE__, exp, life, pfxErr, nameOpErr, fmt, __VA_ARGS__);
 void ExpectsPrint(Expects* exp);
@@ -391,6 +403,7 @@ typedef struct Compiler {
 	IBVector m_TaskStack; /*Task*/
 	IBVector m_StrReadPtrsStack; /*bool*/
 	IBVector m_ColorStack; /*IBColor*/
+	IBVector m_CodeBlockStack; /*IBCodeBlock*/
 
 	char* inputStr;
 	Op m_Pointer;
@@ -550,6 +563,7 @@ OpNamePair opNames[] = {
 	{"ErrDirtyTaskStack",OP_ErrDirtyTaskStack},{"repr", OP_Repr},{"NotEmpty",OP_NotEmpty},
 	{"ThingWantRepr",OP_ThingWantRepr},{"IfNeedLVal",OP_IfNeedLVal},
 	{"IfNeedMidOP",OP_IfNeedMidOP},{"IfNeedRVal",OP_IfNeedRVal},
+	{"IfFinished",OP_IfFinished},{"IfBlockWantCode",OP_IfBlockWantCode},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -740,6 +754,16 @@ void IBVectorFreeSimple(IBVector* vec) {
 char* StrConcat(char* dest, int count, char* src) {
 	return strcat(dest, src);
 }
+void IBCodeBlockInit(IBCodeBlock* block){
+	IBStrInit(&block->variables, 1);
+	IBStrInit(&block->code, 1);
+	IBStrInit(&block->footerCode, 1);
+}
+void IBCodeBlockFree(IBCodeBlock* block){
+	IBStrFree(&block->variables);
+	IBStrFree(&block->code);
+	IBStrFree(&block->footerCode);
+}
 void NameInfoInit(NameInfo* info){
 	info->type=OP_NotSet;
 	info->name=NULL;
@@ -779,8 +803,11 @@ void ObjInit(Obj* o) {
 	o->val.i32 = 0;
 	memset(&o->func, 0, sizeof(FuncObj));
 	memset(&o->var, 0, sizeof(VarObj));
+	memset(&o->ifO, 0, sizeof(IfObj));
 	o->arg.type = OP_Null;
 	o->arg.mod = OP_NotSet;
+	o->ifO.lvName=NULL;
+	o->ifO.rvName = NULL;
 }
 void ObjFree(Obj* o) {
 	assert(o);
@@ -814,6 +841,14 @@ void _ExpectsInit(int LINENUM, Expects* exp, int life,
 			nameOp=va_arg(args, Op);
 			IBVectorCopyPushOp(&exp->nameOps, nameOp);
 			DbgFmt("NameOP:%s(%d) ", GetOpName(nameOp), (int)nameOp);
+			break;
+		}
+		case 'c': {
+			PLINE;
+			DbgFmt("CodeBlockMacro ", "");
+			IBVectorCopyPushOp(&exp->pfxs, OP_Op);
+			IBVectorCopyPushOp(&exp->pfxs, OP_VarType);
+			IBVectorCopyPushOp(&exp->nameOps, OP_If);
 			break;
 		}
 		}
@@ -1117,6 +1152,7 @@ Obj* CompilerFindStackObjUnderTop(Compiler* compiler, Op type){
 void CompilerInit(Compiler* compiler){
 	Obj* o;
 	Expects* exp;
+	IBCodeBlock* cb;
 	compiler->m_Running = true;
 	compiler->m_Line = 1;
 	compiler->m_Column = 1;
@@ -1142,6 +1178,9 @@ void CompilerInit(Compiler* compiler){
 	IBVectorInit(&compiler->m_StrReadPtrsStack, sizeof(bool), OP_Bool);
 	IBVectorInit(&compiler->m_TaskStack, sizeof(Task), OP_Task);
 	IBVectorInit(&compiler->m_ColorStack, sizeof(IBColor), OP_IBColor);
+	IBVectorInit(&compiler->m_CodeBlockStack, sizeof(IBCodeBlock), OP_IBCodeBlock);
+	cb=(IBCodeBlock*)IBVectorPush(&compiler->m_CodeBlockStack);
+	IBCodeBlockInit(cb);
 	CompilerPushColor(compiler, IBFgWHITE);
 	IBVectorCopyPushBool(&compiler->m_StrReadPtrsStack, false);
 	CompilerPush(compiler, OP_ModePrefixPass, false);
@@ -1196,6 +1235,7 @@ void CompilerFree(Compiler* compiler) {
 	printf("%s%s\n%s\n",
 		compiler->m_CHeaderStructs.start, compiler->m_CHeaderFuncs.start, compiler->m_CFile.start);
 #endif
+	IBVectorFree(&compiler->m_CodeBlockStack, IBCodeBlockFree);
 	IBVectorFreeSimple(&compiler->m_ColorStack);
 	IBVectorFree(&compiler->m_ObjStack, ObjFree);
 	IBVectorFreeSimple(&compiler->m_ModeStack);
@@ -2234,10 +2274,15 @@ void CompilerStrPayload(Compiler* compiler){
 	case OP_Value: { /*=*/
 		switch (o->type) {
 		case OP_IfNeedLVal: {
+			o->ifO.lvVal = strVal;
 			SetObjType(o, OP_IfNeedMidOP);
+			SetTaskType(t, OP_IfNeedMidOP);
 			break;
 		}
 		case OP_IfNeedRVal: {
+			o->ifO.rvVal = strVal;
+			SetObjType(o, OP_IfFinished);
+			SetTaskType(t, OP_IfFinished);
 			break;
 		}
 		case OP_VarWantValue: {
@@ -2337,6 +2382,24 @@ void CompilerStrPayload(Compiler* compiler){
 		break;
 	case OP_Name: { /* $ */
 		switch(t->type){
+		case OP_IfNeedLVal: {
+			Expects* exp;
+			OverwriteStr(&o->ifO.lvName, compiler->m_Str);
+			SetObjType(o, OP_IfNeedMidOP);
+			SetTaskType(t, OP_IfNeedMidOP);
+			CompilerPopExpects(compiler);
+			CompilerPushExpects(compiler, &exp);
+			ExpectsInit(exp, 0, "", "",
+				"PN",
+				OP_Op, OP_Equals);
+			break;
+		}
+		case OP_IfNeedRVal: {
+			OverwriteStr(&o->ifO.rvName, compiler->m_Str);
+			SetObjType(o, OP_IfFinished);
+			SetTaskType(t, OP_IfFinished);
+			break;
+		}
 		case OP_ThingWantName: {
 			Obj* o;
 			Expects* exp;
@@ -2608,6 +2671,18 @@ void CompilerStrPayload(Compiler* compiler){
 			Expects* ap;
 			CompilerPushTask(compiler, OP_UseNeedStr, &ap, NULL);
 			ExpectsInit(ap, 0, "expected @use name", "", "P", OP_Name);
+			break;
+		}
+		case OP_NotEquals: {
+
+			break;
+		}
+		case OP_Equals: {
+			switch (t->type) {
+			case OP_IfNeedMidOP: {
+				break;
+			}
+			}
 			break;
 		}
 		case OP_If: {
