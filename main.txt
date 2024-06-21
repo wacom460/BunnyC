@@ -1,4 +1,11 @@
 @junt $time @repr %u64
+	@pub
+	@func $add %repr $amount @ret %self
+		@add $self $amount
+	@@ $self
 @@
+~~
 @exec $main
+
 @@
+~~

@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #ifdef _WIN32
 #include <Windows.h>
+#define atoll _atoi64
 #endif
 #define bool char
 #define true 1
@@ -1590,7 +1591,7 @@ Val CompilerStrToVal(Compiler* compiler, char* str, Op expectedType) {
 	case OP_u16:
 	case OP_i32: { ret.i32 = atoi(str); break; }
 	case OP_i64:
-	case OP_u64: { ret.u64 = /*atoll*/atol(str); break; }
+	case OP_u64: { ret.u64 = atoll(str); break; }
 	case OP_f32:
 	case OP_d64: { ret.d64 = atof(str); break; }
 	}
