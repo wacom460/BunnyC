@@ -116,7 +116,7 @@ void IBSetColor(IBColor col);
 #define FGBROWN \
 	IBSetColor(IBFgBROWN)
 
-#define DEBUGPRINTS
+//#define DEBUGPRINTS
 
 #ifdef DEBUGPRINTS
 #define PLINE printf("[%d]", __LINE__)
@@ -1070,7 +1070,7 @@ void CompilerVecPrint(Compiler* compiler, IBVector* vec) {
 	case OP_Expects:
 	case OP_Task:
 	case OP_Op: {
-		DbgFmt("]\n");
+		DbgFmt("]\n","");
 		break;
 	}
 	}
@@ -1247,26 +1247,38 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 #endif
 		newObjMem=(Obj*)IBVectorPush(&t->working);
 		assert(newObjMem);
-		ObjCopy(newObjMem, o);
-	}
+		//ObjCopy(newObjMem, o);
+		memcpy(newObjMem, o, sizeof(Obj));
+		if(compiler->m_ObjStack.elemCount < 1){
+			Err(OP_ErrNOT_GOOD, "no obj in stack");
+		}else if (compiler->m_ObjStack.elemCount == 1) {
+			//ObjFree(o);
+			ObjInit(o);
+		}else if (compiler->m_ObjStack.elemCount > 1) {
+			IBVectorPop(&compiler->m_ObjStack, NULL);
+			o=CompilerGetObj(compiler);
+		}
+	}else{
 #ifdef DEBUGPRINTS
-	DbgFmt("Pop obj: ", "");
-	ObjPrint(o);
+		DbgFmt("Pop obj: ", "");
+		ObjPrint(o);
 #endif
-	if (compiler->m_ObjStack.elemCount == 1) {
-		ObjFree(o);
-		ObjInit(o);
-	}
-	else if (compiler->m_ObjStack.elemCount > 1) {
-		IBVectorPop(&compiler->m_ObjStack, ObjFree);
-		o = CompilerGetObj(compiler);
-	}
-	DbgFmt(" -> ","");
-	assert(compiler->m_ObjStack.elemCount);
+		if (compiler->m_ObjStack.elemCount == 1) {
+			ObjFree(o);
+			ObjInit(o);
+		}
+		else if (compiler->m_ObjStack.elemCount > 1) {
+			printf("ec: %d\n", compiler->m_ObjStack.elemCount);
+			IBVectorPop(&compiler->m_ObjStack, ObjFree);
+			o = CompilerGetObj(compiler);
+		}
+		DbgFmt(" -> ","");
+		assert(compiler->m_ObjStack.elemCount);
 #ifdef DEBUGPRINTS
-	ObjPrint(o);
-	DbgFmt("\n","");
+		ObjPrint(o);
+		DbgFmt("\n","");
 #endif
+	}
 	if(objDP) (*objDP) = o;
 }
 void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
@@ -1578,7 +1590,7 @@ Val CompilerStrToVal(Compiler* compiler, char* str, Op expectedType) {
 	case OP_u16:
 	case OP_i32: { ret.i32 = atoi(str); break; }
 	case OP_i64:
-	case OP_u64: { ret.u64 = atoll(str); break; }
+	case OP_u64: { ret.u64 = /*atoll*/atol(str); break; }
 	case OP_f32:
 	case OP_d64: { ret.d64 = atof(str); break; }
 	}
