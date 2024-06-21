@@ -374,6 +374,8 @@ void _ExpectsInit(int LINENUM, Expects* exp, int life,
 /*special fmt chars :
 * 'P': pfx
 * 'N': nameOP
+* 
+* PUT AT END OF FMT STR: e.g. "PPPNNc"
 * 'c': code block macro (adds OP_Op, OP_If, OP_VarType... etc)
 */
 #define ExpectsInit(exp, life, pfxErr, nameOpErr, fmt, ...)\
@@ -463,9 +465,15 @@ void _CompilerPop(Compiler* compiler);
 	PLINE;\
 	_CompilerPop(compiler);\
 }
+
 /*life:0 = infinite, -1 life each pfx*/
 void CompilerPushExpects(Compiler* compiler, Expects** expDP);
+
 void CompilerPopExpects(Compiler* compiler);
+
+/*frees exps top and ow expDP with top ptr for user to init again */
+void CompilerReplaceExpects(Compiler* compiler, Expects** expDP);
+
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx);
 bool CompilerIsNameOpExpected(Compiler* compiler, Op nameOp);
 /*NO NEWLINES AT END OF STR*/
@@ -532,7 +540,7 @@ OpNamePair opNames[] = {
 	{"%", OP_VarType},{"Value", OP_Value},{"@", OP_Done},{"ret", OP_Return},
 	{"ext", OP_Imaginary},{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
 	{"build", OP_Build},{"space", OP_Space},{"+", OP_Add},{"-", OP_Subtract},
-	{"*", OP_Multiply},{"/", OP_Divide},{"is", OP_Equals},{"neq", OP_NotEquals},
+	{"*", OP_Multiply},{"/", OP_Divide},{"eq", OP_Equals},{"neq", OP_NotEquals},
 	{"lt", OP_LessThan},{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
 	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},{"$", OP_Name},{"for", OP_For},
 	{"loop", OP_While},{"block", OP_Block},{"struct", OP_Struct},{"priv", OP_Private},
@@ -848,7 +856,9 @@ void _ExpectsInit(int LINENUM, Expects* exp, int life,
 			DbgFmt("CodeBlockMacro ", "");
 			IBVectorCopyPushOp(&exp->pfxs, OP_Op);
 			IBVectorCopyPushOp(&exp->pfxs, OP_VarType);
+			IBVectorCopyPushOp(&exp->pfxs, OP_String);
 			IBVectorCopyPushOp(&exp->nameOps, OP_If);
+			IBVectorCopyPushOp(&exp->nameOps, OP_Set);
 			break;
 		}
 		}
@@ -1454,6 +1464,20 @@ void CompilerPopExpects(Compiler* compiler) {
 #endif
 	}
 }
+void CompilerReplaceExpects(Compiler* compiler, Expects** expDP){
+	Task* t = CompilerGetTask(compiler);
+	Expects* exp;
+	assert(t);
+	exp = TaskGetExpTop(t);
+	assert(exp);
+#ifdef DEBUGPRINTS
+	PLINE;
+	DbgFmt(" Replace expects:\n", "");
+	ExpectsPrint(exp);
+#endif
+	ExpectsFree(exp);
+	*expDP = exp;
+}
 bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	Op* oi;
 	int idx;
@@ -1566,16 +1590,24 @@ void CompilerInputChar(Compiler* compiler, char ch){
 		}
 		switch (o->type) {
 		case OP_CallWantArgs: {
-			CompilerPopObj(compiler, true, NULL);
+			CompilerPopObj(compiler, true, &o);
 			break;
 		}
 		case OP_VarWantValue:
 		case OP_VarComplete: {
-			CompilerPopObj(compiler, true, NULL);
+			CompilerPopObj(compiler, true, &o);
 			break;
 		}
 		}
 		switch(t->type){
+			case OP_IfFinished: {
+				Expects* exp;
+				CompilerPopObj(compiler, true, &o);
+				SetTaskType(t, OP_IfBlockWantCode);
+				CompilerReplaceExpects(compiler, &exp);
+				ExpectsInit(exp, 0, "", "", "Nc", OP_Done);
+				break;
+			}
 			case OP_ThingWantRepr: {
 				SetTaskType(t, OP_ThingWantContent);
 				break;
@@ -1710,6 +1742,10 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 	if(!wObjs->elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
 	subTask = false;
 	switch (t->type) {
+	case OP_IfBlockWantCode: {
+
+		break;
+	}
 	case OP_ThingWantContent: {
 		IBStr header;
 		IBStr body;
@@ -2280,9 +2316,14 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		case OP_IfNeedRVal: {
+			Expects* exp;
 			o->ifO.rvVal = strVal;
 			SetObjType(o, OP_IfFinished);
 			SetTaskType(t, OP_IfFinished);
+			CompilerReplaceExpects(compiler, &exp);
+			ExpectsInit(exp, 0, "", "",
+				"P",
+				OP_LineEnd);
 			break;
 		}
 		case OP_VarWantValue: {
@@ -2387,17 +2428,21 @@ void CompilerStrPayload(Compiler* compiler){
 			OverwriteStr(&o->ifO.lvName, compiler->m_Str);
 			SetObjType(o, OP_IfNeedMidOP);
 			SetTaskType(t, OP_IfNeedMidOP);
-			CompilerPopExpects(compiler);
-			CompilerPushExpects(compiler, &exp);
+			CompilerReplaceExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "", "",
 				"PN",
 				OP_Op, OP_Equals);
 			break;
 		}
 		case OP_IfNeedRVal: {
+			Expects* exp;
 			OverwriteStr(&o->ifO.rvName, compiler->m_Str);
 			SetObjType(o, OP_IfFinished);
 			SetTaskType(t, OP_IfFinished);
+			CompilerReplaceExpects(compiler, &exp);
+			ExpectsInit(exp, 0, "", "",
+				"P",
+				OP_LineEnd);
 			break;
 		}
 		case OP_ThingWantName: {
@@ -2409,13 +2454,13 @@ void CompilerStrPayload(Compiler* compiler){
 			assert(compiler->m_Str[0]!='\0');
 			ObjSetName(o, compiler->m_Str);
 			ObjSetType(o, OP_Thing);
-			t->type = OP_ThingWantRepr;
+			SetTaskType(t, OP_ThingWantRepr);
 			PopExpects();
 			/*CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "", "",
 				"PPN",
 				OP_Op, OP_LineEnd, OP_Repr);*/
-			/*t->type = OP_ThingWantContent;
+			/*SetTaskType(t, OP_ThingWantContent);
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "expected vartype (%)", "expected @pub, @priv, or @junt", 
 				"PPNNNN", 
@@ -2447,7 +2492,7 @@ void CompilerStrPayload(Compiler* compiler){
 			ObjSetName(o, compiler->m_Str);
 			ObjSetType(o, OP_Space);
 			CompilerPopObj(compiler, true, &o);
-			t->type = OP_SpaceHasName;
+			SetTaskType(t, OP_SpaceHasName);
 			CompilerPopAndDoTask(compiler);
 			break;
 		}
@@ -2519,7 +2564,7 @@ void CompilerStrPayload(Compiler* compiler){
 			switch (t->type) {
 			case OP_ThingWantRepr: {
 				Expects* exp;
-				//t->type = OP_ThingWantContent;
+				//SetTaskType(t, OP_ThingWantContent);
 				CompilerPushExpects(compiler, &exp);
 				ExpectsInit(exp, 0, "expected vartype (%)", "", "P", OP_VarType);
 				break;
@@ -2575,8 +2620,12 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		case OP_Done:
-			if (!compiler->m_TaskStack.elemCount) Err(OP_ErrNoTask, "");
+			if (compiler->m_TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
 			switch (t->type) {
+			case OP_IfBlockWantCode: {
+				CompilerPopAndDoTask(compiler);
+				break;
+			}
 			case OP_ThingWantContent: {
 				Obj* o;
 				o = CompilerGetObj(compiler);
@@ -2626,14 +2675,14 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Return: {
 			Op objT = o->type;
 			switch (objT) {
-			case OP_FuncArgComplete: {
+			/*case OP_FuncArgComplete: {
 				DbgFmt("what\n","");
 				CompilerPopObj(compiler, true, NULL);
 				if (o->type != OP_FuncHasName) {
 					Err(OP_ErrNOT_GOOD, "expected FuncHasName");
 					break;
 				}
-			}
+			}*/
 			case OP_FuncHasName: {
 				Expects* exp;
 				SetObjType(o, OP_FuncNeedsRetValType);
@@ -2673,13 +2722,20 @@ void CompilerStrPayload(Compiler* compiler){
 			ExpectsInit(ap, 0, "expected @use name", "", "P", OP_Name);
 			break;
 		}
-		case OP_NotEquals: {
-
-			break;
-		}
-		case OP_Equals: {
+		case OP_LessThanOrEquals: //@lteq
+		case OP_GreaterThanOrEquals: //@gteq
+		case OP_LessThan: //@lt
+		case OP_GreaterThan: //@gt
+		case OP_NotEquals: //@neq
+		case OP_Equals: { //@eq
 			switch (t->type) {
 			case OP_IfNeedMidOP: {
+				Expects* exp;
+				o->ifO.midOp = compiler->m_NameOp;
+				ObjSetType(o, OP_IfNeedRVal);
+				SetTaskType(t, OP_IfNeedRVal);
+				CompilerReplaceExpects(compiler, &exp);
+				ExpectsInit(exp, 0, "", "", "PP", OP_Name, OP_Value);
 				break;
 			}
 			}
