@@ -179,7 +179,8 @@ typedef enum Op { /* multiple uses */
 	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,OP_RootTask,
 	OP_Thing,OP_ThingWantName,OP_ThingWantContent,OP_ThingWantRepr,
 	OP_SpaceNeedName,OP_SpaceHasName, OP_Obj, OP_Bool,
-	OP_Task, OP_IBColor,OP_Repr,
+	OP_Task, OP_IBColor,OP_Repr,OP_CodeBlock,OP_CodeBlockWantCode,
+	OP_CodeBlockFinished,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -2560,7 +2561,7 @@ void CompilerStrPayload(Compiler* compiler){
 			}
 			break;
 		}
-		case OP_Func: {
+		case OP_Func: { //func1
 			Expects* ap;
 			Obj* o;
 			Task* t;
