@@ -117,7 +117,7 @@ void IBSetColor(IBColor col);
 #define FGBROWN \
 	IBSetColor(IBFgBROWN)
 
-//#define DEBUGPRINTS
+#define DEBUGPRINTS
 
 #ifdef DEBUGPRINTS
 #define PLINE printf("[%d]", __LINE__)
@@ -465,23 +465,30 @@ void CompilerExplainErr(Compiler* compiler, Op code);
 	PLINE;\
 	CompilerPopExpects(compiler);\
 }
-Task* _GetTask(Compiler *compiler){
-	Task* ret;
-	ret = NULL;
-	if (compiler->m_TaskStack.elemCount) {
-		ret = (Task*)IBVectorTop(&compiler->m_TaskStack);
-		if(!ret)Err(OP_ErrNOT_GOOD, "catastrophic failure");
-	}
-	return ret;
+Task* CompilerGetTask(Compiler *compiler);
+Op CompilerGetMode(Compiler *compiler);
+
+Expects* TaskGetExpTop(Task* t);
+IBVector* TaskGetExpPfxsTop(Task *t);
+IBVector* TaskGetExpNameOPsTop(Task* t);
+
+//#define GetTask CompilerGetTask(compiler)
+//#define GetTaskPfxs TaskGetExpPfxsTop(GetTask)
+//#define GetTaskNameOPs TaskGetExpNameOPsTop(GetTask)
+//#define GetTask _GetTask(compiler)
+//#define GetExpectsStack (GetTask ? &GetTask->expStack : NULL)
+//#define GetExpectsTop ((Expects*)IBVectorTop(GetExpectsStack))
+//#define GetMode CompilerGetMode(compiler)
+//#define GetTaskType (GetTask ? GetTask->type : OP_TaskStackEmpty)
+#define SetTaskType(task, tt){\
+	assert(task);\
+	PLINE;\
+	printf("SetTaskType: %s -> %s\n", GetOpName(task->type), GetOpName(tt));\
+	task->type = tt;\
 }
-#define GetTask _GetTask(compiler)
-#define GetExpectsStack (GetTask ? &GetTask->expStack : NULL)
-#define GetExpectsTop ((Expects*)IBVectorTop(GetExpectsStack))
-#define GetMode *((Op*)IBVectorTop(&compiler->m_ModeStack))
-#define GetTaskType (GetTask ? GetTask->type : OP_TaskStackEmpty)
-#define SetTaskType(tt) {\
-	GetTask->type = tt;\
-}
+//#define SetTaskType(tt) {\
+//	GetTask->type = tt;\
+//}
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -848,8 +855,8 @@ void _Err(Compiler *compiler, Op code, char *msg){
 		compiler->m_Line, compiler->m_Column, GetOpName(code), (int)code, msg);
 	CompilerExplainErr(compiler, code);
 #ifdef DEBUGPRINTS
-	CompilerVecPrint(compiler, &compiler->m_ObjStack);
-	CompilerVecPrint(compiler, &compiler->m_TaskStack);
+	/*CompilerVecPrint(compiler, &compiler->m_ObjStack);
+	CompilerVecPrint(compiler, &compiler->m_TaskStack);*/
 #endif
 	printf("\nPress enter to break.");
 	getchar();
@@ -1148,11 +1155,13 @@ Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type){
 	return NULL;
 }
 void CompilerFree(Compiler* compiler) {
+	Task* t;
 	assert(compiler);
 	if (compiler->m_StringMode)
 		Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
 	if(compiler->m_Str[0]) CompilerStrPayload(compiler);
-	if(GetTaskType != OP_RootTask)Err(OP_ErrDirtyTaskStack,
+	t=CompilerGetTask(compiler);
+	if(t->type != OP_RootTask)Err(OP_ErrDirtyTaskStack,
 		"Reached end of file not at root task");
 	if (compiler->m_TaskStack.elemCount) {
 		switch (((Task*)IBVectorTop(&compiler->m_TaskStack))->type) {
@@ -1205,9 +1214,11 @@ void _CompilerPushTask(Compiler* compiler, Op taskOP, Expects** exectsDP, Task**
 	(*exectsDP) = (Expects*)IBVectorPush(&t->expStack);
 }
 void _CompilerPopTask(Compiler* compiler) {
+	Task* t;
 	assert(compiler);
-	assert(GetTask);
-	DbgFmt(" Pop task %s(%d)\n", GetOpName(GetTaskType),(int)GetTaskType);
+	t=CompilerGetTask(compiler);
+	assert(t);
+	DbgFmt(" Pop task %s(%d)\n", GetOpName(t->type),(int)t->type);
 	IBVectorPop(&compiler->m_TaskStack, TaskFree);
 }
 void _CompilerPushObj(Compiler* compiler, Obj** o) {
@@ -1229,16 +1240,14 @@ void _CompilerPushObj(Compiler* compiler, Obj** o) {
 }
 void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 	Obj* o;
-	assert(GetTask);
+	Task* t;
+	t=CompilerGetTask(compiler);
+	assert(t);
 	o = CompilerGetObj(compiler);
 	assert(o);
 	if (pushToWorking){
-		Obj* newObjMem;
-		Task* t;
-		if (GetObjType == OP_NotSet)Err(OP_ErrNOT_GOOD, "");
-		t = GetTask;
-		assert(t);
-		assert(o);
+		Obj* newHome;
+		if (o->type == OP_NotSet)Err(OP_ErrNOT_GOOD, "");
 #ifdef DEBUGPRINTS
 		DbgFmt(" To working: ","");
 #endif
@@ -1246,14 +1255,12 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 		ObjPrint(o);
 		DbgFmt("\n", "");
 #endif
-		newObjMem=(Obj*)IBVectorPush(&t->working);
-		assert(newObjMem);
-		//ObjCopy(newObjMem, o);
-		memcpy(newObjMem, o, sizeof(Obj));
+		newHome=(Obj*)IBVectorPush(&t->working);
+		assert(newHome);
+		memcpy(newHome, o, sizeof(Obj));
 		if(compiler->m_ObjStack.elemCount < 1){
 			Err(OP_ErrNOT_GOOD, "no obj in stack");
 		}else if (compiler->m_ObjStack.elemCount == 1) {
-			//ObjFree(o);
 			ObjInit(o);
 		}else if (compiler->m_ObjStack.elemCount > 1) {
 			IBVectorPop(&compiler->m_ObjStack, NULL);
@@ -1283,20 +1290,29 @@ void _CompilerPopObj(Compiler* compiler, bool pushToWorking, Obj** objDP) {
 	if(objDP) (*objDP) = o;
 }
 void _CompilerPush(Compiler* compiler, Op mode, bool strAllowSpace){
+	Op cm;
+	assert(compiler);
+	cm=CompilerGetMode(compiler);
 	compiler->m_StrAllowSpace = strAllowSpace;
 	IBVectorCopyPushOp(&compiler->m_ModeStack, mode);
-	DbgFmt(" push: to %s(%d)\n", GetOpName(GetMode), (int)GetMode);
+	DbgFmt(" push: %s(%d) -> %s(%d)\n", GetOpName(cm), (int)cm, GetOpName(mode), (int)mode);
 }
 void _CompilerPop(Compiler* compiler) {
 	Op type=OP_Null;
+	Op mode;
 	Task *t;
-	t = GetTask;
+	Expects* exp;
+	assert(compiler);
+	t = CompilerGetTask(compiler);
+	assert(t);
+	mode=CompilerGetMode(compiler);
 	IBVectorPop(&compiler->m_ModeStack, NULL);
 	if(t)type=t->type;
-	DbgFmt(" pop: to %s(%d) Task type:%s(%d)\n", GetOpName(GetMode), (int)GetMode, GetOpName(type), (int)type);
+	DbgFmt(" pop: to %s(%d) Task type:%s(%d)\n", GetOpName(mode), (int)mode, GetOpName(type), (int)type);
 	assert(t->expStack.elemCount);
 #ifdef DEBUGPRINTS
-	ExpectsPrint(GetExpectsTop);
+	exp=TaskGetExpTop(t);
+	ExpectsPrint(exp);
 #endif
 }
 Op ObjGetType(Obj* obj) { return obj->type; }
@@ -1347,7 +1363,7 @@ void ObjPrint(Obj* obj) {
 void CompilerPushExpects(Compiler* compiler, Expects **expDP){
 	Task* t;
 	Expects* exp;
-	t = GetTask;
+	t = CompilerGetTask(compiler);
 	assert(t);
 	assert(expDP);
 	if(expDP){
@@ -1357,7 +1373,12 @@ void CompilerPushExpects(Compiler* compiler, Expects **expDP){
 	}	
 }
 void CompilerPopExpects(Compiler* compiler) {
-	IBVector* pfxsIb = &GetExpectsTop->pfxs;
+	Task* t = CompilerGetTask(compiler);
+	Expects* exp;
+	assert(t);
+	exp = IBVectorTop(&t->expStack);
+	assert(exp);
+	IBVector* pfxsIb = &exp->pfxs;
 	if (pfxsIb->elemCount) {
 		Op* oi;
 		int idx;
@@ -1370,9 +1391,9 @@ void CompilerPopExpects(Compiler* compiler) {
 		}
 		DbgFmt("} -> { ","");
 #endif
-		IBVectorPop(GetExpectsStack, ExpectsFree);
+		IBVectorPop(&t->expStack, ExpectsFree);
 		//if (!GetExpectsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
-		pfxsIb = &GetExpectsTop->pfxs;
+		pfxsIb = &((Expects*)IBVectorTop(&t->expStack))->pfxs;
 #ifdef DEBUGPRINTS
 		idx = 0;
 		while (oi = (Op*)IBVectorIterNext(pfxsIb,&idx)) {
@@ -1389,12 +1410,12 @@ bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	Expects* ap;
 	t = NULL;
 	ap = NULL;
-	t = GetTask;
+	t = CompilerGetTask(compiler);
 	assert(t);
-	assert(GetExpectsStack->elemCount);
+	assert(t->expStack.elemCount);
 	idx = 0;
 	oi = NULL;
-	ap = GetExpectsTop;
+	ap = TaskGetExpTop(t);
 	if(ap) while (oi = (Op*)IBVectorIterNext(&ap->pfxs,&idx)) {
 		assert(oi);
 		if (oi && *oi == pfx)
@@ -1402,18 +1423,17 @@ bool CompilerIsPfxExpected(Compiler* compiler, Op pfx) {
 	}
 	return false;
 }
-bool CompilerIsNameOpExpected(Compiler* compiler, Op nameOp)
-{
+bool CompilerIsNameOpExpected(Compiler* compiler, Op nameOp){
 	Op* oi;
 	int idx;
 	Task* t;
 	Expects* exp;
-	t = GetTask;
+	t = CompilerGetTask(compiler);
 	assert(t);
-	assert(GetExpectsStack->elemCount);
+	assert(t->expStack.elemCount);
 	idx = 0;
 	oi = NULL;
-	exp = GetExpectsTop;
+	exp = TaskGetExpTop(t);
 	while (oi = (Op*)IBVectorIterNext(&exp->nameOps, &idx)) {
 		assert(oi);
 		if (oi && *oi == nameOp)
@@ -1443,8 +1463,8 @@ void CompilerInputChar(Compiler* compiler, char ch){
 	bool nl;
 	compiler->m_Ch = ch;
 	nl = false;
-	m=GetMode;
-	t = GetTask;
+	m=CompilerGetMode(compiler);
+	t = CompilerGetTask(compiler);
 	if(compiler->m_CommentMode==OP_NotSet&&
 		compiler->m_Ch==COMMENT_CHAR/*&&
 		compiler->m_LastCh!=COMMENT_CHAR*/)
@@ -1485,7 +1505,7 @@ void CompilerInputChar(Compiler* compiler, char ch){
 			CompilerPop(compiler);
 			compiler->m_CommentMode = OP_NotSet;
 		}
-		switch (GetMode) {
+		switch (m) {
 		case OP_ModeStrPass: {
 			CompilerStrPayload(compiler);
 			break;
@@ -1502,9 +1522,9 @@ void CompilerInputChar(Compiler* compiler, char ch){
 			break;
 		}
 		}
-		switch(GetTaskType){
+		switch(t->type){
 		case OP_ThingWantRepr: {
-			t->type = OP_ThingWantContent;
+			SetTaskType(t, OP_ThingWantContent);
 			break;
 		}
 			case OP_CPrintfHaveFmtStr: {
@@ -1529,12 +1549,10 @@ void CompilerInputChar(Compiler* compiler, char ch){
 				if (mod != OP_Imaginary) {
 					Expects *exp;
 					CompilerPushExpects(compiler, &exp);
-					ExpectsInit(exp, 0,
-						"expected operator, print statement, or variable declaration",
-						"",
-						"PPPN",
-						OP_Op, OP_String, OP_VarType, OP_Done);
-					SetTaskType(OP_FuncWantCode);
+					ExpectsInit(exp, 0,"","",
+						"PPPNN",
+						OP_Op, OP_String, OP_VarType, OP_If, OP_Done);
+					SetTaskType(t, OP_FuncWantCode);
 				}
 				else {
 					CompilerPopAndDoTask(compiler);
@@ -1545,7 +1563,7 @@ void CompilerInputChar(Compiler* compiler, char ch){
 		break;
 	}
 	}
-	m = GetMode;
+	m = CompilerGetMode(compiler);
 	compiler->m_Column++;
 	if (!nl && compiler->m_CommentMode == OP_NotSet) {
 		/*if(compiler->m_Ch == ' ') printf("-> SPACE (0x%x)\n",  compiler->m_Ch);
@@ -1630,7 +1648,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 	IBVector* wObjs;
 	Task* t;
 	bool subTask;
-	t = GetTask;
+	t = CompilerGetTask(compiler);
 	assert(t);
 	DbgFmt("PopAndDoTask()\n","");
 	if(!compiler->m_TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
@@ -1845,7 +1863,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 			/*StrConcat(cFuncArgsEnd, CODE_STR_MAX, "){\n");
 			StrConcat(cFuncCode, CODE_STR_MAX, GetTaskCodeP1);*/
 			IBStrAppend(&cFuncArgsEnd, "){\n");
-			IBStrAppend(&cFuncCode, GetTask->code1.start);
+			IBStrAppend(&cFuncCode, t->code1.start);
 			if(!funcObj)Err(OP_ErrNOT_GOOD, "funcObj NULL");
 			if (funcObj->func.retType != OP_Void) {
 				char valBuf[32];
@@ -1885,10 +1903,10 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 		int varIdx;
 		int i;
 		subTask = true;
-		if (GetTask && wObjs->elemCount) {
+		if (t && wObjs->elemCount) {
 			fmtObj = (Obj*)wObjs->data;
 			//StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
-			IBStrAppend(&GetTask->code1, "\tprintf(\"");
+			IBStrAppend(&t->code1, "\tprintf(\"");
 			firstPercent = false;
 			varIdx = 1;
 			for (i = 0; i < (int)strlen(fmtObj->str); ++i) {
@@ -1898,7 +1916,7 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				case '%':{
 						if (!firstPercent) {
 							//StrConcat(GetTaskCode, CODE_STR_MAX, "%");
-							IBStrAppend(&GetTask->code1, "%");
+							IBStrAppend(&t->code1, "%");
 							firstPercent = true;
 						}
 						else {
@@ -1912,14 +1930,14 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 							switch (voT) {
 							case OP_Name:{
 								Op type = NameInfoDBFindType(&compiler->m_NameTypeCtx, vo->name);
-								IBStrAppend(&GetTask->code1, 
+								IBStrAppend(&t->code1, 
 									CompilerGetCPrintfFmtForType(compiler, type));
 								break;
 							}
 							case OP_String:
 								assert(vo->var.type==OP_String);
 							case OP_Value:{
-								IBStrAppend(&GetTask->code1,
+								IBStrAppend(&t->code1,
 									CompilerGetCPrintfFmtForType(compiler, vo->var.type));
 								break;
 							}
@@ -1939,16 +1957,16 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 					chBuf[0] = c;
 					chBuf[1] = '\0';
 					//StrConcat(GetTaskCode, CODE_STR_MAX, chBuf);
-					IBStrAppend(&GetTask->code1, chBuf);
+					IBStrAppend(&t->code1, chBuf);
 					break;
 				}
 				}
 			}
 			//StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
-			IBStrAppend(&GetTask->code1, "\"");
+			IBStrAppend(&t->code1, "\"");
 			if (wObjs->elemCount > 1) {
 				//StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
-				IBStrAppend(&GetTask->code1, ", ");
+				IBStrAppend(&t->code1, ", ");
 			}
 			for (i = 1; i < wObjs->elemCount; ++i) {
 				Obj* o;
@@ -1956,16 +1974,16 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 				switch (ObjGetType(o)) {
 				case OP_Name: {
 					//StrConcat(GetTaskCode, CODE_STR_MAX, o->name);
-					IBStrAppend(&GetTask->code1, o->name);
+					IBStrAppend(&t->code1, o->name);
 					break;
 				}
 				case OP_String: {
 					/*StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
 					StrConcat(GetTaskCode, CODE_STR_MAX, o->str);
 					StrConcat(GetTaskCode, CODE_STR_MAX, "\"");*/
-					IBStrAppend(&GetTask->code1, "\"");
-					IBStrAppend(&GetTask->code1, o->str);
-					IBStrAppend(&GetTask->code1, "\"");
+					IBStrAppend(&t->code1, "\"");
+					IBStrAppend(&t->code1, o->str);
+					IBStrAppend(&t->code1, "\"");
 					break;
 				}
 				case OP_Value: {
@@ -1973,34 +1991,34 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 					valBuf[0] = '\0';
 					Val2Str(valBuf, 32, o->val, o->var.type);
 					//StrConcat(GetTaskCode, 32, valBuf);
-					IBStrAppend(&GetTask->code1, valBuf);
+					IBStrAppend(&t->code1, valBuf);
 					break;
 				}
 				}
 				if (i < wObjs->elemCount - 1) {
 					//StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
-					IBStrAppend(&GetTask->code1, ", ");
+					IBStrAppend(&t->code1, ", ");
 				}
 			}
 			//StrConcat(GetTaskCode, CODE_STR_MAX, ");\n");
-			IBStrAppend(&GetTask->code1, ");\n");
+			IBStrAppend(&t->code1, ");\n");
 		}
 		break;
 	}
 	}
 	if (subTask) {
-		switch (GetTaskType) {
+		switch (t->type) {
 		case OP_CPrintfHaveFmtStr: {
 			if (compiler->m_TaskStack.elemCount - 2 >= 0) {
 				/*char theCode[CODE_STR_MAX];
 				theCode[0] = '\0';*/
 				IBStr theCode;
 				IBStrInit(&theCode, 1);
-				IBStrAppend(&theCode, GetTask->code1.start);
+				IBStrAppend(&theCode, t->code1.start);
 				CompilerPopTask(compiler);
-				switch (GetTaskType) {
+				switch (t->type) {
 				case OP_FuncWantCode: {
-					IBStrAppend(&GetTask->code1, theCode.start);
+					IBStrAppend(&t->code1, theCode.start);
 					break;
 				}
 				}
@@ -2013,6 +2031,11 @@ void CompilerPopAndDoTask(Compiler* compiler)	{
 }
 void CompilerPrefix(Compiler* compiler){
 	Obj* obj;
+	Task* t;
+	Expects* expTop;
+	t = CompilerGetTask(compiler);
+	assert(t);
+	expTop = TaskGetExpTop(t);
 	/*for assigning func call ret val to var*/
 	if (compiler->m_Pfx == OP_Value && compiler->m_Ch == '@' && !compiler->m_Str[0]) {
 		Expects* exp;
@@ -2025,7 +2048,7 @@ void CompilerPrefix(Compiler* compiler){
 	if (compiler->m_Pfx == OP_Unknown) Err(OP_ErrUnknownPfx, "catastrophic err");
 	obj=CompilerGetObj(compiler);
 	if (compiler->m_Pfx != OP_Unknown
-		&& (!GetTask || GetExpectsTop->pfxs.elemCount)
+		&& (!t || expTop->pfxs.elemCount)
 		&& !CompilerIsPfxExpected(compiler, compiler->m_Pfx)
 	)
 	{
@@ -2052,12 +2075,8 @@ void CompilerPrefix(Compiler* compiler){
 		break;
 	}
 	if (compiler->m_Pfx == OP_Op) {
-		Expects* aps=NULL;
-		Task* t;
-		t = GetTask;
-		if(t) aps = GetExpectsTop;
-		if (aps && aps->life && --aps->life <= 0) {
-			IBVectorPop(GetExpectsStack, ExpectsFree);
+		if (expTop && expTop->life && --expTop->life <= 0) {
+			IBVectorPop(&t->expStack, ExpectsFree);
 		}
 	}
 }
@@ -2122,11 +2141,42 @@ void CompilerStr(Compiler* compiler){
 	}
 	StrConcat(compiler->m_Str, CompilerSTR_MAX, chBuf);
 }
+Task* CompilerGetTask(Compiler *compiler){
+	Task* ret= (Task*)IBVectorTop(&compiler->m_TaskStack);
+	if (!ret)Err(OP_ErrNOT_GOOD, "no task in stack");
+	return ret;
+}
+Op CompilerGetMode(Compiler* compiler){
+	Op ret=OP_Null;
+	Op* p=(Op*)IBVectorTop(&compiler->m_ModeStack);
+	if (p)ret = *p;
+	return ret;
+}
+Expects* TaskGetExpTop(Task* t){
+	Expects* ret;
+	assert(t);
+	ret = (Expects*)IBVectorTop(&t->expStack);
+	assert(ret);
+	return ret;
+}
+IBVector* TaskGetExpPfxsTop(Task* t){
+	Expects* ret;
+	assert(t);
+	ret = (Expects*)IBVectorTop(&t->expStack);
+	assert(ret);
+	return &ret->pfxs;
+}
+IBVector* TaskGetExpNameOPsTop(Task* t){
+	Expects* ret;
+	assert(t);
+	ret = (Expects*)IBVectorTop(&t->expStack);
+	assert(ret);
+	return &ret->nameOps;
+}
 void CompilerStrPayload(Compiler* compiler){
 	Val strVal;
 	Task *t;
-	t=NULL;
-	t=GetTask;
+	t=CompilerGetTask(compiler);
 	strVal.i32=atoi(compiler->m_Str);
 	compiler->m_NameOp = GetOpFromName(compiler->m_Str);
 	DbgFmt("StrPayload: %s\n", compiler->m_Str);
@@ -2179,7 +2229,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		}
 		if (compiler->m_TaskStack.elemCount) {
-			switch (GetTaskType) {
+			switch (t->type) {
 			case OP_CPrintfHaveFmtStr:{
 				Obj *o;
 				CompilerPushObj(compiler, &o);
@@ -2198,7 +2248,7 @@ void CompilerStrPayload(Compiler* compiler){
 						DbgFmt("Finishing func got ret value\n","");
 						o->func.retVal = CompilerStrToVal(compiler, compiler->m_Str, o->func.retType);
 						PopExpects();
-						SetTaskType(OP_Func);
+						SetTaskType(t, OP_Func);
 						CompilerPopAndDoTask(compiler);
 						break;
 					}
@@ -2210,9 +2260,9 @@ void CompilerStrPayload(Compiler* compiler){
 		break;
 	}
 	case OP_VarType: /* % */
-		switch (GetTaskType) {
+		switch (t->type) {
 		case OP_ThingWantRepr: {
-			t->type = OP_ThingWantContent;
+			SetTaskType(t, OP_ThingWantContent);			
 			PopExpects();
 			break;
 		}
@@ -2244,7 +2294,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		switch (GetObjType) {
 		case OP_FuncNeedsRetValType: {
-			if (GetTaskType != OP_FuncHasName)Err(OP_ErrNOT_GOOD, "func signature needs name");
+			if (t->type != OP_FuncHasName)Err(OP_ErrNOT_GOOD, "func signature needs name");
 			CompilerGetObj(compiler)->func.retType = compiler->m_NameOp;
 			CompilerGetObj(compiler)->func.retTypeMod = compiler->m_Pointer;
 			SetObjType(OP_FuncSigComplete);
@@ -2355,7 +2405,7 @@ void CompilerStrPayload(Compiler* compiler){
 		case OP_Func: {
 			Expects* exp;
 			SetObjType(OP_FuncHasName);
-			SetTaskType(OP_FuncHasName);
+			SetTaskType(t, OP_FuncHasName);
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "", "",
 				"PPPN",
@@ -2439,7 +2489,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_Done:
 			if (!compiler->m_TaskStack.elemCount) Err(OP_ErrNoTask, "");
-			switch (GetTaskType) {
+			switch (t->type) {
 			case OP_ThingWantContent: {
 				Obj* o;
 				o = CompilerGetObj(compiler);
@@ -2474,10 +2524,10 @@ void CompilerStrPayload(Compiler* compiler){
 							else {
 								ExpectsInit(exp, 0, "", "", "P", OP_Value);
 							}
-							SetTaskType(OP_FuncNeedRetVal);
+							SetTaskType(t, OP_FuncNeedRetVal);
 						}
 						else {
-							SetTaskType(OP_Func);
+							SetTaskType(t, OP_Func);
 							CompilerPopAndDoTask(compiler);
 						}
 					}
@@ -2514,7 +2564,7 @@ void CompilerStrPayload(Compiler* compiler){
 			Expects* ap;
 			Obj* o;
 			Task* t;
-			t = GetTask;
+			t = CompilerGetTask(compiler);
 			assert(t);
 			CompilerPushObj(compiler, &o);
 			o->func.thingTask = t->type == OP_ThingWantContent ? t : NULL;
@@ -2562,9 +2612,9 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 	case OP_ErrUnexpectedNameOP: {
 		Expects* exp;
 		Task* t;
-		t=GetTask;
+		t=CompilerGetTask(compiler);
 		assert(t);
-		exp = GetExpectsTop;
+		exp = TaskGetExpTop(t);
 		printf("NameOP \"@%s\" wasn't expected.\nExpected:\n", compiler->m_Str);
 		ExpectsPrint(exp);
 		break;
@@ -2589,15 +2639,15 @@ void CompilerExplainErr(Compiler* compiler, Op code) {
 		Expects *ap;
 		Task *t;
 		int idx;
-		t =GetTask;
-		ap=GetExpectsTop;
+		t =CompilerGetTask(compiler);
+		ap=TaskGetExpTop(t);
 		if(ap && t){
 			assert(ap->pfxs.elemCount);
 			printf("Err: \"%s\" Unexpected next prefix %s. Pfx idx:%d\nEnforced at line %d. Allowed:",
 				ap->pfxErr, GetPfxName(compiler->m_Pfx),
 					ap->pfxs.elemCount - 1, ap->lineNumInited);
 			idx = 0;
-			while (oi = (Op*)IBVectorIterNext(&GetExpectsTop->pfxs,&idx)) {
+			while (oi = (Op*)IBVectorIterNext(&ap->pfxs,&idx)) {
 				printf("%s(%d),", GetPfxName(*oi), (int)*oi);
 			}
 		}else{

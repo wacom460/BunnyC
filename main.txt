@@ -1,11 +1,7 @@
-@junt $time @repr %u64
-	@pub
-	@func $add %repr $amount @ret %self
-		@add $self $amount
-	@@ $self
+@exec $main %i32 $argc %&&c8 $argv @ret %i32
+@if $argc @is =1
+	"Hello, %%" "world"
+@else
+	"Err"
 @@
-~~
-@exec $main
-
-@@
-~~
+@@ =0
