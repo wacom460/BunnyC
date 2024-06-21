@@ -173,14 +173,12 @@ typedef enum Op { /* multiple uses */
 	OP_Call, OP_Colon, OP_Dot, 	OP_Add, OP_Subtract, OP_Multiply,
 	OP_Divide, OP_AddEq, OP_SubEq, OP_MultEq, OP_DivEq, OP_Equals,
 	OP_NotEquals, OP_LessThan, OP_GreaterThan, OP_LessThanOrEquals,
-	OP_GreaterThanOrEquals, OP_ScopeOpen, OP_ScopeClose,
-	OP_ParenthesisOpen, OP_ParenthesisClose, OP_BracketOpen,
-	OP_BracketClose, OP_SingleQuote, OP_DoubleQuote,
-	OP_CPrintfHaveFmtStr,OP_TaskStackEmpty,OP_RootTask,
-	OP_Thing,OP_ThingWantName,OP_ThingWantContent,OP_ThingWantRepr,
-	OP_SpaceNeedName,OP_SpaceHasName, OP_Obj, OP_Bool,
-	OP_Task, OP_IBColor,OP_Repr,OP_CodeBlock,OP_CodeBlockWantCode,
-	OP_CodeBlockFinished,
+	OP_GreaterThanOrEquals,OP_CPrintfHaveFmtStr,OP_ParenthesisOpen,
+	OP_ParenthesisClose, OP_ScopeOpen, OP_ScopeClose,OP_TaskStackEmpty,
+	OP_RootTask,OP_Thing,OP_ThingWantName,OP_ThingWantContent,
+	OP_ThingWantRepr,OP_SpaceNeedName,OP_SpaceHasName, OP_Obj, OP_Bool,
+	OP_Task, OP_IBColor,OP_Repr,OP_IfNeedLVal,OP_IfNeedMidOP,OP_IfNeedRVal,
+	OP_IfBlockWantCode,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -302,6 +300,17 @@ typedef struct FuncObj {
 	Op retTypeMod;
 	struct Task* thingTask;
 } FuncObj;
+typedef struct IfObj {
+	char* lvName;
+	Val lvVal;
+	Op lvType;
+	Op lvMod;
+	Op midOp;
+	char* rvName;
+	Val rvVal;
+	Op rvType;
+	Op rvMod;
+} IfObj;
 typedef struct ArgObj {
 	Op type;
 	Op mod;
@@ -323,6 +332,7 @@ typedef struct Obj {
 	FuncObj func;
 	VarObj var;
 	ArgObj arg;
+	IfObj ifO;
 	Val val;
 } Obj;
 Op ObjGetType(Obj* obj);
@@ -456,11 +466,10 @@ void CompilerPrefix(Compiler* compiler);
 void CompilerStr(Compiler* compiler);
 void CompilerStrPayload(Compiler* compiler);
 void CompilerExplainErr(Compiler* compiler, Op code);
-#define SetObjType(type) ObjSetType(CompilerGetObj(compiler), type)
-#define GetObjType (ObjGetType(CompilerGetObj(compiler)))
-#define PushPfxs(pfxs, msg, life){\
+#define SetObjType(obj, tt){\
 	PLINE;\
-	pushAllowedNextPfxs(pfxs, msg, life);\
+	DbgFmt("SetObjType: %s(%d) -> %s(%d)\n", GetOpName(obj->type), (int)obj->type, GetOpName(tt), (int)tt);\
+	obj->type=tt;\
 }
 #define PopExpects(){\
 	PLINE;\
@@ -512,9 +521,7 @@ OpNamePair opNames[] = {
 	{"build", OP_Build},{"space", OP_Space},{"+", OP_Add},{"-", OP_Subtract},
 	{"*", OP_Multiply},{"/", OP_Divide},{"is", OP_Equals},{"neq", OP_NotEquals},
 	{"lt", OP_LessThan},{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
-	{"gteq", OP_GreaterThanOrEquals},{"{", OP_ScopeOpen},{"}", OP_ScopeClose},
-	{"(", OP_ParenthesisOpen},{")", OP_ParenthesisClose},{"[", OP_BracketOpen},
-	{"]", OP_BracketClose},{",", OP_Comma},{"$", OP_Name},{"for", OP_For},
+	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},{"$", OP_Name},{"for", OP_For},
 	{"loop", OP_While},{"block", OP_Block},{"struct", OP_Struct},{"priv", OP_Private},
 	{"pub", OP_Public},{"?", OP_Void},{"c8", OP_c8},{"u8", OP_u8},{"u16", OP_u16},
 	{"u32", OP_u32},{"u64", OP_u64},{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},
@@ -541,7 +548,8 @@ OpNamePair opNames[] = {
 	{"ErrUnexpectedNameOP",OP_ErrUnexpectedNameOP},{"ThingWantName",OP_ThingWantName},
 	{"ThingWantContent",OP_ThingWantContent},{"SpaceHasName",OP_SpaceHasName},
 	{"ErrDirtyTaskStack",OP_ErrDirtyTaskStack},{"repr", OP_Repr},{"NotEmpty",OP_NotEmpty},
-	{"ThingWantRepr",OP_ThingWantRepr},
+	{"ThingWantRepr",OP_ThingWantRepr},{"IfNeedLVal",OP_IfNeedLVal},
+	{"IfNeedMidOP",OP_IfNeedMidOP},{"IfNeedRVal",OP_IfNeedRVal},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -1157,7 +1165,9 @@ Task* CompilerFindTaskUnderIndex(Compiler* compiler, int index, Op type){
 }
 void CompilerFree(Compiler* compiler) {
 	Task* t;
+	Obj* o;
 	assert(compiler);
+	o=CompilerGetObj(compiler);
 	if (compiler->m_StringMode)
 		Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
 	if(compiler->m_Str[0]) CompilerStrPayload(compiler);
@@ -1171,7 +1181,7 @@ void CompilerFree(Compiler* compiler) {
 			break;
 		case OP_FuncSigComplete:
 		case OP_FuncHasName: {
-			SetObjType(OP_FuncSigComplete);
+			SetObjType(o, OP_FuncSigComplete);
 			CompilerPopObj(compiler, true, NULL);
 			CompilerPopAndDoTask(compiler);
 			break;
@@ -1461,11 +1471,13 @@ void CompilerTick(Compiler* compiler, FILE* f){
 void CompilerInputChar(Compiler* compiler, char ch){
 	Op m;
 	Task* t;
+	Obj* o;
 	bool nl;
 	compiler->m_Ch = ch;
 	nl = false;
 	m=CompilerGetMode(compiler);
 	t = CompilerGetTask(compiler);
+	o = CompilerGetObj(compiler);
 	if(compiler->m_CommentMode==OP_NotSet&&
 		compiler->m_Ch==COMMENT_CHAR/*&&
 		compiler->m_LastCh!=COMMENT_CHAR*/)
@@ -1512,7 +1524,7 @@ void CompilerInputChar(Compiler* compiler, char ch){
 			break;
 		}
 		}
-		switch (GetObjType) {
+		switch (o->type) {
 		case OP_CallWantArgs: {
 			CompilerPopObj(compiler, true, NULL);
 			break;
@@ -1524,10 +1536,10 @@ void CompilerInputChar(Compiler* compiler, char ch){
 		}
 		}
 		switch(t->type){
-		case OP_ThingWantRepr: {
-			SetTaskType(t, OP_ThingWantContent);
-			break;
-		}
+			case OP_ThingWantRepr: {
+				SetTaskType(t, OP_ThingWantContent);
+				break;
+			}
 			case OP_CPrintfHaveFmtStr: {
 				CompilerPopAndDoTask(compiler);
 				break;
@@ -1543,7 +1555,7 @@ void CompilerInputChar(Compiler* compiler, char ch){
 			case OP_FuncSigComplete:
 			case OP_FuncHasName: {
 				Op mod;
-				SetObjType(OP_FuncSigComplete);
+				SetObjType(o, OP_FuncSigComplete);
 				PopExpects();
 				mod = ObjGetMod(CompilerGetObj(compiler));
 				CompilerPopObj(compiler, true, NULL);
@@ -2177,7 +2189,9 @@ IBVector* TaskGetExpNameOPsTop(Task* t){
 void CompilerStrPayload(Compiler* compiler){
 	Val strVal;
 	Task *t;
+	Obj* o;
 	t=CompilerGetTask(compiler);
+	o=CompilerGetObj(compiler);
 	strVal.i32=atoi(compiler->m_Str);
 	compiler->m_NameOp = GetOpFromName(compiler->m_Str);
 	DbgFmt("StrPayload: %s\n", compiler->m_Str);
@@ -2218,13 +2232,20 @@ void CompilerStrPayload(Compiler* compiler){
 		break;
 	}
 	case OP_Value: { /*=*/
-		switch (GetObjType) {
+		switch (o->type) {
+		case OP_IfNeedLVal: {
+			SetObjType(o, OP_IfNeedMidOP);
+			break;
+		}
+		case OP_IfNeedRVal: {
+			break;
+		}
 		case OP_VarWantValue: {
 			Obj* o;
 			o = CompilerGetObj(compiler);
 			o->var.val = strVal;
 			o->var.valSet = true;
-			SetObjType(OP_VarComplete);
+			SetObjType(o, OP_VarComplete);
 			PopExpects();
 			break;
 		}
@@ -2275,7 +2296,7 @@ void CompilerStrPayload(Compiler* compiler){
 			o->var.mod = compiler->m_Pointer;
 			o->var.privacy=compiler->m_Privacy;
 			o->var.valSet = false;
-			SetObjType(OP_VarNeedName);
+			SetObjType(o, OP_VarNeedName);
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "expected variable name", "", "P", OP_Name);
 			break;
@@ -2287,25 +2308,25 @@ void CompilerStrPayload(Compiler* compiler){
 			o->var.type = compiler->m_NameOp;
 			o->var.mod = compiler->m_Pointer;
 			o->var.valSet = false;
-			SetObjType(OP_VarNeedName);
+			SetObjType(o, OP_VarNeedName);
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "expected variable name", "", "P", OP_Name);
 			break;
 		}
 		}
-		switch (GetObjType) {
+		switch (o->type) {
 		case OP_FuncNeedsRetValType: {
 			if (t->type != OP_FuncHasName)Err(OP_ErrNOT_GOOD, "func signature needs name");
 			CompilerGetObj(compiler)->func.retType = compiler->m_NameOp;
 			CompilerGetObj(compiler)->func.retTypeMod = compiler->m_Pointer;
-			SetObjType(OP_FuncSigComplete);
+			SetObjType(o, OP_FuncSigComplete);
 			break;
 		}
 		case OP_FuncHasName: {
 			Obj* o;
 			Expects* exp;
 			CompilerPushObj(compiler, &o);
-			SetObjType(OP_FuncArgNameless);
+			SetObjType(o, OP_FuncArgNameless);
 			o->arg.type = compiler->m_NameOp;
 			o->arg.mod = compiler->m_Pointer;
 			CompilerPushExpects(compiler, &exp);
@@ -2376,14 +2397,12 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		}
-
-
-		switch (GetObjType) {
+		switch (o->type) {
 		case OP_VarNeedName: {
 			Expects* exp;
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
 			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->var.type);
-			SetObjType(OP_VarWantValue);
+			SetObjType(o, OP_VarWantValue);
 			PopExpects();
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0,
@@ -2395,7 +2414,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_CallNeedName: { /* =@call */
 			Expects* exp;
-			SetObjType(OP_CallWantArgs);
+			SetObjType(o, OP_CallWantArgs);
 			PopExpects();
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0,
@@ -2405,7 +2424,7 @@ void CompilerStrPayload(Compiler* compiler){
 		}
 		case OP_Func: {
 			Expects* exp;
-			SetObjType(OP_FuncHasName);
+			SetObjType(o, OP_FuncHasName);
 			SetTaskType(t, OP_FuncHasName);
 			CompilerPushExpects(compiler, &exp);
 			ExpectsInit(exp, 0, "", "",
@@ -2415,7 +2434,7 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		case OP_FuncArgNameless:
-			SetObjType(OP_FuncArgComplete);
+			SetObjType(o, OP_FuncArgComplete);
 			PopExpects();
 			ObjSetName(CompilerGetObj(compiler), compiler->m_Str);
 			NameInfoDBAdd(&compiler->m_NameTypeCtx, compiler->m_Str, CompilerGetObj(compiler)->arg.type);
@@ -2429,6 +2448,10 @@ void CompilerStrPayload(Compiler* compiler){
 		expected = CompilerIsNameOpExpected(compiler, compiler->m_NameOp);
 		if(!expected)Err(OP_ErrUnexpectedNameOP, "unexpected nameOP");
 		switch (compiler->m_NameOp) {
+		/*case OP_IfNeedMidOP: {
+
+			break;
+		}*/
 		case OP_Repr: {
 			switch (t->type) {
 			case OP_ThingWantRepr: {
@@ -2464,7 +2487,7 @@ void CompilerStrPayload(Compiler* compiler){
 			break;
 		}
 		case OP_Call: {
-			switch (GetObjType) {
+			switch (o->type) {
 			case OP_VarWantValue: {
 				Obj* o;
 				Expects* exp;
@@ -2495,8 +2518,8 @@ void CompilerStrPayload(Compiler* compiler){
 				Obj* o;
 				o = CompilerGetObj(compiler);
 				assert(o->type == OP_Thing);
-				CompilerPopObj(compiler, true, NULL);
-				assert(GetObjType == OP_NotSet);
+				CompilerPopObj(compiler, true, &o);
+				assert(o->type == OP_NotSet);
 				CompilerPopAndDoTask(compiler);
 				break;
 			}
@@ -2538,19 +2561,19 @@ void CompilerStrPayload(Compiler* compiler){
 			}
 			break;
 		case OP_Return: {
-			Op objT = GetObjType;
+			Op objT = o->type;
 			switch (objT) {
 			case OP_FuncArgComplete: {
 				DbgFmt("what\n","");
 				CompilerPopObj(compiler, true, NULL);
-				if (GetObjType != OP_FuncHasName) {
+				if (o->type != OP_FuncHasName) {
 					Err(OP_ErrNOT_GOOD, "expected FuncHasName");
 					break;
 				}
 			}
 			case OP_FuncHasName: {
 				Expects* exp;
-				SetObjType(OP_FuncNeedsRetValType);
+				SetObjType(o, OP_FuncNeedsRetValType);
 				CompilerPushExpects(compiler, &exp);
 				ExpectsInit(exp, 0, "", "", "P", OP_VarType);
 				break;
@@ -2585,6 +2608,26 @@ void CompilerStrPayload(Compiler* compiler){
 			Expects* ap;
 			CompilerPushTask(compiler, OP_UseNeedStr, &ap, NULL);
 			ExpectsInit(ap, 0, "expected @use name", "", "P", OP_Name);
+			break;
+		}
+		case OP_If: {
+			switch (t->type) {
+			case OP_IfBlockWantCode:
+			case OP_FuncWantCode: {
+				Task* nt;
+				Expects* nexp;
+				Obj* o;
+				CompilerPushObj(compiler, &o);
+				ObjSetType(o, OP_IfNeedLVal);
+				CompilerPushTask(compiler, OP_IfNeedLVal, &nexp, &nt);
+				ExpectsInit(nexp, 0, "expected lval", "", "PP", OP_Value, OP_Name/*, OP_String*/);
+				break;
+			}
+			default: {
+				Err(OP_ErrNOT_GOOD, "Unimplemented If task context");
+				break;
+			}
+			}
 			break;
 		}
 		default:
