@@ -2450,7 +2450,7 @@ void CompilerStrPayload(Compiler* compiler){
 		break;
 	case OP_Name: { /* $ */
 		switch(t->type){
-		case OP_IfNeedLVal: {
+		case OP_IfNeedLVal: { 
 			Expects* exp;
 			OverwriteStr(&o->ifO.lvName, compiler->m_Str);
 			SetObjType(o, OP_IfNeedMidOP);
