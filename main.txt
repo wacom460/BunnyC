@@ -1,3 +1,8 @@
-@exec $f
-"hello"
-@@
+@use $sys
+
+~~@exec $f
+	%i32 $a =420
+	@if $a @eq =420		
+		"a: %%" $a
+	@@
+@@~~
