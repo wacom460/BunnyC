@@ -33,44 +33,26 @@ in number order breakpoints, if hit in the wrong order or missing then failure
 #ifdef _WIN32
 typedef enum IBColor {
 	//fg
-	IBFgWHITE = 
-		FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
-	IBFgRED = 
-		FOREGROUND_RED,
-	IBFgGREEN =
-		FOREGROUND_GREEN,
-	IBFgBLUE =
-		FOREGROUND_BLUE,
-	IBFgYELLOW =
-		FOREGROUND_RED | FOREGROUND_GREEN,
-	IBFgCYAN =
-		FOREGROUND_BLUE | FOREGROUND_GREEN,
-	IBFgMAGENTA =
-		FOREGROUND_RED | FOREGROUND_BLUE,
-	IBFgBROWN =
-		FOREGROUND_RED | FOREGROUND_GREEN,
-	IBFgIntensity =
-		FOREGROUND_INTENSITY,
+	IBFgWHITE =  FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
+	IBFgRED = FOREGROUND_RED,
+	IBFgGREEN = FOREGROUND_GREEN,
+	IBFgBLUE = FOREGROUND_BLUE,
+	IBFgYELLOW = FOREGROUND_RED | FOREGROUND_GREEN,
+	IBFgCYAN = FOREGROUND_BLUE | FOREGROUND_GREEN,
+	IBFgMAGENTA = FOREGROUND_RED | FOREGROUND_BLUE,
+	IBFgBROWN = FOREGROUND_RED | FOREGROUND_GREEN,
+	IBFgIntensity = FOREGROUND_INTENSITY,
 
 	//bg
-	IBBgWHITE =
-		BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE,
-	IBBgRED =
-		BACKGROUND_RED,
-	IBBgGREEN =
-		BACKGROUND_GREEN,
-	IBBgBLUE =
-		BACKGROUND_BLUE,
-	IBBgYELLOW =
-		BACKGROUND_RED | BACKGROUND_GREEN,
-	IBBgCYAN =
-		BACKGROUND_BLUE | BACKGROUND_GREEN,
-	IBBgMAGENTA =
-		BACKGROUND_RED | BACKGROUND_BLUE,
-	IBBgBROWN =
-		BACKGROUND_RED | BACKGROUND_GREEN,
-	IBBgIntensity =
-		BACKGROUND_INTENSITY
+	IBBgWHITE = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE,
+	IBBgRED = BACKGROUND_RED,
+	IBBgGREEN = BACKGROUND_GREEN,
+	IBBgBLUE = BACKGROUND_BLUE,
+	IBBgYELLOW = BACKGROUND_RED | BACKGROUND_GREEN,
+	IBBgCYAN = BACKGROUND_BLUE | BACKGROUND_GREEN,
+	IBBgMAGENTA = BACKGROUND_RED | BACKGROUND_BLUE,
+	IBBgBROWN = BACKGROUND_RED | BACKGROUND_GREEN,
+	IBBgIntensity = BACKGROUND_INTENSITY
 }IBColor;
 #else//unix soon
 typedef enum IBColor {
@@ -100,22 +82,14 @@ typedef enum IBColor {
 
 void IBSetColor(IBColor col);
 
-#define FGWHITE \
-	IBSetColor(IBFgWHITE)
-#define FGRED \
-	IBSetColor(IBFgRED)
-#define FGGREEN \
-	IBSetColor(IBFgGREEN)
-#define FGBLUE \
-	IBSetColor(IBFgBLUE)
-#define FGYELLOW \
-	IBSetColor(IBFgYELLOW)
-#define FGCYAN \
-	IBSetColor(IBFgCYAN)
-#define FGMAGENTA \
-	IBSetColor(IBFgMAGENTA)
-#define FGBROWN \
-	IBSetColor(IBFgBROWN)
+#define FGWHITE   IBSetColor(IBFgWHITE  )
+#define FGRED     IBSetColor(IBFgRED    )
+#define FGGREEN   IBSetColor(IBFgGREEN  )
+#define FGBLUE    IBSetColor(IBFgBLUE   )
+#define FGYELLOW  IBSetColor(IBFgYELLOW )
+#define FGCYAN    IBSetColor(IBFgCYAN   )
+#define FGMAGENTA IBSetColor(IBFgMAGENTA)
+#define FGBROWN   IBSetColor(IBFgBROWN  )
 
 #define DEBUGPRINTS
 
@@ -265,11 +239,13 @@ typedef union {
 	double d64;
 } Val;
 typedef struct IBCodeBlock {
+	IBStr header;
 	IBStr variables;
 	IBStr code;
-	IBStr footerCode;
+	IBStr footer;
 } IBCodeBlock;
 void IBCodeBlockInit(IBCodeBlock* block);
+void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output);
 void IBCodeBlockFree(IBCodeBlock* block);
 typedef struct IB_Variable {
 	Op type;
@@ -439,10 +415,10 @@ void _IBComp1PushCodeBlock(IBComp1* ibc, IBCodeBlock** cbDP);
 	PLINE;\
 	_IBComp1PushCodeBlock(ibc, cbDP);\
 }
-void _IBComp1PopCodeBlock(IBComp1* ibc);
-#define IBComp1PopCodeBlock(ibc){\
+void _IBComp1PopCodeBlock(IBComp1* ibc, bool copyToParent);
+#define IBComp1PopCodeBlock(ibc, copyToParent){\
 	PLINE;\
-	_IBComp1PopCodeBlock(ibc);\
+	_IBComp1PopCodeBlock(ibc, copyToParent);\
 }
 void _IBComp1PushTask(IBComp1* ibc, Op taskOP, Expects** exectsDP, Task** taskDP);
 #define IBComp1PushTask(ibc, taskOP, exectsDP, taskDP){\
@@ -490,7 +466,7 @@ bool IBComp1IsNameOpExpected(IBComp1* ibc, Op nameOp);
 void IBComp1Tick(IBComp1* ibc, FILE *f);
 void IBComp1InputChar(IBComp1* ibc, char ch);
 void IBComp1InputStr(IBComp1* ibc, char* str);
-void IBComp1PopAndDoTask(IBComp1* ibc);
+void IBComp1FinishTask(IBComp1* ibc);
 Val IBComp1StrToVal(IBComp1* ibc, char* str, Op expectedType);
 char* IBComp1GetCPrintfFmtForType(IBComp1* ibc, Op type);
 void IBComp1Prefix(IBComp1* ibc);
@@ -513,23 +489,13 @@ Expects* TaskGetExpTop(Task* t);
 IBVector* TaskGetExpPfxsTop(Task *t);
 IBVector* TaskGetExpNameOPsTop(Task* t);
 
-//#define GetTask IBComp1GetTask(ibc)
-//#define GetTaskPfxs TaskGetExpPfxsTop(GetTask)
-//#define GetTaskNameOPs TaskGetExpNameOPsTop(GetTask)
-//#define GetTask _GetTask(ibc)
-//#define GetExpectsStack (GetTask ? &GetTask->expStack : NULL)
-//#define GetExpectsTop ((Expects*)IBVectorTop(GetExpectsStack))
-//#define GetMode IBComp1GetMode(ibc)
-//#define GetTaskType (GetTask ? GetTask->type : OP_TaskStackEmpty)
 #define SetTaskType(task, tt){\
 	assert(task);\
 	PLINE;\
 	printf("SetTaskType: %s -> %s\n", GetOpName(task->type), GetOpName(tt));\
 	task->type = tt;\
 }
-//#define SetTaskType(tt) {\
-//	GetTask->type = tt;\
-//}
+
 typedef struct OpNamePair {
 	char name[OP_NAME_LEN];
 	Op op;
@@ -773,14 +739,22 @@ char* StrConcat(char* dest, int count, char* src) {
 	return strcat(dest, src);
 }
 void IBCodeBlockInit(IBCodeBlock* block){
+	IBStrInit(&block->header, 1);
 	IBStrInit(&block->variables, 1);
 	IBStrInit(&block->code, 1);
-	IBStrInit(&block->footerCode, 1);
+	IBStrInit(&block->footer, 1);
+}
+void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
+	IBStrAppend(output, block->header.start);
+	IBStrAppend(output, block->variables.start);
+	IBStrAppend(output, block->code.start);
+	IBStrAppend(output, block->footer.start);
 }
 void IBCodeBlockFree(IBCodeBlock* block){
+	IBStrFree(&block->header);
 	IBStrFree(&block->variables);
 	IBStrFree(&block->code);
-	IBStrFree(&block->footerCode);
+	IBStrFree(&block->footer);
 }
 void NameInfoInit(NameInfo* info){
 	info->type=OP_NotSet;
@@ -922,10 +896,13 @@ void _Err(IBComp1* ibc, Op code, char *msg){
 	/*IBComp1VecPrint(ibc, &ibc->ObjStack);
 	IBComp1VecPrint(ibc, &ibc->TaskStack);*/
 #endif
-	printf("\nPress enter to break.");
-	getchar();
-	__debugbreak();
+	/*printf("\nPress enter");
+	getchar();*/
+#if _DEBUG
+	//__debugbreak();
+#else
 	exit(-1);
+#endif
 }
 char* GetCEqu(Op op) {
 	int sz;
@@ -1227,11 +1204,11 @@ void IBComp1Free(IBComp1* ibc) {
 	Obj* o;
 	IBCodeBlock* cb;
 	assert(ibc);
-	assert(ibc->CodeBlockStack.elemCount == 1);
+	if(ibc->CodeBlockStack.elemCount != 1)Err(OP_ErrNOT_GOOD, "dirty codeblock stack");
 	cb=(IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
 	assert(!(IBStrGetLen(&cb->variables) + 
 		IBStrGetLen(&cb->code) + 
-		IBStrGetLen(&cb->footerCode)));
+		IBStrGetLen(&cb->footer)));
 	o=IBComp1GetObj(ibc);
 	if (ibc->StringMode)
 		Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
@@ -1248,13 +1225,14 @@ void IBComp1Free(IBComp1* ibc) {
 		case OP_FuncHasName: {
 			SetObjType(o, OP_FuncSigComplete);
 			IBComp1PopObj(ibc, true, NULL);
-			IBComp1PopAndDoTask(ibc);
+			IBComp1FinishTask(ibc);
 			break;
 		}
 		}
 	}
 	IBStrAppend(&ibc->CHeaderFuncs, "\n#endif\n");
 #ifdef DEBUGPRINTS
+	FGWHITE;
 	DbgFmt("-> Compilation complete <-\nC Header:\n%s%s\n\nC File:\n%s\n\n",
 		ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start, ibc->CFile.start);
 #else
@@ -1288,9 +1266,12 @@ void _IBComp1PushCodeBlock(IBComp1* ibc, IBCodeBlock** cbDP){
 	IBCodeBlockInit(cb);
 	if(cbDP) (*cbDP) = cb;
 }
-void _IBComp1PopCodeBlock(IBComp1* ibc){
+void _IBComp1PopCodeBlock(IBComp1* ibc, bool copyToParent){
 	assert(ibc->CodeBlockStack.elemCount > 1);
-	DbgFmt(" Pop code block\n");
+	DbgFmt(" Pop code block, copy to parent: %s\n", BoolStr(copyToParent));
+	if (copyToParent) {
+
+	}
 	IBVectorPop(&ibc->CodeBlockStack, IBCodeBlockFree);
 }
 void _IBComp1PushTask(IBComp1* ibc, Op taskOP, Expects** exectsDP, Task** taskDP) {
@@ -1397,7 +1378,7 @@ void _IBComp1Pop(IBComp1* ibc) {
 	mode=IBComp1GetMode(ibc);
 	IBVectorPop(&ibc->ModeStack, NULL);
 	if(t)type=t->type;
-	DbgFmt(" pop: to %s(%d) Task type:%s(%d)\n", GetOpName(mode), (int)mode, GetOpName(type), (int)type);
+	DbgFmt(" pop: to %s(%d) Task type: %s(%d)\n", GetOpName(mode), (int)mode, GetOpName(type), (int)type);
 	assert(t->expStack.elemCount);
 #ifdef DEBUGPRINTS
 	exp=TaskGetExpTop(t);
@@ -1641,7 +1622,7 @@ void IBComp1InputChar(IBComp1* ibc, char ch){
 				break;
 			}
 			case OP_CPrintfHaveFmtStr: {
-				IBComp1PopAndDoTask(ibc);
+				IBComp1FinishTask(ibc);
 				break;
 			}
 			case OP_FuncArgsVarNeedsName: {
@@ -1670,7 +1651,7 @@ void IBComp1InputChar(IBComp1* ibc, char ch){
 					IBComp1PushCodeBlock(ibc, &cb);
 				}
 				else {
-					IBComp1PopAndDoTask(ibc);
+					IBComp1FinishTask(ibc);
 				}
 				break;
 			}
@@ -1759,18 +1740,21 @@ void Val2Str(char *dest, int destSz, Val v, Op type) {
 	case OP_d64: { sprintf(dest, "%f",   v.d64); break; }
 	}
 }
-void IBComp1PopAndDoTask(IBComp1* ibc)	{
+void IBComp1FinishTask(IBComp1* ibc)	{
 	IBVector* wObjs;
+	IBCodeBlock* cb;
 	Task* t;
 	bool subTask;
 	t = IBComp1GetTask(ibc);
 	assert(t);
-	DbgFmt("PopAndDoTask()\n","");
+	DbgFmt("PopAndDoTask(): %s(%d)\n", GetOpName(t->type), (int)t->type);
 	if(!ibc->TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
 	wObjs = &t->working;
 	assert(wObjs);
 	if(!wObjs->elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
 	subTask = false;
+	cb=(IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
+	if (ibc->CodeBlockStack.elemCount < 2)cb = NULL;
 	switch (t->type) {
 	case OP_IfBlockWantCode: {
 
@@ -1897,14 +1881,9 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 				funcObj = o;
 				mod = ObjGetMod(o);
 				if (mod != OP_NotSet) {
-					/*StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(mod));
-					StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");*/
 					IBStrAppend(&cFuncModsTypeName, GetCEqu(mod));
 					IBStrAppend(&cFuncModsTypeName, " ");
 				}
-				/*StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retType));
-				StrConcat(cFuncModsTypeName, CODE_STR_MAX, GetCEqu(o->func.retTypeMod));
-				StrConcat(cFuncModsTypeName, CODE_STR_MAX, " ");*/
 				IBStrAppend(&cFuncModsTypeName, GetCEqu(o->func.retType));
 				IBStrAppend(&cFuncModsTypeName, GetCEqu(o->func.retTypeMod));
 				IBStrAppend(&cFuncModsTypeName, " ");
@@ -1917,22 +1896,15 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 						idx = 0;
 						wo = IBComp1FindStackObjUnderTop(ibc, OP_Thing);
 						if (wo) {
-							/*StrConcat(cFuncModsTypeName, CODE_STR_MAX, wo->name);
-							StrConcat(cFuncModsTypeName, CODE_STR_MAX, "_");*/
 							IBStrAppend(&cFuncModsTypeName, wo->name);
 							IBStrAppend(&cFuncModsTypeName, "_");
 							thingObj = wo;
 						}
 					}
-					//StrConcat(cFuncModsTypeName, CODE_STR_MAX, o->name);
 					IBStrAppend(&cFuncModsTypeName, o->name);
 				}
-				//StrConcat(cFuncModsTypeName, CODE_STR_MAX, "(");
 				IBStrAppend(&cFuncModsTypeName, "(");
 				if (thingObj) {
-					/*StrConcat(cFuncArgsThing, CODE_STR_MAX, "struct ");
-					StrConcat(cFuncArgsThing, CODE_STR_MAX, thingObj->name);
-					StrConcat(cFuncArgsThing, CODE_STR_MAX, "* ptr");*/
 					IBStrAppend(&cFuncArgsThing, "struct ");
 					IBStrAppend(&cFuncArgsThing, thingObj->name);
 					IBStrAppend(&cFuncArgsThing, "* ptr");
@@ -1947,10 +1919,6 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 			case OP_VarComplete: {
 				char valBuf[32];
 				valBuf[0] = '\0';
-				/*StrConcat(cFuncCode, CODE_STR_MAX, "\t");
-				StrConcat(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.type));
-				StrConcat(cFuncCode, CODE_STR_MAX, GetCEqu(o->var.mod));
-				StrConcat(cFuncCode, CODE_STR_MAX, " ");*/
 				IBStrAppend(&cFuncCode, "\t");
 				IBStrAppend(&cFuncCode, GetCEqu(o->var.type));
 				IBStrAppend(&cFuncCode, GetCEqu(o->var.mod));
@@ -1962,40 +1930,29 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 					//StrConcat(cFuncCode, CODE_STR_MAX, " = ");
 					IBStrAppend(&cFuncCode, " = ");
 					Val2Str(valBuf, 32, o->var.val, o->var.type);
-					//StrConcat(cFuncCode, 32, valBuf);
-					//sprintf(valBuf, "%d", o->var.val.i32);
-					//StrConcat(cFuncCode, 32, valBuf);
 					IBStrAppend(&cFuncCode, valBuf);
 
 				}
-				//StrConcat(cFuncCode, CODE_STR_MAX, ";\n");
 				IBStrAppend(&cFuncCode, ";\n");
 				break;
 			}
 			}
 		}
 		if (imaginary) {
-			//StrConcat(cFuncArgsEnd, CODE_STR_MAX, ");\n\n");
 			IBStrAppend(&cFuncArgsEnd, ");\n\n");
 		}
 		else {
-			/*StrConcat(cFuncArgsEnd, CODE_STR_MAX, "){\n");
-			StrConcat(cFuncCode, CODE_STR_MAX, GetTaskCodeP1);*/
 			IBStrAppend(&cFuncArgsEnd, "){\n");
 			IBStrAppend(&cFuncCode, t->code1.start);
 			if(!funcObj)Err(OP_ErrNOT_GOOD, "funcObj NULL");
 			if (funcObj->func.retType != OP_Void) {
 				char valBuf[32];
 				valBuf[0] = '\0';
-				//StrConcat(cFuncCode, CODE_STR_MAX, "\treturn ");
 				IBStrAppend(&cFuncCode, "\treturn ");
 				Val2Str(valBuf, 32, funcObj->func.retVal, funcObj->func.retType);
-				/*StrConcat(cFuncCode, 32, valBuf);
-				StrConcat(cFuncCode, CODE_STR_MAX, ";\n");*/
 				IBStrAppend(&cFuncCode, valBuf);
 				IBStrAppend(&cFuncCode, ";\n");
 			}
-			//StrConcat(cFuncCode, CODE_STR_MAX, "}\n\n");
 			IBStrAppend(&cFuncCode, "}\n\n");
 		}
 		if (strcmp(funcObj->name, "main"))
@@ -2024,7 +1981,6 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 		subTask = true;
 		if (t && wObjs->elemCount) {
 			fmtObj = (Obj*)wObjs->data;
-			//StrConcat(GetTaskCode, CODE_STR_MAX, "\tprintf(\"");
 			IBStrAppend(&t->code1, "\tprintf(\"");
 			firstPercent = false;
 			varIdx = 1;
@@ -2034,7 +1990,6 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 				switch (c) {
 				case '%':{
 						if (!firstPercent) {
-							//StrConcat(GetTaskCode, CODE_STR_MAX, "%");
 							IBStrAppend(&t->code1, "%");
 							firstPercent = true;
 						}
@@ -2075,16 +2030,13 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 					char chBuf[2];
 					chBuf[0] = c;
 					chBuf[1] = '\0';
-					//StrConcat(GetTaskCode, CODE_STR_MAX, chBuf);
 					IBStrAppend(&t->code1, chBuf);
 					break;
 				}
 				}
 			}
-			//StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
 			IBStrAppend(&t->code1, "\"");
 			if (wObjs->elemCount > 1) {
-				//StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
 				IBStrAppend(&t->code1, ", ");
 			}
 			for (i = 1; i < wObjs->elemCount; ++i) {
@@ -2092,14 +2044,10 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 				o = (Obj*)IBVectorGet(wObjs, i);
 				switch (ObjGetType(o)) {
 				case OP_Name: {
-					//StrConcat(GetTaskCode, CODE_STR_MAX, o->name);
 					IBStrAppend(&t->code1, o->name);
 					break;
 				}
 				case OP_String: {
-					/*StrConcat(GetTaskCode, CODE_STR_MAX, "\"");
-					StrConcat(GetTaskCode, CODE_STR_MAX, o->str);
-					StrConcat(GetTaskCode, CODE_STR_MAX, "\"");*/
 					IBStrAppend(&t->code1, "\"");
 					IBStrAppend(&t->code1, o->str);
 					IBStrAppend(&t->code1, "\"");
@@ -2109,17 +2057,14 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 					char valBuf[32];
 					valBuf[0] = '\0';
 					Val2Str(valBuf, 32, o->val, o->var.type);
-					//StrConcat(GetTaskCode, 32, valBuf);
 					IBStrAppend(&t->code1, valBuf);
 					break;
 				}
 				}
 				if (i < wObjs->elemCount - 1) {
-					//StrConcat(GetTaskCode, CODE_STR_MAX, ", ");
 					IBStrAppend(&t->code1, ", ");
 				}
 			}
-			//StrConcat(GetTaskCode, CODE_STR_MAX, ");\n");
 			IBStrAppend(&t->code1, ");\n");
 		}
 		break;
@@ -2129,8 +2074,6 @@ void IBComp1PopAndDoTask(IBComp1* ibc)	{
 		switch (t->type) {
 		case OP_CPrintfHaveFmtStr: {
 			if (ibc->TaskStack.elemCount - 2 >= 0) {
-				/*char theCode[CODE_STR_MAX];
-				theCode[0] = '\0';*/
 				IBStr theCode;
 				IBStrInit(&theCode, 1);
 				IBStrAppend(&theCode, t->code1.start);
@@ -2387,7 +2330,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 						o->func.retVal = IBComp1StrToVal(ibc, ibc->Str, o->func.retType);
 						PopExpects();
 						SetTaskType(t, OP_Func);
-						IBComp1PopAndDoTask(ibc);
+						IBComp1FinishTask(ibc);
 						break;
 					}
 				}
@@ -2523,7 +2466,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 			ObjSetType(o, OP_Space);
 			IBComp1PopObj(ibc, true, &o);
 			SetTaskType(t, OP_SpaceHasName);
-			IBComp1PopAndDoTask(ibc);
+			IBComp1FinishTask(ibc);
 			break;
 		}
 		case OP_CPrintfHaveFmtStr: {
@@ -2653,7 +2596,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 			if (ibc->TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
 			switch (t->type) {
 			case OP_IfBlockWantCode: {
-				IBComp1PopAndDoTask(ibc);
+				IBComp1FinishTask(ibc);
 				break;
 			}
 			case OP_ThingWantContent: {
@@ -2662,7 +2605,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 				assert(o->type == OP_Thing);
 				IBComp1PopObj(ibc, true, &o);
 				assert(o->type == OP_NotSet);
-				IBComp1PopAndDoTask(ibc);
+				IBComp1FinishTask(ibc);
 				break;
 			}
 			case OP_Func:
@@ -2694,7 +2637,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 						}
 						else {
 							SetTaskType(t, OP_Func);
-							IBComp1PopAndDoTask(ibc);
+							IBComp1FinishTask(ibc);
 						}
 					}
 				}
@@ -2868,7 +2811,7 @@ void IBComp1ExplainErr(IBComp1* ibc, Op code) {
 		printf("Err msg unimplemented for %s", GetOpName(code));
 	}
 #ifdef DEBUGPRINTS
-	DbgFmt("OBJ:","");
+	DbgFmt("\nOBJ:","");
 	ObjPrint(IBComp1GetObj(ibc));
 	DbgFmt("\n","");
 #endif
