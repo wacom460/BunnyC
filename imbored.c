@@ -417,7 +417,7 @@ void _IBComp1PushCodeBlock(IBComp1* ibc, IBCodeBlock** cbDP);
 	_IBComp1PushCodeBlock(ibc, cbDP);\
 }
 void _IBComp1PopCodeBlock(IBComp1* ibc, bool copyToParent, IBCodeBlock** cbDP);
-#define IBComp1PopCodeBlock(ibc, copyToParent){\
+#define IBComp1PopCodeBlock(ibc, copyToParent, cbDP){\
 	PLINE;\
 	_IBComp1PopCodeBlock(ibc, copyToParent, cbDP);\
 }
@@ -1582,7 +1582,10 @@ void IBComp1Tick(IBComp1* ibc, FILE* f){
 			if (ch != 0xffffffff)
 				IBComp1InputChar(ibc, ch);
 		}
-		else ibc->Running = false;
+		else {
+			IBComp1InputChar(ibc, '\n');
+			ibc->Running = false;
+		}
 	}
 }
 /*NO NEWLINES AT END OF STR*/
@@ -1707,9 +1710,9 @@ void IBComp1InputChar(IBComp1* ibc, char ch){
 	m = IBComp1GetMode(ibc);
 	ibc->Column++;
 	if (!nl && ibc->CommentMode == OP_NotSet) {
-		/*if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
+		if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
 		else printf("-> %c (0x%x) %d:%d\n",
-			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);*/
+			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);
 		switch (m) {
 		case OP_ModeComment:
 		case OP_ModeMultiLineComment:
@@ -2014,7 +2017,7 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 			IBStrAppendCStr(&ibc->CFile, cFuncArgsEnd.start);
 			IBStrAppendCStr(&ibc->CFile, cFuncCode.start);
 		}
-		IBComp1PopCodeBlock()
+		IBComp1PopCodeBlock(ibc, true, &cb);
 		break;
 	}
 	case OP_CPrintfHaveFmtStr: {
