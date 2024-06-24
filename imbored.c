@@ -163,7 +163,7 @@ typedef enum Op { /* multiple uses */
 	OP_TabChar,OP_UseNeedStr,OP_UseStrSysLib,OP_NameInfoDB,
 	OP_NameInfo,OP_Expects,
 
-	OP_NotFound, OP_Error, OP_ErrNOT_GOOD, OP_ErrUnexpectedNextPfx,
+	OP_NotFound, OP_Error, OP_CatastrophicFailure, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
 	OP_ErrQuadriplePointersNOT_ALLOWED, OP_ErrUnknownOpStr,
 	OP_ErrProtectedSlot,OP_ErrUnknownPfx,OP_ErrUnexpectedNameOP,
@@ -534,7 +534,7 @@ OpNamePair opNames[] = {
 	{"ErrExpectedVariablePfx",OP_ErrExpectedVariablePfx},{"VarComplete", OP_VarComplete},
 	{"ErrNoTask", OP_ErrNoTask},{"FuncNeedRetVal",OP_FuncNeedRetVal},
 	{"CompletedFunction",OP_CompletedFunction},{"ErrUnknownOpStr",OP_ErrUnknownOpStr},
-	{"ErrNOT_GOOD", OP_ErrNOT_GOOD},{"FuncNeedName",OP_FuncNeedName},{"String", OP_String},
+	{"ErrNOT_GOOD", OP_CatastrophicFailure},{"FuncNeedName",OP_FuncNeedName},{"String", OP_String},
 	{"VarComplete", OP_VarComplete},{"VarWantValue",OP_VarWantValue},{"LineEnd", OP_LineEnd},
 	{"CPrintfHaveFmtStr",OP_CPrintfHaveFmtStr},{"FuncWantCode",OP_FuncWantCode},
 	{"dbgBreak", OP_dbgBreak},{"dbgAssert", OP_dbgAssert}, { "CallNeedName",OP_CallNeedName },
@@ -1163,8 +1163,8 @@ void IBComp1VecPrint(IBComp1* ibc, IBVector* vec) {
 }
 Obj* IBComp1FindStackObjUnderIndex(IBComp1* ibc, int index, Op type) {
 	int i;
-	if(ibc->ObjStack.elemCount < 2)Err(OP_ErrNOT_GOOD, "Not enough objects on stack");
-	if(index >= ibc->ObjStack.elemCount)Err(OP_ErrNOT_GOOD, "Index out of bounds");
+	if(ibc->ObjStack.elemCount < 2)Err(OP_CatastrophicFailure, "Not enough objects on stack");
+	if(index >= ibc->ObjStack.elemCount)Err(OP_CatastrophicFailure, "Index out of bounds");
 	for (i = index - 1; i >= 0;) {
 		Obj* o;
 		o = (Obj*)IBVectorGet(&ibc->ObjStack, i--);
@@ -1225,9 +1225,9 @@ void IBComp1Init(IBComp1* ibc){
 }
 IBTask* IBComp1FindTaskUnderIndex(IBComp1* ibc, int index, Op type){
 	int i;
-	if(ibc->TaskStack.elemCount < 2)Err(OP_ErrNOT_GOOD, "Not enough tasks on stack");
+	if(ibc->TaskStack.elemCount < 2)Err(OP_CatastrophicFailure, "Not enough tasks on stack");
 	if(index == -1) index = ibc->TaskStack.elemCount - 1;
-	if(index >= ibc->TaskStack.elemCount)Err(OP_ErrNOT_GOOD, "Index out of bounds");
+	if(index >= ibc->TaskStack.elemCount)Err(OP_CatastrophicFailure, "Index out of bounds");
 	for (i = index - 1; i >= 0;) {
 		IBTask* t;
 		t = (IBTask*)IBVectorGet(&ibc->TaskStack, i--);
@@ -1240,14 +1240,14 @@ void IBComp1Free(IBComp1* ibc) {
 	Obj* o;
 	IBCodeBlock* cb;
 	assert(ibc);
-	if(ibc->CodeBlockStack.elemCount != 1)Err(OP_ErrNOT_GOOD, "dirty codeblock stack");
+	if(ibc->CodeBlockStack.elemCount != 1)Err(OP_CatastrophicFailure, "dirty codeblock stack");
 	cb=(IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
 	assert(!(IBStrGetLen(&cb->variables) + 
 		IBStrGetLen(&cb->code) + 
 		IBStrGetLen(&cb->footer)));
 	o=IBComp1GetObj(ibc);
 	if (ibc->StringMode)
-		Err(OP_ErrNOT_GOOD, "Reached end of file without closing string");
+		Err(OP_CatastrophicFailure, "Reached end of file without closing string");
 	if(ibc->Str[0]) IBComp1StrPayload(ibc);
 	t=IBComp1GetTask(ibc);
 	if(t->type != OP_RootTask)Err(OP_ErrDirtyTaskStack,
@@ -1255,7 +1255,7 @@ void IBComp1Free(IBComp1* ibc) {
 	if (ibc->TaskStack.elemCount) {
 		switch (((IBTask*)IBVectorTop(&ibc->TaskStack))->type) {
 		case OP_FuncNeedRetVal:
-			Err(OP_ErrNOT_GOOD, "Reached end of file without closing function");
+			Err(OP_CatastrophicFailure, "Reached end of file without closing function");
 			break;
 		case OP_FuncSigComplete:
 		case OP_FuncHasName: {
@@ -1314,7 +1314,7 @@ void _IBComp1PopCodeBlock(IBComp1* ibc, bool copyToParent, IBCodeBlock** cbDP){
 			IBCodeBlockFinish(IBVectorTop(&ibc->CodeBlockStack),
 				&((IBCodeBlock*)IBVectorGet(&ibc->CodeBlockStack,
 					ibc->CodeBlockStack.elemCount - 2))->code);
-		} else Err(OP_ErrNOT_GOOD, "COMPILER FAILURE. No parent code block!");
+		} else Err(OP_CatastrophicFailure, "COMPILER FAILURE. No parent code block!");
 	}
 	IBVectorPop(&ibc->CodeBlockStack, IBCodeBlockFree);
 	if(cbDP) (*cbDP) = IBComp1CodeBlocksTop(ibc);
@@ -1362,7 +1362,7 @@ void _IBComp1PopObj(IBComp1* ibc, bool pushToWorking, Obj** objDP) {
 	assert(o);
 	if (pushToWorking){
 		Obj* newHome;
-		if (o->type == OP_NotSet)Err(OP_ErrNOT_GOOD, "");
+		if (o->type == OP_NotSet)Err(OP_CatastrophicFailure, "");
 #ifdef DEBUGPRINTS
 		DbgFmt(" To working: ","");
 #endif
@@ -1374,7 +1374,7 @@ void _IBComp1PopObj(IBComp1* ibc, bool pushToWorking, Obj** objDP) {
 		assert(newHome);
 		memcpy(newHome, o, sizeof(Obj));
 		if(ibc->ObjStack.elemCount < 1){
-			Err(OP_ErrNOT_GOOD, "no obj in stack");
+			Err(OP_CatastrophicFailure, "no obj in stack");
 		}else if (ibc->ObjStack.elemCount == 1) {
 			ObjInit(o);
 		}else if (ibc->ObjStack.elemCount > 1) {
@@ -1507,7 +1507,7 @@ void IBComp1PopExpects(IBComp1* ibc) {
 		DbgFmt("} -> { ","");
 #endif
 		IBVectorPop(&t->expStack, ExpectsFree);
-		//if (!GetExpectsStack->elemCount) Err(OP_ErrNOT_GOOD, "catastrophic failure");
+		//if (!GetExpectsStack->elemCount) Err(OP_CatastrophicFailure, "catastrophic failure");
 		pfxsIb = &((Expects*)IBVectorTop(&t->expStack))->pfxs;
 #ifdef DEBUGPRINTS
 		idx = 0;
@@ -1723,7 +1723,7 @@ void IBComp1InputChar(IBComp1* ibc, char ch){
 		case OP_ModeStrPass:
 			IBComp1Str(ibc);
 			break;
-		default: Err(OP_ErrNOT_GOOD, "unknown mode");
+		default: Err(OP_CatastrophicFailure, "unknown mode");
 			break;
 		}
 	}
@@ -1770,7 +1770,7 @@ char* IBComp1GetCPrintfFmtForType(IBComp1* ibc, Op type) {
 	case OP_u32:    return "u";
 	case OP_Char:   return "c";
 	}
-	Err(OP_ErrNOT_GOOD, "GetPrintfFmtForType: unknown type");
+	Err(OP_CatastrophicFailure, "GetPrintfFmtForType: unknown type");
 	return "???";
 }
 void Val2Str(char *dest, int destSz, Val v, Op type) {
@@ -1799,7 +1799,7 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 	if(!ibc->TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
 	wObjs = &t->working;
 	assert(wObjs);
-	if(!wObjs->elemCount)Err(OP_ErrNOT_GOOD, "workingObjs EMPTY!");
+	if(!wObjs->elemCount)Err(OP_CatastrophicFailure, "workingObjs EMPTY!");
 	//subTask = false;
 	cb=IBComp1CodeBlocksTop(ibc);
 	switch (t->type) {
@@ -1900,7 +1900,7 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 				Op at;
 				at = o->arg.type;
 				argc++;
-				if (at == OP_Null)Err(OP_ErrNOT_GOOD, "arg type NULL");
+				if (at == OP_Null)Err(OP_CatastrophicFailure, "arg type NULL");
 
 				if (cFuncArgs.start[0] != '\0') {
 					IBStrAppendCStr(&cFuncArgs, ", ");
@@ -1908,7 +1908,7 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 				IBStrAppendCStr(&cFuncArgs, GetCEqu(o->arg.type));
 				IBStrAppendCStr(&cFuncArgs, GetCEqu(o->arg.mod));
 				IBStrAppendCStr(&cFuncArgs, " ");
-				if (!o->name)Err(OP_ErrNOT_GOOD, "arg name NULL");
+				if (!o->name)Err(OP_CatastrophicFailure, "arg name NULL");
 				IBStrAppendCStr(&cFuncArgs, o->name);
 				break;
 			}
@@ -1929,7 +1929,7 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 				IBStrAppendCStr(&cFuncModsTypeName, GetCEqu(o->func.retType));
 				IBStrAppendCStr(&cFuncModsTypeName, GetCEqu(o->func.retTypeMod));
 				IBStrAppendCStr(&cFuncModsTypeName, " ");
-				if (!o->name)Err(OP_ErrNOT_GOOD, "func name NULL");
+				if (!o->name)Err(OP_CatastrophicFailure, "func name NULL");
 				if (o->name) {
 					if (o->func.thingTask)
 					{
@@ -1965,7 +1965,7 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 				IBStrAppendCStr(&cFuncCode, GetCEqu(o->var.type));
 				IBStrAppendCStr(&cFuncCode, GetCEqu(o->var.mod));
 				IBStrAppendCStr(&cFuncCode, " ");
-				if (!o->name)Err(OP_ErrNOT_GOOD, "var name NULL");
+				if (!o->name)Err(OP_CatastrophicFailure, "var name NULL");
 				IBStrAppendCStr(&cFuncCode, o->name);
 				if (o->var.valSet) {
 					IBStrAppendCStr(&cFuncCode, " = ");
@@ -1989,8 +1989,10 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 			IBCodeBlockFinish(cb, &cbOut);
 			IBStrAppend(&cFuncCode, &cbOut);
 			IBStrFree(&cbOut);
+			IBComp1PopCodeBlock(ibc, false, &cb);
+			assert(ibc->CodeBlockStack.elemCount == 1);
 			if (!funcObj) {
-				Err(OP_ErrNOT_GOOD, "funcObj NULL");
+				Err(OP_CatastrophicFailure, "funcObj NULL");
 			} else if (funcObj->func.retType != OP_Void) {
 				char valBuf[32];
 				valBuf[0] = '\0';
@@ -2017,7 +2019,6 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 			IBStrAppendCStr(&ibc->CFile, cFuncArgsEnd.start);
 			IBStrAppendCStr(&ibc->CFile, cFuncCode.start);
 		}
-		IBComp1PopCodeBlock(ibc, true, &cb);
 		break;
 	}
 	case OP_CPrintfHaveFmtStr: {
@@ -2064,7 +2065,7 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 							}
 							case OP_CPrintfFmtStr: break;
 							default:{
-								Err(OP_ErrNOT_GOOD, "unhandled printf arg type");
+								Err(OP_CatastrophicFailure, "unhandled printf arg type");
 							}
 
 							}
@@ -2233,7 +2234,7 @@ void IBComp1Str(IBComp1* ibc){
 }
 IBTask* IBComp1GetTask(IBComp1* ibc){
 	IBTask* ret= (IBTask*)IBVectorTop(&ibc->TaskStack);
-	if (!ret)Err(OP_ErrNOT_GOOD, "no task in stack");
+	if (!ret)Err(OP_CatastrophicFailure, "no task in stack");
 	return ret;
 }
 Op IBComp1GetMode(IBComp1* ibc){
@@ -2403,7 +2404,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 		}
 		switch (o->type) {
 		case OP_FuncNeedsRetValType: {
-			if (t->type != OP_FuncHasName)Err(OP_ErrNOT_GOOD, "func signature needs name");
+			if (t->type != OP_FuncHasName)Err(OP_CatastrophicFailure, "func signature needs name");
 			IBComp1GetObj(ibc)->func.retType = ibc->NameOp;
 			IBComp1GetObj(ibc)->func.retTypeMod = ibc->Pointer;
 			SetObjType(o, OP_FuncSigComplete);
@@ -2680,7 +2681,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 				DbgFmt("what\n","");
 				IBComp1PopObj(ibc, true, NULL);
 				if (o->type != OP_FuncHasName) {
-					Err(OP_ErrNOT_GOOD, "expected FuncHasName");
+					Err(OP_CatastrophicFailure, "expected FuncHasName");
 					break;
 				}
 			}*/
@@ -2756,7 +2757,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 				break;
 			}
 			default: {
-				Err(OP_ErrNOT_GOOD, "Unimplemented If task context");
+				Err(OP_CatastrophicFailure, "Unimplemented If task context");
 				break;
 			}
 			}
