@@ -574,7 +574,7 @@ OpNamePair opNames[] = {
 	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
 	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
 	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"UseNeedStr",OP_UseNeedStr},
-	{"sys", OP_UseStrSysLib},{"junt", OP_Thing},{"SpaceNeedName",OP_SpaceNeedName},
+	{"sys", OP_UseStrSysLib},{"thing", OP_Thing},{"SpaceNeedName",OP_SpaceNeedName},
 	{"RootTask", OP_RootTask},{"ErrUnknownPfx",OP_ErrUnknownPfx},
 	{"ErrUnexpectedNameOP",OP_ErrUnexpectedNameOP},{"ThingWantName",OP_ThingWantName},
 	{"ThingWantContent",OP_ThingWantContent},{"SpaceHasName",OP_SpaceHasName},
@@ -1282,10 +1282,11 @@ void IBComp1PopColor(IBComp1* ibc){
 	IBSetColor(*(IBColor*)IBVectorTop(&ibc->ColorStack));
 }
 void _IBComp1PushCodeBlock(IBComp1* ibc, IBCodeBlock** cbDP){
-	assert(cbDP);
+	IBCodeBlock* cb;
 	DbgFmt(" Push code block\n");
-	(*cbDP)=(IBCodeBlock*)IBVectorPush(&ibc->CodeBlockStack);
-	IBCodeBlockInit(*cbDP);
+	cb=(IBCodeBlock*)IBVectorPush(&ibc->CodeBlockStack);
+	IBCodeBlockInit(cb);
+	if(cbDP) (*cbDP) = cb;
 }
 void _IBComp1PopCodeBlock(IBComp1* ibc){
 	assert(ibc->CodeBlockStack.elemCount > 1);
@@ -1660,11 +1661,13 @@ void IBComp1InputChar(IBComp1* ibc, char ch){
 				IBComp1PopObj(ibc, true, NULL);
 				if (mod != OP_Imaginary) {
 					Expects *exp;
+					IBCodeBlock *cb;
 					IBComp1PushExpects(ibc, &exp);
 					ExpectsInit(exp, 0,"","",
 						"PPPNN",
 						OP_Op, OP_String, OP_VarType, OP_If, OP_Done);
 					SetTaskType(t, OP_FuncWantCode);
+					IBComp1PushCodeBlock(ibc, &cb);
 				}
 				else {
 					IBComp1PopAndDoTask(ibc);
@@ -2489,7 +2492,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 				OP_Op, OP_LineEnd, OP_Repr);*/
 			/*SetTaskType(t, OP_ThingWantContent);
 			IBComp1PushExpects(ibc, &exp);
-			ExpectsInit(exp, 0, "expected vartype (%)", "expected @pub, @priv, or @junt", 
+			ExpectsInit(exp, 0, "expected vartype (%)", "expected @pub, @priv, or @thing", 
 				"PPNNNN", 
 				OP_Op, OP_VarType, OP_Func, OP_Public, OP_Private, OP_Done);*/
 			break;
