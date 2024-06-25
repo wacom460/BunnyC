@@ -1288,6 +1288,10 @@ void IBComp1Free(IBComp1* ibc) {
 	Obj* o;
 	IBCodeBlock* cb;
 	assert(ibc);
+	if (ibc->InputStr) {
+		IBComp1InputStr(ibc, ibc->InputStr);
+		ibc->InputStr = NULL;
+	}
 	if(ibc->CodeBlockStack.elemCount != 1)Err(OP_Error, "dirty codeblock stack");
 	cb=(IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
 	assert(!(IBStrGetLen(&cb->variables) + 
@@ -1765,9 +1769,9 @@ void IBComp1InputChar(IBComp1* ibc, char ch){
 	m = IBComp1GetMode(ibc);
 	ibc->Column++;
 	if (!nl && ibc->CommentMode == OP_NotSet) {
-		/*if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
+		if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
 		else printf("-> %c (0x%x) %d:%d\n",
-			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);*/
+			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);
 
 		switch (m) {
 		case OP_ModeComment:
@@ -2942,6 +2946,7 @@ int main(int argc, char** argv) {
 		while (comp.Running)
 			IBComp1Tick(&comp, f);
 		DbgFmt("Exiting\n","");
+		//assert(comp.InputStr == NULL);
 		IBComp1Free(&comp);
 		getchar();
 		fclose(f);
