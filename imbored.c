@@ -1331,11 +1331,11 @@ void IBComp1Free(IBComp1* ibc) {
 	IBComp1PushColor(ibc, IBFgCYAN);
 	DbgFmt(".h File: \n");
 	IBComp1PopColor(ibc);
-	DbgFmt("%s%s\n", ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start);
+	DbgFmt("%s%s", ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start);
 	IBComp1PushColor(ibc, IBFgGREEN);
 	DbgFmt(".c File: \n");
 	IBComp1PopColor(ibc);
-	DbgFmt("%s\n", ibc->CFile.start);
+	DbgFmt("%s", ibc->CFile.start);
 #else
 	printf("%s%s\n%s\n",
 		ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start, ibc->CFile.start);
