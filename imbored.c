@@ -519,7 +519,7 @@ void OverwriteStr(char** str, char* with);
 char* IBComp1StringModeIgnoreChars = "";
 OpNamePair opNames[] = {
 	{"null", OP_Null},{"no", OP_False},{"yes", OP_True},{"set", OP_Set},
-	{"call", OP_Call},{"add", OP_SetAdd},{"exec", OP_Func},{"~", OP_Comment},
+	{"call", OP_Call},{"add", OP_SetAdd},{"func", OP_Func},{"~", OP_Comment},
 	{"%", OP_VarType},{"Value", OP_Value},{"@", OP_Done},{"ret", OP_Return},
 	{"ext", OP_Imaginary},{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
 	{"build", OP_Build},{"space", OP_Space},{"+", OP_Add},{"-", OP_Subtract},
@@ -577,6 +577,9 @@ OpNamePair cEquivelents[] = {
 	{"{", OP_ScopeOpen},{"}", OP_ScopeClose},
 	{"", OP_NotSet},
 	{"extern", OP_Imaginary},{"float", OP_f32},{"double", OP_d64},
+	{"==", OP_Equals},{"!=", OP_NotEquals},{"<", OP_LessThan},
+	{">", OP_GreaterThan},{"<=", OP_LessThanOrEquals},
+	{">=", OP_GreaterThanOrEquals},{"!=", OP_NotEquals},
 };
 OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
@@ -584,11 +587,11 @@ OpNamePair dbgAssertsNP[] = {
 char* SysLibCodeStr =
 "@space $sys\n"
 "@pub\n"
-"@ext @exec $malloc %i32 $size @ret %&?\n"
-"@ext @exec $realloc %&? $ptr %i32 $newSize @ret %&?\n"
-"@ext @exec $free %&? $ptr\n"
-"@ext @exec $strdup %&c8 $str @ret %&c8\n"
-"@ext @exec $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
+"@ext @func $malloc %i32 $size @ret %&?\n"
+"@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
+"@ext @func $free %&? $ptr\n"
+"@ext @func $strdup %&c8 $str @ret %&c8\n"
+"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
 "\n";
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
@@ -892,6 +895,7 @@ void _ExpectsInit(int LINENUM, Expects* exp, int life,
 			IBVectorCopyPushOp(&exp->pfxs, OP_String);
 			IBVectorCopyPushOp(&exp->nameOps, OP_If);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Set);
+			IBVectorCopyPushOp(&exp->nameOps, OP_Done);
 			break;
 		}
 		}
@@ -1725,7 +1729,10 @@ void IBComp1InputChar(IBComp1* ibc, char ch){
 				break;
 			}
 			case OP_ThingWantRepr: {
+				Expects* exp;
 				SetTaskType(t, OP_ThingWantContent);
+				IBComp1ReplaceExpects(ibc, &exp);
+				ExpectsInit(exp, 0, "", "", "PPNN", OP_Op, OP_VarType, OP_Func, OP_Done);
 				break;
 			}
 			case OP_CPrintfHaveFmtStr: {
@@ -1769,9 +1776,9 @@ void IBComp1InputChar(IBComp1* ibc, char ch){
 	m = IBComp1GetMode(ibc);
 	ibc->Column++;
 	if (!nl && ibc->CommentMode == OP_NotSet) {
-		if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
+		/*if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
 		else printf("-> %c (0x%x) %d:%d\n",
-			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);
+			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);*/
 
 		switch (m) {
 		case OP_ModeComment:
@@ -1875,8 +1882,36 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 		}
 		assert(ifO);
 		IBStrAppendCh(&cb->header, '\t', tabCount - 1);
-		IBStrAppendFmt(&cb->header, "if (%s %s %s) {\n", ifO->lvName, GetCEqu(ifO->midOp), ifO->rvName);
+		IBStrAppendFmt(&cb->header, "if (");
+		switch (ifO->lvTYPE) {
+		case OP_Value: {
+			char buf[64];
+			buf[0]='\0';
+			Val2Str(buf, 64, ifO->lvVal, ifO->lvDataType);
+			IBStrAppendFmt(&cb->header, "%s ", buf);
+			break;
+		}
+		case OP_Name:
+			IBStrAppendFmt(&cb->header, "%s ", ifO->lvName);
+			break;
+		}
+		IBStrAppendFmt(&cb->header, "%s ", GetCEqu(ifO->midOp));
+		switch (ifO->rvTYPE) {
+		case OP_Value: {
+			char buf[64];
+			buf[0] = '\0';
+			Val2Str(buf, 64, ifO->rvVal, ifO->rvDataType);
+			IBStrAppendFmt(&cb->header, "%s", buf);
+			break;
+		}
+		case OP_Name:
+			IBStrAppendFmt(&cb->header, "%s", ifO->rvName);
+			break;
+		}
+		IBStrAppendFmt(&cb->header, ") {\n");
 		IBComp1VecPrint(ibc, wObjs);
+		IBStrAppendCh(&cb->footer, '\t', tabCount - 1);
+		IBStrAppendFmt(&cb->footer, "}\n");
 		IBComp1PopCodeBlock(ibc, true, &cb);
 		break;
 	}
@@ -2102,7 +2137,8 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 		//subTask = true;
 		if (t && wObjs->elemCount) {
 			fmtObj = (Obj*)wObjs->data;
-			IBStrAppendCStr(&cb->code, "\tprintf(\"");
+			IBStrAppendCh(&cb->code, '\t', tabCount);
+			IBStrAppendCStr(&cb->code, "printf(\"");
 			firstPercent = false;
 			varIdx = 1;
 			for (i = 0; i < (int)strlen(fmtObj->str); ++i) {
@@ -2388,6 +2424,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 		case OP_IfNeedLVal: {
 			o->ifO.lvVal = strVal;
 			o->ifO.lvTYPE = OP_Value;
+			o->ifO.lvDataType = OP_i32;
 			SetObjType(o, OP_IfNeedMidOP);
 			SetTaskType(t, OP_IfNeedMidOP);
 			break;
@@ -2396,6 +2433,7 @@ void IBComp1StrPayload(IBComp1* ibc){
 			Expects* exp;
 			o->ifO.rvVal = strVal;
 			o->ifO.rvTYPE = OP_Value;
+			o->ifO.rvDataType = OP_i32;
 			SetObjType(o, OP_IfFinished);
 			SetTaskType(t, OP_IfFinished);
 			IBComp1ReplaceExpects(ibc, &exp);
