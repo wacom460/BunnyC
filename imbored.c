@@ -2134,7 +2134,6 @@ void IBComp1FinishTask(IBComp1* ibc)	{
 		Obj* fmtObj;
 		int varIdx;
 		int i;
-		//subTask = true;
 		if (t && wObjs->elemCount) {
 			fmtObj = (Obj*)wObjs->data;
 			IBStrAppendCh(&cb->code, '\t', tabCount);
