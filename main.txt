@@ -2,7 +2,7 @@
 	%i32 $a
 
 	@func $f
-		"hi2"
+		"hewwo"
 	@@
 @@
 

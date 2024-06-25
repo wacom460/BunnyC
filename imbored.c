@@ -1324,13 +1324,23 @@ void IBComp1Free(IBComp1* ibc) {
 	}
 	IBStrAppendCStr(&ibc->CHeaderFuncs, "\n#endif\n");
 #ifdef DEBUGPRINTS
-	FGWHITE;
-	DbgFmt("-> Compilation complete <-\nC Header:\n%s%s\n\nC File:\n%s\n\n",
-		ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start, ibc->CFile.start);
+	IBComp1PushColor(ibc, IBFgMAGENTA);
+	DbgFmt("-> Compilation complete <-\n");
+	IBComp1PopColor(ibc);
+	IBComp1PushColor(ibc, IBFgWHITE);
+	IBComp1PushColor(ibc, IBFgCYAN);
+	DbgFmt(".h File: \n");
+	IBComp1PopColor(ibc);
+	DbgFmt("%s%s\n", ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start);
+	IBComp1PushColor(ibc, IBFgGREEN);
+	DbgFmt(".c File: \n");
+	IBComp1PopColor(ibc);
+	DbgFmt("%s\n", ibc->CFile.start);
 #else
 	printf("%s%s\n%s\n",
 		ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start, ibc->CFile.start);
 #endif
+	IBComp1PopColor(ibc);
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFreeSimple(&ibc->ColorStack);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
