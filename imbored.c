@@ -195,7 +195,7 @@ void IBStrAppendCh(IBStr* str, char ch, int count);
 char* IBStrAppendCStr(IBStr* str, char *with);
 void IBStrAppendFmt(IBStr* str, char* fmt, ...);
 char* IBStrAppend(IBStr* str, IBStr* with);
-int IBStrStripFront(IBStr* str, char ch, int count);
+int IBStrStripFront(IBStr* str, char ch);
 typedef union IBVecData {
 	void* ptr;
 	struct Obj* obj;
@@ -787,10 +787,11 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
 		ra = NULL;
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
+		//DbgFmt("vec->dataSize: %d\n", vec->dataSize);
 		assert(vec->data);
 		ra = realloc(vec->data, vec->dataSize);
-		assert(ra);
-		if(ra)vec->data = ra;
+		//assert(ra);
+		if(ra) vec->data = ra;
 	}
 	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
 	vec->elemCount++;
@@ -1405,15 +1406,15 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBStrAppendCStr(&ibc->CHeaderFuncs, "\n#endif\n");
 #ifdef DEBUGPRINTS
 	IBPushColor(IBFgMAGENTA);
-	DbgFmt("-> Compilation complete <-\n");
+	DbgFmt("-> Compilation complete <-\n","");
 	IBPopColor();
 	IBPushColor(IBFgWHITE);
 	IBPushColor(IBFgCYAN);
-	DbgFmt(".h File: \n");
+	DbgFmt(".h File: \n","");
 	IBPopColor();
 	DbgFmt("%s%s", ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start);
 	IBPushColor(IBFgGREEN);
-	DbgFmt(".c File: \n");
+	DbgFmt(".c File: \n","");
 	IBPopColor();
 	DbgFmt("%s", ibc->CFile.start);
 #else
@@ -1444,7 +1445,7 @@ IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc){
 }
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP){
 	IBCodeBlock* cb;
-	DbgFmt(" Push code block\n");
+	DbgFmt(" Push code block\n","");
 	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
 	if(cbDP) (*cbDP) = cb;
