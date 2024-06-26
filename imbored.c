@@ -87,7 +87,18 @@ void IBPopColor();
 #define DEBUGPRINTS
 
 #ifdef DEBUGPRINTS
-#define PLINE printf("[%d]", __LINE__)
+void _PrintLine(int l) {
+	IBPushColor(IBFgRED);
+	printf("[");
+	IBPushColor(IBBgGREEN);
+	printf("%d", l);
+	IBPushColor(IBFgRED);
+	printf("]");
+	IBPopColor();
+	IBPopColor();
+	IBPopColor();
+}
+#define PLINE _PrintLine(__LINE__)
 #else
 #define PLINE
 #endif
@@ -204,16 +215,26 @@ typedef struct IBVector {
 void IBVectorInit(IBVector* vec, size_t elemSize, Op type);
 IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* IBVectorIterNext(IBVector* vec, int* idx);
-IBVecData* IBVectorPush(IBVector* vec);
+void _IBVectorPush(IBVector* vec, IBVecData** dataDP);
+#define IBVectorPush(vec, dataDP){\
+	int c=(vec)->elemCount - 1;\
+	_IBVectorPush((vec), dataDP);\
+	PLINE;\
+	DbgFmt(" VectorPush: %s ", #vec); \
+	IBPushColor(IBFgCYAN); \
+	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1);\
+	IBPopColor();\
+}
 void IBVectorCopyPush(IBVector* vec, void* elem);
 void IBVectorCopyPushBool(IBVector* vec, bool val);
 void IBVectorCopyPushOp(IBVector* vec, Op val);
 void IBVectorCopyPushIBColor(IBVector* vec, IBColor col);
 IBVecData* IBVectorTop(IBVector* vec);
 IBVecData* IBVectorFront(IBVector* vec);
-#define IBVectorPop(vec){\
+#define IBVectorPop(vec, freeFunc){\
 	int c=(vec)->elemCount - 1;\
-	_IBVectorPop((vec), NULL);\
+	_IBVectorPop((vec), freeFunc);\
+	PLINE;\
 	DbgFmt(" VectorPop: %s ", #vec); \
 	IBPushColor(IBFgCYAN); \
 	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1);\
@@ -493,7 +514,7 @@ void IBLayer3StrPayload(IBLayer3* ibc);
 void IBLayer3ExplainErr(IBLayer3* ibc, Op code);
 #define SetObjType(obj, tt){\
 	PLINE;\
-	DbgFmt("SetObjType: %s(%d) -> %s(%d)\n", GetOpName(obj->type), (int)obj->type, GetOpName(tt), (int)tt);\
+	DbgFmt(" SetObjType: %s(%d) -> %s(%d)\n", GetOpName(obj->type), (int)obj->type, GetOpName(tt), (int)tt);\
 	obj->type=tt;\
 }
 #define PopExpects(){\
@@ -720,7 +741,7 @@ void* IBVectorIterNext(IBVector* vec, int* idx) {
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (char*)vec->data + vec->elemSize * (*idx)++;
 }
-IBVecData* IBVectorPush(IBVector* vec) {
+void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
 	IBVecData* topPtr;
 	if (vec->elemCount + 1 > vec->slotCount) {
 		void* ra;
@@ -734,10 +755,12 @@ IBVecData* IBVectorPush(IBVector* vec) {
 	}
 	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
 	vec->elemCount++;
-	return topPtr;
+	if(dataDP) *dataDP = topPtr;
 }
 void IBVectorCopyPush(IBVector* vec, void* elem) {
-	memcpy(IBVectorPush(vec), elem, vec->elemSize);
+	IBVecData* top;
+	_IBVectorPush(vec, &top);
+	memcpy(top, elem, vec->elemSize);
 }
 void IBVectorCopyPushBool(IBVector* vec, bool val) {
 	IBVectorCopyPush(vec, &val);
@@ -1274,7 +1297,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBVectorInit(&ibc->StrReadPtrsStack, sizeof(bool), OP_Bool);
 	IBVectorInit(&ibc->TaskStack, sizeof(IBTask), OP_Task);
 	IBVectorInit(&ibc->CodeBlockStack, sizeof(IBCodeBlock), OP_IBCodeBlock);
-	cb=(IBCodeBlock*)IBVectorPush(&ibc->CodeBlockStack);
+	IBVectorPush(&ibc->CodeBlockStack, &cb)
 	IBCodeBlockInit(cb);
 	IBPushColor(IBFgWHITE);
 	IBVectorCopyPushBool(&ibc->StrReadPtrsStack, false);
@@ -1371,7 +1394,7 @@ IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc){
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP){
 	IBCodeBlock* cb;
 	DbgFmt(" Push code block\n");
-	cb=(IBCodeBlock*)IBVectorPush(&ibc->CodeBlockStack);
+	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
 	if(cbDP) (*cbDP) = cb;
 }
@@ -1392,10 +1415,10 @@ void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** 
 	IBTask* t;
 	assert(exectsDP);
 	DbgFmt(" Push task %s(%d)\n", GetOpName(taskOP), (int)taskOP);
-	t = (IBTask*)IBVectorPush(&ibc->TaskStack);
+	IBVectorPush(&ibc->TaskStack, &t);
 	if(taskDP) (*taskDP) = t;
 	TaskInit(t, taskOP);
-	(*exectsDP) = (IBExpects*)IBVectorPush(&t->expStack);
+	IBVectorPush(&t->expStack, exectsDP);
 }
 void _IBLayer3PopTask(IBLayer3* ibc) {
 	IBTask* t;
@@ -1414,7 +1437,7 @@ void _IBLayer3PushObj(IBLayer3* ibc, Obj** o) {
 		DbgFmt(" -> ", "");
 #endif
 	}
-	obj = (Obj*)IBVectorPush(&ibc->ObjStack);
+	IBVectorPush(&ibc->ObjStack, &obj);
 	ObjInit(obj);
 #ifdef DEBUGPRINTS
 	ObjPrint(obj);
@@ -1439,7 +1462,7 @@ void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, Obj** objDP) {
 		ObjPrint(o);
 		DbgFmt("\n", "");
 #endif
-		newHome=(Obj*)IBVectorPush(&t->working);
+		IBVectorPush(&t->working, &newHome);
 		assert(newHome);
 		memcpy(newHome, o, sizeof(Obj));
 		if(ibc->ObjStack.elemCount < 1){
@@ -1553,7 +1576,7 @@ void IBLayer3PushExpects(IBLayer3* ibc, IBExpects **expDP){
 	assert(t);
 	assert(expDP);
 	if(expDP){
-		exp = (IBExpects*)IBVectorPush(&t->expStack);
+		IBVectorPush(&t->expStack, &exp);
 		assert(exp);
 		(*expDP) = exp;
 	}	
@@ -2262,7 +2285,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	{
 		Err(OP_ErrUnexpectedNextPfx, "");
 	}
-	DbgFmt("PFX:%s(%d)\n", GetPfxName(ibc->Pfx), (int)ibc->Pfx);
+	DbgFmt("PFX: %s(%d)\n", GetPfxName(ibc->Pfx), (int)ibc->Pfx);
 	switch (ibc->Pfx) {
 	case OP_String: { /* " */
 		ibc->StringMode = true;

@@ -1,5 +1,5 @@
 @use $sys
-
+~~
 @thing $t
 	%i32 $a
 
@@ -13,3 +13,4 @@
 		"worked %%" $argc
 	@@
 @@ =0
+~~
