@@ -195,6 +195,7 @@ void IBStrAppendCh(IBStr* str, char ch, int count);
 char* IBStrAppendCStr(IBStr* str, char *with);
 void IBStrAppendFmt(IBStr* str, char* fmt, ...);
 char* IBStrAppend(IBStr* str, IBStr* with);
+int IBStrStripFront(IBStr* str, char ch, int count);
 typedef union IBVecData {
 	void* ptr;
 	struct Obj* obj;
@@ -537,7 +538,7 @@ IBVector* IBTaskGetExpNameOPsTop(IBTask* t);
 #define SetTaskType(task, tt){\
 	assert(task);\
 	PLINE;\
-	printf(" SetTaskType: %s -> %s\n", GetOpName(task->type), GetOpName(tt));\
+	printf(" SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(task->type), (int)task->type, GetOpName(tt), (int)tt);\
 	task->type = tt;\
 }
 
@@ -627,9 +628,9 @@ char* SysLibCodeStr =
 "@pub\n"
 "@ext @func $malloc %i32 $size @ret %&?\n"
 "@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
-//"@ext @func $free %&? $ptr\n"
-//"@ext @func $strdup %&c8 $str @ret %&c8\n"
-//"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
+"@ext @func $free %&? $ptr\n"
+"@ext @func $strdup %&c8 $str @ret %&c8\n"
+"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
 "\n";
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
@@ -728,6 +729,24 @@ char* IBStrAppend(IBStr* str, IBStr* with){
 		exit(-1);
 	}
 	return NULL;
+}
+int IBStrStripFront(IBStr* str, char ch){
+	int slen=IBStrGetLen(str);
+	int in = 0;
+	char* rep = NULL;
+	char ch2 = '\0';
+	while(true) {
+		ch2 = str->start[in];
+		if (ch2 == ch) in++;
+		else break;
+	}
+	if(!in) return 0;
+	rep=strdup(str->start+in);
+	free(str->start);
+	str->start=rep;
+	str->end=str->start+(slen - in);
+	assert(*(str->end) == '\0');
+	return in;
 }
 void IBVectorInit(IBVector* vec, size_t elemSize, Op type) {
 	void* m;
@@ -1714,7 +1733,8 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	Obj* o;
 	bool nl;
 	ibc->Ch = ch;
-	IBStrAppendCh(&ibc->CurrentLineStr, ch, 1);
+	if (ibc->CommentMode == OP_NotSet && ibc->Ch != COMMENT_CHAR) 
+		IBStrAppendCh(&ibc->CurrentLineStr, ibc->Ch, 1);
 	nl = false;
 	m=IBLayer3GetMode(ibc);
 	t = IBLayer3GetTask(ibc);
@@ -1753,10 +1773,14 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	case '\n': {
 		nl = true;
 		if (ibc->CommentMode == OP_NotSet) {
+			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
+			int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
+			int stripped = 0;
 			IBPushColor(IBBgCYAN);
-			DbgFmt("[LINE END AT %d:%d]", ibc->Line, ibc->Column);
+			DbgFmt("[LINE END AT %d:%d]", l, c);
 			IBPopColor();
 			IBPushColor(IBFgYELLOW);
+			stripped=IBStrStripFront(&ibc->CurrentLineStr, '\t');
 			DbgFmt(" %s", ibc->CurrentLineStr.start);
 			IBPopColor();
 			IBStrClear(&ibc->CurrentLineStr);
@@ -1848,9 +1872,9 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		ibc->ColumnIS++;
 	}
 	if (!nl && ibc->CommentMode == OP_NotSet) {
-		/*if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
+		if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
 		else printf("-> %c (0x%x) %d:%d\n",
-			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);*/
+			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);
 
 		switch (m) {
 		case OP_ModeComment:
@@ -2069,13 +2093,11 @@ void IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStr cFuncArgs;
 		IBStr cFuncArgsEnd;
 		IBStr cFuncCode;
-		bool imaginary;
 		Obj* funcObj;
 		Obj* thingObj;
 
 		thingObj = NULL;
 		argc = 0;
-		imaginary = false;
 		IBStrInit(&cFuncModsTypeName, 1);
 		IBStrInit(&cFuncArgsThing, 1);
 		IBStrInit(&cFuncArgs, 1);
@@ -2102,11 +2124,7 @@ void IBLayer3FinishTask(IBLayer3* ibc)	{
 				IBStrAppendCStr(&cFuncArgs, o->name);
 				break;
 			}
-			case OP_FuncSigComplete: {
-				if (ObjGetMod(o) == OP_Imaginary) {
-					imaginary = true;
-				}
-			}
+			case OP_Func:
 			case OP_FuncHasName:
 			case OP_CompletedFunction: {/*should only happen once*/
 				Op mod;
@@ -2167,10 +2185,12 @@ void IBLayer3FinishTask(IBLayer3* ibc)	{
 			}
 			}
 		}
-		if (imaginary) {
+		if (ibc->Imaginary) {
+			//DbgFmt("[@ext @func]","");
 			IBStrAppendCStr(&cFuncArgsEnd, ");\n\n");
 		}
 		else {
+			//DbgFmt("[@func]", "");
 			IBStr cbOut;
 			IBCodeBlock* cb;
 			IBStrAppendCStr(&cFuncArgsEnd, "){\n");
@@ -2201,7 +2221,7 @@ void IBLayer3FinishTask(IBLayer3* ibc)	{
 			IBStrAppendCStr(&ibc->CHeaderFuncs, cFuncArgs.start);
 			IBStrAppendCStr(&ibc->CHeaderFuncs, ");\n");
 		}
-		if (!imaginary) {
+		if (!ibc->Imaginary) {
 			IBStrAppendCStr(&ibc->CFile, cFuncModsTypeName.start);
 			IBStrAppendCStr(&ibc->CFile, cFuncArgsThing.start);
 			if (argc && thingObj) IBStrAppendCStr(&ibc->CFile, ", ");
