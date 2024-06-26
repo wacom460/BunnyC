@@ -259,9 +259,12 @@ void IBPushColor(IBColor col) {
 	IBSetColor(col);
 }
 void IBPopColor() {
+	IBColor* col;
 	_IBVectorPop(&g_ColorStack, NULL);
 	//assert(g_ColorStack.elemCount);
-	IBSetColor(*(IBColor*)IBVectorTop(&g_ColorStack));
+	col = (IBColor*)IBVectorTop(&g_ColorStack);
+	if(col) IBSetColor(*col);
+	else IBSetColor(IBFgWHITE);
 }
 
 char* StrConcat(char* dest, int count, char* src);
@@ -512,7 +515,11 @@ bool IBLayer3IsNameOpExpected(IBLayer3* ibc, Op nameOp);
 void IBLayer3Tick(IBLayer3* ibc, FILE *f);
 void IBLayer3InputChar(IBLayer3* ibc, char ch);
 void IBLayer3InputStr(IBLayer3* ibc, char* str);
-void IBLayer3FinishTask(IBLayer3* ibc);
+void _IBLayer3FinishTask(IBLayer3* ibc);
+#define IBLayer3FinishTask(ibc){\
+	PLINE;\
+	_IBLayer3FinishTask(ibc);\
+}
 Val IBLayer3StrToVal(IBLayer3* ibc, char* str, Op expectedType);
 char* IBLayer3GetCPrintfFmtForType(IBLayer3* ibc, Op type);
 void IBLayer3Prefix(IBLayer3* ibc);
@@ -538,7 +545,7 @@ IBVector* IBTaskGetExpNameOPsTop(IBTask* t);
 #define SetTaskType(task, tt){\
 	assert(task);\
 	PLINE;\
-	printf(" SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(task->type), (int)task->type, GetOpName(tt), (int)tt);\
+	DbgFmt(" SetTaskType: %s(%d) -> %s(%d)\n", GetOpName(task->type), (int)task->type, GetOpName(tt), (int)tt);\
 	task->type = tt;\
 }
 
@@ -624,14 +631,15 @@ OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
 };
 char* SysLibCodeStr =
-"@space $sys\n"
-"@pub\n"
+//"@space $sys\n"
+//"@pub\n"
 "@ext @func $malloc %i32 $size @ret %&?\n"
-"@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
-"@ext @func $free %&? $ptr\n"
-"@ext @func $strdup %&c8 $str @ret %&c8\n"
-"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
-"\n";
+//"@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
+//"@ext @func $free %&? $ptr\n"
+//"@ext @func $strdup %&c8 $str @ret %&c8\n"
+//"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
+//"\n"
+;
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
 void IBStrInit(IBStr* str, size_t reserve){
@@ -1838,12 +1846,9 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			}
 			case OP_FuncSigComplete:
 			case OP_FuncHasName: {
-				//Op mod;
 				SetObjType(o, OP_FuncSigComplete);
 				PopExpects();
-				//mod = ObjGetMod(o);
 				IBLayer3PopObj(ibc, true, &o);
-				//if (mod != OP_Imaginary) {
 				if(!ibc->Imaginary){
 					IBExpects *exp;
 					IBCodeBlock *cb;
@@ -1865,17 +1870,16 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	}
 	}
 	m = IBLayer3GetMode(ibc);
-	if (!ibc->InputStr) {
-		ibc->Column++;
-	}
-	else {
-		ibc->ColumnIS++;
-	}
 	if (!nl && ibc->CommentMode == OP_NotSet) {
-		if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
-		else printf("-> %c (0x%x) %d:%d\n",
-			ibc->Ch, ibc->Ch, ibc->Line, ibc->Column);
-
+#ifdef DEBUGPRINTS
+		{
+			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
+			int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
+			if (ibc->Ch == ' ') printf("-> SPACE (0x%x)\n", ibc->Ch);
+			else printf("-> %c (0x%x) %d:%d\n",
+				ibc->Ch, ibc->Ch, l, c);
+		}
+#endif
 		switch (m) {
 		case OP_ModeComment:
 		case OP_ModeMultiLineComment:
@@ -1889,6 +1893,12 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		default: Err(OP_Error, "unknown mode");
 			break;
 		}
+	}
+	if (!ibc->InputStr) {
+		ibc->Column++;
+	}
+	else {
+		ibc->ColumnIS++;
 	}
 	if (nl) {
 		if (IBLayer3IsPfxExpected(ibc, OP_LineEnd)) PopExpects();
@@ -1957,14 +1967,14 @@ void Val2Str(char *dest, int destSz, Val v, Op type) {
 	case OP_d64: { sprintf(dest, "%f",   v.d64); break; }
 	}
 }
-void IBLayer3FinishTask(IBLayer3* ibc)	{
+void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	IBVector* wObjs;
 	IBCodeBlock* cb;
 	int tabCount;
 	IBTask* t;
 	t = IBLayer3GetTask(ibc);
 	assert(t);
-	DbgFmt("FinishTask: %s(%d)\n", GetOpName(t->type), (int)t->type);
+	DbgFmt(" FinishTask: %s(%d)\n", GetOpName(t->type), (int)t->type);
 	if(!ibc->TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
 	wObjs = &t->working;
 	assert(wObjs);
@@ -2107,7 +2117,7 @@ void IBLayer3FinishTask(IBLayer3* ibc)	{
 		funcObj = NULL;
 		for (i = 0; i < wObjs->elemCount; ++i) {
 			o = (Obj*)IBVectorGet(wObjs, i);
-			switch (ObjGetType(o)) {
+			switch (o->type) {
 			case OP_FuncArgComplete: {/*multiple allowed*/
 				Op at;
 				at = o->arg.type;
@@ -3066,8 +3076,9 @@ void IBLayer3ExplainErr(IBLayer3* ibc, Op code) {
 #ifdef DEBUGPRINTS
 	DbgFmt("\nOBJ:","");
 	ObjPrint(IBLayer3GetObj(ibc));
-	DbgFmt("\n","");
+	//DbgFmt("\n","");
 #endif
+	printf("\n");
 }
 void IBSetColor(IBColor col) {
 #ifdef _WIN32

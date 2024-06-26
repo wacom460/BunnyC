@@ -1,15 +1,1 @@
 @use $sys
-
-@thing $t
-	%i32 $a
-
-	@func $f
-		"hewwo"
-	@@
-@@
-
-@func $main %i32 $argc %&&c8 $argv @ret %i32
-	@if $argc @eq =1
-		"worked %%" $argc
-	@@
-@@ =0
