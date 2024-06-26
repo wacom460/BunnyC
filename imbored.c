@@ -1865,6 +1865,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			}
 		}
 		ibc->Imaginary = false;
+		ibc->Pfx = OP_Null;
 		break;
 	}
 	}
@@ -1902,11 +1903,11 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	if (nl) {
 		if (IBLayer3IsPfxExpected(ibc, OP_LineEnd)) PopExpects();
 		if (!ibc->InputStr) {
-			ibc->Column = 0;
+			ibc->Column = 1;
 			ibc->Line++;
 		}
 		else {
-			ibc->ColumnIS = 0;
+			ibc->ColumnIS = 1;
 			ibc->LineIS++;
 		}
 	}
@@ -2707,6 +2708,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBStrAppendCStr(&ibc->CHeaderFuncs, "/* System Lib Header */\n");
 				assert(!ibc->InputStr);
 				ibc->InputStr = SysLibCodeStr;
+				ibc->Line++;
+				ibc->Column = 1;
 				break;
 			}
 			default: {
