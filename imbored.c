@@ -188,6 +188,7 @@ typedef struct IBStr {
 } IBStr;
 void IBStrInit(IBStr* str, size_t reserve);
 void IBStrFree(IBStr* str);
+void IBStrClear(IBStr* str);
 void IBStrInitNTStr(IBStr* str, char* nullTerminated);
 size_t IBStrGetLen(IBStr* str);
 void IBStrAppendCh(IBStr* str, char ch, int count);
@@ -258,7 +259,7 @@ void IBPushColor(IBColor col) {
 }
 void IBPopColor() {
 	_IBVectorPop(&g_ColorStack, NULL);
-	assert(g_ColorStack.elemCount);
+	//assert(g_ColorStack.elemCount);
 	IBSetColor(*(IBColor*)IBVectorTop(&g_ColorStack));
 }
 
@@ -409,11 +410,14 @@ void TaskFree(IBTask* t);
 typedef struct IBLayer3 {
 	int Line;
 	int Column;
+	int LineIS; //LINE inputstr
+	int ColumnIS;//COLUMN inputstr
 	Op Pfx;
 	char Str[IBLayer3STR_MAX];
 	IBStr CHeaderStructs;/* .h */
 	IBStr CHeaderFuncs;
 	IBStr CFile;/* .c */
+	IBStr CurrentLineStr;
 
 	IBVector ObjStack; /*Obj*/
 	IBVector ModeStack; /*Op*/
@@ -422,11 +426,13 @@ typedef struct IBLayer3 {
 	IBVector CodeBlockStack; /*IBCodeBlock*/
 
 	char* InputStr;
+	char* SpaceNameStr;
 	Op Pointer;
 	Op Privacy;
 	Op NameOp;
 	char Ch;
 	char LastCh;
+	bool Imaginary;
 	bool Running;
 	bool StringMode;
 	bool StrAllowSpace;
@@ -439,14 +445,14 @@ void _Err(IBLayer3* ibc, Op code, char *msg);
 	PLINE;\
 	_Err(ibc, code, msg);\
 }
+void IBLayer3Init(IBLayer3* ibc);
+void IBLayer3Free(IBLayer3* ibc);
 Obj* IBLayer3GetObj(IBLayer3* ibc);
 void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type);
 void IBLayer3VecPrint(IBLayer3* ibc, IBVector* vec);
-Obj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, Op type);
 Obj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, Op type);
-void IBLayer3Init(IBLayer3* ibc);
+Obj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, Op type);
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type);
-void IBLayer3Free(IBLayer3* ibc);
 int IBLayer3GetTabCount(IBLayer3* ibc);
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc);
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP);
@@ -621,9 +627,9 @@ char* SysLibCodeStr =
 "@pub\n"
 "@ext @func $malloc %i32 $size @ret %&?\n"
 "@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
-"@ext @func $free %&? $ptr\n"
-"@ext @func $strdup %&c8 $str @ret %&c8\n"
-"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
+//"@ext @func $free %&? $ptr\n"
+//"@ext @func $strdup %&c8 $str @ret %&c8\n"
+//"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
 "\n";
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
@@ -637,6 +643,13 @@ void IBStrInit(IBStr* str, size_t reserve){
 }
 void IBStrFree(IBStr* str){
 	free(str->start);
+}
+void IBStrClear(IBStr* str){
+	free(str->start);
+	str->start = NULL;
+	str->start = malloc(1);
+	*str->start = '\0';
+	str->end = str->start;
 }
 void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	assert(nullTerminated);
@@ -973,8 +986,11 @@ void TaskFree(IBTask* t) {
 	IBVectorFree(&t->working, ObjFree);
 }
 void _Err(IBLayer3* ibc, Op code, char *msg){
+	int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
+	int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
+	if (ibc->InputStr) printf("ERROR IN InputStr!!!\n");
 	printf("Error at %u:%u \"%s\"(%d). %s\n",
-		ibc->Line, ibc->Column, GetOpName(code), (int)code, msg);
+		l, c, GetOpName(code), (int)code, msg);
 	IBLayer3ExplainErr(ibc, code);
 	IBPopColor();
 #ifdef DEBUGPRINTS
@@ -1273,12 +1289,16 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBExpects* exp;
 	IBCodeBlock* cb;
 	ibc->Running = true;
+	ibc->Imaginary = false;
 	ibc->Line = 1;
 	ibc->Column = 1;
+	ibc->LineIS = 1;
+	ibc->ColumnIS = 1;
 	ibc->Pfx = OP_Null;
 	ibc->Str[0] = '\0';
 	IBStrInit(&ibc->CHeaderStructs, 1);
 	IBStrInit(&ibc->CHeaderFuncs, 1);
+	IBStrInit(&ibc->CurrentLineStr, 1);
 	IBStrAppendCStr(&ibc->CHeaderStructs, "#ifndef HEADER_H_\n#define HEADER_H_\n\n");
 	IBStrInit(&ibc->CFile, 1);
 	IBStrAppendCStr(&ibc->CFile, "#include \"header.h\"\n\n");
@@ -1291,6 +1311,8 @@ void IBLayer3Init(IBLayer3* ibc){
 	ibc->StrAllowSpace = false;
 	ibc->CommentMode = OP_NotSet;
 	ibc->InputStr = NULL;
+	ibc->SpaceNameStr = NULL;
+	OverwriteStr(&ibc->SpaceNameStr, "global");
 	NameInfoDBInit(&ibc->NameTypeCtx);
 	IBVectorInit(&ibc->ObjStack, sizeof(Obj), OP_Obj);
 	IBVectorInit(&ibc->ModeStack, sizeof(Op), OP_Op);
@@ -1299,7 +1321,6 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBVectorInit(&ibc->CodeBlockStack, sizeof(IBCodeBlock), OP_IBCodeBlock);
 	IBVectorPush(&ibc->CodeBlockStack, &cb)
 	IBCodeBlockInit(cb);
-	IBPushColor(IBFgWHITE);
 	IBVectorCopyPushBool(&ibc->StrReadPtrsStack, false);
 	IBLayer3Push(ibc, OP_ModePrefixPass, false);
 	IBLayer3PushObj(ibc, &o);
@@ -1374,6 +1395,10 @@ void IBLayer3Free(IBLayer3* ibc) {
 		ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start, ibc->CFile.start);
 #endif
 	IBPopColor();
+	if (ibc->SpaceNameStr != NULL) {
+		free(ibc->SpaceNameStr);
+		ibc->SpaceNameStr = NULL;
+	}
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
 	IBVectorFreeSimple(&ibc->ModeStack);
@@ -1689,6 +1714,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	Obj* o;
 	bool nl;
 	ibc->Ch = ch;
+	IBStrAppendCh(&ibc->CurrentLineStr, ch, 1);
 	nl = false;
 	m=IBLayer3GetMode(ibc);
 	t = IBLayer3GetTask(ibc);
@@ -1727,7 +1753,13 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	case '\n': {
 		nl = true;
 		if (ibc->CommentMode == OP_NotSet) {
-			DbgFmt("Char():Line end\n","");
+			IBPushColor(IBBgCYAN);
+			DbgFmt("[LINE END AT %d:%d]", ibc->Line, ibc->Column);
+			IBPopColor();
+			IBPushColor(IBFgYELLOW);
+			DbgFmt(" %s", ibc->CurrentLineStr.start);
+			IBPopColor();
+			IBStrClear(&ibc->CurrentLineStr);
 		}
 		if (ibc->CommentMode == OP_Comment) {
 			IBLayer3Pop(ibc);
@@ -1782,12 +1814,13 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			}
 			case OP_FuncSigComplete:
 			case OP_FuncHasName: {
-				Op mod;
+				//Op mod;
 				SetObjType(o, OP_FuncSigComplete);
 				PopExpects();
-				mod = ObjGetMod(IBLayer3GetObj(ibc));
-				IBLayer3PopObj(ibc, true, NULL);
-				if (mod != OP_Imaginary) {
+				//mod = ObjGetMod(o);
+				IBLayer3PopObj(ibc, true, &o);
+				//if (mod != OP_Imaginary) {
+				if(!ibc->Imaginary){
 					IBExpects *exp;
 					IBCodeBlock *cb;
 					IBLayer3PushExpects(ibc, &exp);
@@ -1803,11 +1836,17 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 				break;
 			}
 		}
+		ibc->Imaginary = false;
 		break;
 	}
 	}
 	m = IBLayer3GetMode(ibc);
-	ibc->Column++;
+	if (!ibc->InputStr) {
+		ibc->Column++;
+	}
+	else {
+		ibc->ColumnIS++;
+	}
 	if (!nl && ibc->CommentMode == OP_NotSet) {
 		/*if(ibc->Ch == ' ') printf("-> SPACE (0x%x)\n",  ibc->Ch);
 		else printf("-> %c (0x%x) %d:%d\n",
@@ -1829,8 +1868,14 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	}
 	if (nl) {
 		if (IBLayer3IsPfxExpected(ibc, OP_LineEnd)) PopExpects();
-		ibc->Column = 0;
-		ibc->Line++;
+		if (!ibc->InputStr) {
+			ibc->Column = 0;
+			ibc->Line++;
+		}
+		else {
+			ibc->ColumnIS = 0;
+			ibc->LineIS++;
+		}
 	}
 	ibc->LastCh=ibc->Ch;
 	if(m==OP_ModeMultiLineComment&&ibc->CommentMode==OP_NotSet){
@@ -2004,6 +2049,10 @@ void IBLayer3FinishTask(IBLayer3* ibc)	{
 		break;
 	}
 	case OP_SpaceHasName: {
+		Obj* o;
+		int idx = 0;
+		while (o = (Obj*)IBVectorIterNext(wObjs, &idx))
+			if (o->type == OP_Space) break;
 
 		break;
 	}
@@ -2765,10 +2814,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			break;
 		}
 		case OP_Imaginary: {
-			IBExpects* exp;
+			ibc->Imaginary = true;
+			IBPushColor(IBFgMAGENTA);
+			DbgFmt("[GOT IMAGINARY]","");
+			IBPopColor();
+			DbgFmt("\n","");
+			/*IBExpects* exp;
 			ObjSetMod(IBLayer3GetObj(ibc), ibc->NameOp);
 			IBLayer3PushExpects(ibc, &exp);
-			ExpectsInit(exp, 1, "", "", "PN", OP_Op, OP_Func);
+			ExpectsInit(exp, 1, "", "", "PN", OP_Op, OP_Func);*/
 			break;
 		}
 		case OP_Done:
@@ -3011,6 +3065,7 @@ int main(int argc, char** argv) {
 	}
 	rv = 1;
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
+	IBPushColor(IBFgWHITE);
 	g_DB = &db;
 	IBDatabaseInit(g_DB);
 	f = fopen(argv[1], "r");
