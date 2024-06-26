@@ -1481,21 +1481,23 @@ void _IBLayer3PopTask(IBLayer3* ibc) {
 	IBVectorPop(&ibc->TaskStack, TaskFree);
 }
 void _IBLayer3PushObj(IBLayer3* ibc, Obj** o) {
-	Obj *obj;
+	Obj *obj=IBLayer3GetObj(ibc);
+	//assert(obj);
 	DbgFmt(" Push obj: ","");
-	if (ibc->ObjStack.elemCount) {
+	if (obj && ibc->ObjStack.elemCount) {
 #ifdef DEBUGPRINTS
-		ObjPrint(IBLayer3GetObj(ibc));
+		ObjPrint(obj);
 		DbgFmt(" -> ", "");
 #endif
 	}
 	IBVectorPush(&ibc->ObjStack, &obj);
+	printf("a");
 	ObjInit(obj);
 #ifdef DEBUGPRINTS
 	ObjPrint(obj);
 	DbgFmt("\n","");
 #endif
-	if (o) { (*o) = IBLayer3GetObj(ibc); }
+	if (o) { (*o) = obj; }
 }
 void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, Obj** objDP) {
 	Obj* o;
