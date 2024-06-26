@@ -631,14 +631,13 @@ OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},{ "taskStack", OP_TaskStack },{"notEmpty", OP_NotEmpty}
 };
 char* SysLibCodeStr =
-//"@space $sys\n"
-//"@pub\n"
+"@space $sys\n"
+"@pub\n"
 "@ext @func $malloc %i32 $size @ret %&?\n"
-//"@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
-//"@ext @func $free %&? $ptr\n"
-//"@ext @func $strdup %&c8 $str @ret %&c8\n"
-//"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
-//"\n"
+"@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
+"@ext @func $free %&? $ptr\n"
+"@ext @func $strdup %&c8 $str @ret %&c8\n"
+"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
 ;
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
@@ -2136,6 +2135,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			}
 			case OP_Func:
 			case OP_FuncHasName:
+			case OP_FuncSigComplete:
 			case OP_CompletedFunction: {/*should only happen once*/
 				Op mod;
 				funcObj = o;
@@ -2704,6 +2704,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBPushColor(IBFgIntensity | IBFgYELLOW | IBBgBROWN);
 				DbgFmt("Inputting system lib code to compiler\n","");
 				IBPopColor();
+				IBStrAppendCStr(&ibc->CHeaderFuncs, "/* System Lib Header */\n");
 				assert(!ibc->InputStr);
 				ibc->InputStr = SysLibCodeStr;
 				break;
