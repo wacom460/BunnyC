@@ -1,15 +1,15 @@
 @use $sys
 
-@thing $t
-	%i32 $a
+@thing $t1
+	%i64 $var
 
-	@func $f
-		"hewwo"
-	@@
+	@func $d @ret %i32
+		"hello %%" "world"
+	@@ =24
 @@
 
 @func $main %i32 $argc %&&c8 $argv @ret %i32
 	@if $argc @eq =1
-		"worked %%" $argc
+		"test %%" $argc
 	@@
-@@ =0
+@@ =11
