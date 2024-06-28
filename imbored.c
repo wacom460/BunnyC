@@ -607,7 +607,7 @@ OpNamePair opNames[] = {
 	{"IfNeedMidOP",OP_IfNeedMidOP},{"IfNeedRVal",OP_IfNeedRVal},
 	{"IfFinished",OP_IfFinished},{"IfBlockWantCode",OP_IfBlockWantCode},
 	{"NoChange",OP_NoChange},{"elif", OP_ElseIf},{"", OP_EmptyStr},
-	OP(OP_BlockWantCode) OP(OP_YouCantUseThatHere)
+	OP(OP_BlockWantCode) OP(OP_YouCantUseThatHere) OP(OP_Arg)
 };
 #undef OP
 OpNamePair pfxNames[] = {
@@ -1876,7 +1876,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 				IBExpects *exp;
 				IBCodeBlock *cb;
 				IBLayer3PushExpects(ibc, &exp);
-				ExpectsInit(exp, 0,"","", "c");
+				ExpectsInit(exp, 0,"","", "c", OP_Null);
 				SetTaskType(t, OP_FuncWantCode);
 				IBLayer3PushCodeBlock(ibc, &cb);
 			}
@@ -2357,7 +2357,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 								break;
 							}
 							case OP_Arg: {
-								//IBLayer3VecPrint(ibc, wObjs);
+								IBLayer3VecPrint(ibc, wObjs);
+								assert(0);
 							}
 							case OP_CPrintfFmtStr: break;
 							default:{
@@ -3142,7 +3143,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBExpects* exp;
 				IBLayer3FinishTask(ibc);
 				IBLayer3PushTask(ibc, OP_BlockWantCode, &exp, &t);
-				ExpectsInit(exp, 0, "", "", "c");
+				ExpectsInit(exp, 0, "", "", "c", OP_Null);
 				cb = IBLayer3CodeBlocksTop(ibc);
 				IBStrAppendCh(&cb->code, '\t', tabCount - 1);
 				IBStrAppendCStr(&cb->code, "else ");
