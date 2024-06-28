@@ -145,7 +145,7 @@ typedef enum Op { /* multiple uses */
 
 	OP_VarNeedName, OP_VarWantValue, OP_VarComplete,
 	OP_CallNeedName, OP_CallWantArgs, OP_CallComplete,
-	OP_BlockReturnNeedValue, OP_ArgNeedName, OP_Arg,
+	OP_BlockReturnNeedValue, OP_ArgNeedValue, OP_Arg,
 
 	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct,
 	OP_VarType,	OP_LineEnd,	OP_Comment, OP_MultiLineComment,
@@ -2006,6 +2006,21 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	cb=IBLayer3CodeBlocksTop(ibc);
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
+	case OP_CallWantArgs: {
+		Obj* o = IBVectorTop(wObjs);
+		int idx = 0;
+		IBStrAppendCh(&cb->code, '\t', tabCount);
+		IBStrAppendFmt(&cb->code, "%s", o->str);
+		IBStrAppendCStr(&cb->code, "(");
+		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
+			IBStrAppendFmt(&cb->code, "%s", o->str);
+			if (idx < wObjs->elemCount - 1) {
+				IBStrAppendCStr(&cb->code, ", ");
+			}
+		}
+		IBStrAppendCStr(&cb->code, ");\n");
+		break;
+	}
 	case OP_BlockReturnNeedValue: {
 		Obj* o;
 		IBLayer3PopObj(ibc, true, &o);
@@ -2671,15 +2686,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	case OP_VarType: /* % */
 		switch (t->type) {
-		case OP_CallWantArgs: {
+		/*case OP_CallWantArgs: {
 			Obj* o;
 			IBExpects* exp;
 			IBLayer3PushObj(ibc, &o);
-			SetObjType(o, OP_ArgNeedName);
-			iblayer3PushExpects(ibc, &exp);
+			SetObjType(o, OP_ArgNeedValue);
+			IBLayer3PushExpects(ibc, &exp);
 			ExpectsInit(exp, 0, "", "", "P", OP_Name);
 			break;
-		}
+		}*/
 		case OP_ThingWantRepr: {
 			SetTaskType(t, OP_ThingWantContent);			
 			PopExpects();
@@ -2736,11 +2751,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	case OP_Name: { /* $ */
 		switch (o->type) {
-		case OP_ArgNeedName: {
+		case OP_ArgNeedValue: {
 			ObjSetStr(o, ibc->Str);
 			ObjSetType(o, OP_Arg);
+			o->valType = OP_Name;
 			IBLayer3PopObj(ibc, true, &o);
-			IBLayer3PopExpects(ibc);
+			IBLayer3PushObj(ibc, &o);
+			SetObjType(o, OP_ArgNeedValue);
+			//IBLayer3PopExpects(ibc);
 			break;
 		}
 		case OP_CallNeedName: {
@@ -2748,9 +2766,11 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ObjSetStr(o, ibc->Str);
 			ObjSetType(o, OP_Call);
 			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3PushObj(ibc, &o);
+			SetObjType(o, OP_ArgNeedValue);
 			SetTaskType(t, OP_CallWantArgs);
 			IBLayer3ReplaceExpects(ibc, &exp);
-			ExpectsInit(exp, 0, "", "", "PP", OP_VarType, OP_LineEnd);
+			ExpectsInit(exp, 0, "", "", "PPPP", OP_Name, OP_Value, OP_String, OP_LineEnd);
 			break;
 		}
 		case OP_BlockReturnNeedValue: {

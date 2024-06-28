@@ -1,7 +1,7 @@
 @func $test
 @@
 @func $main %i32 $argc %&&c8 $argv @ret %i32
-	@call $test
+	@call $test $argc $argv
 	@if $argc @gteq =1
 		"argc is >= one"
 	@elif $argc @lteq =0
