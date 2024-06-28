@@ -3,6 +3,9 @@
 		"argc is >= one"
 	@elif $argc @lteq =0
 		"wtf"
+		@ret =-1
+	@elif $argc @eq =144
+		"hi"
 	@else
 		"argc is %%" $argc
 	@@
