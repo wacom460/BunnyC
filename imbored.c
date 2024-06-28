@@ -2757,13 +2757,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	case OP_Name: { /* $ */
 		switch (o->type) {
 		case OP_ArgNeedValue: {
-			ObjSetStr(o, ibc->Str);
-			ObjSetType(o, OP_Arg);
-			o->valType = OP_Name;
-			IBLayer3PopObj(ibc, true, &o);
-			IBLayer3PushObj(ibc, &o);
-			SetObjType(o, OP_ArgNeedValue);
-			//IBLayer3PopExpects(ibc);
+			if (t->type == OP_CallWantArgs) {
+				ObjSetStr(o, ibc->Str);
+				ObjSetType(o, OP_Arg);
+				o->valType = OP_Name;
+				IBLayer3PopObj(ibc, true, &o);
+				IBLayer3PushObj(ibc, &o);
+				SetObjType(o, OP_ArgNeedValue);
+				//IBLayer3PopExpects(ibc);
+			}
 			break;
 		}
 		case OP_CallNeedName: {
