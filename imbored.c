@@ -2007,14 +2007,15 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
 	case OP_CallWantArgs: {
-		Obj* o = IBVectorTop(wObjs);
+		Obj* o = IBVectorGet(wObjs, 0);
 		int idx = 0;
 		IBStrAppendCh(&cb->code, '\t', tabCount);
 		IBStrAppendFmt(&cb->code, "%s", o->str);
 		IBStrAppendCStr(&cb->code, "(");
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
+			if (o->type != OP_Arg) continue;
 			IBStrAppendFmt(&cb->code, "%s", o->str);
-			if (idx < wObjs->elemCount - 1) {
+			if (idx <= wObjs->elemCount - 1) {
 				IBStrAppendCStr(&cb->code, ", ");
 			}
 		}
@@ -2354,6 +2355,9 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 								IBStrAppendCStr(&cb->code,
 									IBLayer3GetCPrintfFmtForType(ibc, vo->var.type));
 								break;
+							}
+							case OP_Arg: {
+								//IBLayer3VecPrint(ibc, wObjs);
 							}
 							case OP_CPrintfFmtStr: break;
 							default:{
