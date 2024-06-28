@@ -2,6 +2,7 @@
 
 @thing $t1
 	%i64 $var
+	%&c8 $cs
 
 	@func $d @ret %i32
 		"hello %%" "world"
@@ -9,7 +10,13 @@
 @@
 
 @func $main %i32 $argc %&&c8 $argv @ret %i32
-	@if $argc @eq =1
+	@if $argc @gteq =1
 		"test %%" $argc
+	@@
+	@if $argc @lt =2
+		
+	@@
+	@if $argc @eq =3
+		
 	@@
 @@ =11

@@ -1491,7 +1491,6 @@ void _IBLayer3PushObj(IBLayer3* ibc, Obj** o) {
 #endif
 	}
 	IBVectorPush(&ibc->ObjStack, &obj);
-	printf("a");
 	ObjInit(obj);
 #ifdef DEBUGPRINTS
 	ObjPrint(obj);
@@ -2207,7 +2206,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			//DbgFmt("[@func]", "");
 			IBStr cbOut;
 			IBCodeBlock* cb;
-			IBStrAppendCStr(&cFuncArgsEnd, "){\n");
+			IBStrAppendCStr(&cFuncArgsEnd, ") {\n");
 			IBStrInit(&cbOut, 1);
 			cb=IBLayer3CodeBlocksTop(ibc);
 			IBCodeBlockFinish(cb, &cbOut);
@@ -2661,8 +2660,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			SetTaskType(t, OP_IfNeedMidOP);
 			IBLayer3ReplaceExpects(ibc, &exp);
 			ExpectsInit(exp, 0, "", "",
-				"PN",
-				OP_Op, OP_Equals);
+				"PNNNNN",
+				OP_Op, OP_Equals, OP_LessThan, 
+				OP_GreaterThan, OP_LessThanOrEquals, 
+				OP_GreaterThanOrEquals);
 			break;
 		}
 		case OP_IfNeedRVal: {
