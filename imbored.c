@@ -167,7 +167,7 @@ typedef enum Op { /* multiple uses */
 	OP_TripplePointer, OP_IBLayer3Flags, OP_dbgBreak, OP_dbgAssert,
 	OP_dbgAssertWantArgs,OP_TaskType, OP_TaskStack, OP_NotEmpty,
 	OP_TabChar,OP_UseNeedStr,OP_UseStrSysLib,OP_NameInfoDB,
-	OP_NameInfo,OP_Expects,OP_ElseIf,
+	OP_NameInfo,OP_Expects,OP_ElseIf,OP_EmptyStr,
 
 	OP_NotFound, OP_Error, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
@@ -564,6 +564,7 @@ void OverwriteStr(char** str, char* with);
 
 #ifndef IB_HEADER
 char* IBLayer3StringModeIgnoreChars = "";
+#define OP(op) {#op, ##op},
 OpNamePair opNames[] = {
 	{"null", OP_Null},{"no", OP_False},{"yes", OP_True},{"set", OP_Set},
 	{"call", OP_Call},{"add", OP_SetAdd},{"func", OP_Func},{"~", OP_Comment},
@@ -602,8 +603,10 @@ OpNamePair opNames[] = {
 	{"ThingWantRepr",OP_ThingWantRepr},{"IfNeedLVal",OP_IfNeedLVal},
 	{"IfNeedMidOP",OP_IfNeedMidOP},{"IfNeedRVal",OP_IfNeedRVal},
 	{"IfFinished",OP_IfFinished},{"IfBlockWantCode",OP_IfBlockWantCode},
-	{"NoChange",OP_NoChange},{"elif", OP_ElseIf},
+	{"NoChange",OP_NoChange},{"elif", OP_ElseIf},{"", OP_EmptyStr},
+	OP(OP_BlockWantCode) OP(OP_YouCantUseThatHere)
 };
+#undef OP
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
 	{"Comment(~)", OP_Comment},{"Name($)", OP_Name},
@@ -1985,7 +1988,9 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	if(!ibc->TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
 	wObjs = &t->working;
 	assert(wObjs);
-	if(!wObjs->elemCount)Err(OP_Error, "workingObjs EMPTY!");
+	if (!wObjs->elemCount) {/*Err(OP_Error, "workingObjs EMPTY!");*/
+		DbgFmt("Warning: working objs for this task is empty!", "");
+	}
 	cb=IBLayer3CodeBlocksTop(ibc);
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
@@ -2027,8 +2032,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			IBStrAppendFmt(&cb->header, "%s", ifO->rvName);
 			break;
 		}
-		IBStrAppendFmt(&cb->header, ") {\n");
-		IBLayer3VecPrint(ibc, wObjs);
+		IBStrAppendFmt(&cb->header, ") ");
+	}
+	case OP_BlockWantCode: {
+		IBStrAppendFmt(&cb->header, "{\n");
 		IBStrAppendCh(&cb->footer, '\t', tabCount - 1);
 		IBStrAppendFmt(&cb->footer, "}\n");
 		IBLayer3PopCodeBlock(ibc, true, &cb);
@@ -2494,6 +2501,8 @@ IBVector* IBTaskGetExpNameOPsTop(IBTask* t){
 void IBLayer3StrPayload(IBLayer3* ibc){
 	Val strVal;
 	IBTask *t;
+	int tabCount = IBLayer3GetTabCount(ibc);
+	IBCodeBlock* cb = IBLayer3CodeBlocksTop(ibc);
 	Obj* o;
 	t=IBLayer3GetTask(ibc);
 	o=IBLayer3GetObj(ibc);
@@ -2872,17 +2881,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_Done:
 			if (ibc->TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
 			switch (t->type) {
-			case OP_BlockWantCode:
-			case OP_IfBlockWantCode: {
-				IBLayer3FinishTask(ibc);
-				break;
-			}
 			case OP_ThingWantContent: {
 				Obj* o;
 				o = IBLayer3GetObj(ibc);
 				assert(o->type == OP_Thing);
 				IBLayer3PopObj(ibc, true, &o);
 				assert(o->type == OP_NotSet);
+			}
+			case OP_BlockWantCode:
+			case OP_IfBlockWantCode: {
 				IBLayer3FinishTask(ibc);
 				break;
 			}
@@ -2995,8 +3002,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_Else: {
 			switch (t->type) {
 			case OP_IfBlockWantCode: {
+				IBTask* t;
+				IBExpects* exp;
 				IBLayer3FinishTask(ibc);
-
+				IBLayer3PushTask(ibc, OP_BlockWantCode, &exp, &t);
+				ExpectsInit(exp, 0, "", "", "c");
+				cb = IBLayer3CodeBlocksTop(ibc);
+				IBStrAppendCh(&cb->code, '\t', tabCount - 1);
+				IBStrAppendCStr(&cb->code, "else ");
+				IBLayer3PushCodeBlock(ibc, &cb);
 				break;
 			}
 			}
@@ -3014,14 +3028,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				break;
 			}
 			}
-			break;
 		}
 		case OP_If: {
 			switch (t->type) {
 			case OP_ElseIf: {
-				IBCodeBlock* cb=IBLayer3CodeBlocksTop(ibc);
+				cb = IBLayer3CodeBlocksTop(ibc);
+				IBStrAppendCh(&cb->code, '\t', tabCount - 1);
 				IBStrAppendCStr(&cb->code, "else ");
-				IBLayer3PopTask(ibc,&t);
+				IBLayer3PopTask(ibc, &t);
 			}
 			case OP_BlockWantCode:
 			case OP_IfBlockWantCode:
@@ -3058,6 +3072,30 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ibc->Pointer = OP_NotSet;
 		IBVectorPop(&ibc->StrReadPtrsStack, NULL);
 	}
+//#ifdef _DEBUG
+//#define IBOPSTEP
+//#endif
+#ifdef IBOPSTEP
+	{
+		int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
+		int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
+		IBPushColor(IBFgRED);
+		DbgFmt("[");
+		IBPushColor(IBBgGREEN);
+		DbgFmt("%d:%d", l, c);
+		IBPopColor();
+		DbgFmt("]");
+		IBPopColor();
+		IBPushColor(IBBgYELLOW);
+		DbgFmt("Press enter to ", "");
+		IBPushColor(IBBgRED | IBFgYELLOW);
+		DbgFmt("step", "");
+		IBPopColor();
+		IBPopColor();
+		DbgFmt("\n", "");
+		getchar();
+	}
+#endif
 }
 void IBLayer3ExplainErr(IBLayer3* ibc, Op code) {
 	switch (code) {
