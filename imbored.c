@@ -166,7 +166,7 @@ typedef enum Op { /* multiple uses */
 	OP_TripplePointer, OP_IBLayer3Flags, OP_dbgBreak, OP_dbgAssert,
 	OP_dbgAssertWantArgs,OP_TaskType, OP_TaskStack, OP_NotEmpty,
 	OP_TabChar,OP_UseNeedStr,OP_UseStrSysLib,OP_NameInfoDB,
-	OP_NameInfo,OP_Expects,
+	OP_NameInfo,OP_Expects,OP_ElseIf,
 
 	OP_NotFound, OP_Error, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
@@ -601,7 +601,7 @@ OpNamePair opNames[] = {
 	{"ThingWantRepr",OP_ThingWantRepr},{"IfNeedLVal",OP_IfNeedLVal},
 	{"IfNeedMidOP",OP_IfNeedMidOP},{"IfNeedRVal",OP_IfNeedRVal},
 	{"IfFinished",OP_IfFinished},{"IfBlockWantCode",OP_IfBlockWantCode},
-	{"NoChange",OP_NoChange}
+	{"NoChange",OP_NoChange},{"elif", OP_ElseIf},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -2982,6 +2982,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				break;
 			}
 			}
+			break;
+		}
+		case OP_ElseIf: {
+
 			break;
 		}
 		case OP_If: {

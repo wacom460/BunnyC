@@ -1,22 +1,9 @@
-@use $sys
-
-@thing $t1
-	%i64 $var
-	%&c8 $cs
-
-	@func $d @ret %i32
-		"hello %%" "world"
-	@@ =24
-@@
-
 @func $main %i32 $argc %&&c8 $argv @ret %i32
 	@if $argc @gteq =1
-		"test %%" $argc
+		"argc is >= one"
+	@elif $argc @lteq =0
+		"wtf"
+	@else
+		"argc is %%" $argc
 	@@
-	@if $argc @lt =2
-		
-	@@
-	@if $argc @eq =3
-		
-	@@
-@@ =11
+@@ =0
