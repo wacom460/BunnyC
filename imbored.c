@@ -157,7 +157,8 @@ typedef enum Op { /* multiple uses */
 	OP_RootTask,OP_Thing,OP_ThingWantName,OP_ThingWantContent,
 	OP_ThingWantRepr,OP_SpaceNeedName,OP_SpaceHasName, OP_Obj, OP_Bool,
 	OP_Task, OP_IBColor,OP_Repr,OP_IfNeedLVal,OP_IfNeedMidOP,OP_IfNeedRVal,
-	OP_IfFinished, OP_IfBlockWantCode, OP_IBCodeBlock,
+	OP_IfFinished, OP_IfBlockWantCode, OP_IBCodeBlock, 
+	OP_YouCantUseThatHere, OP_BlockWantCode,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -474,10 +475,10 @@ void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** 
 	PLINE;\
 	_IBLayer3PushTask(ibc, taskOP, exectsDP, taskDP);\
 }
-void _IBLayer3PopTask(IBLayer3* ibc);
-#define IBLayer3PopTask(ibc){\
+void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP);
+#define IBLayer3PopTask(ibc, taskDP){\
 	PLINE;\
-	_IBLayer3PopTask(ibc);\
+	_IBLayer3PopTask(ibc, taskDP);\
 }
 void _IBLayer3PushObj(IBLayer3* ibc, Obj** o);
 #define IBLayer3PushObj(ibc, objDP){\
@@ -1465,20 +1466,24 @@ void _IBLayer3PopCodeBlock(IBLayer3* ibc, bool copyToParent, IBCodeBlock** cbDP)
 }
 void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** taskDP) {
 	IBTask* t;
-	assert(exectsDP);
 	DbgFmt(" Push task %s(%d)\n", GetOpName(taskOP), (int)taskOP);
 	IBVectorPush(&ibc->TaskStack, &t);
 	if(taskDP) (*taskDP) = t;
 	TaskInit(t, taskOP);
 	IBVectorPush(&t->expStack, exectsDP);
+	if (!exectsDP) {
+		IBExpects* exp=IBTaskGetExpTop(t);
+		ExpectsInit(exp, 0, "", "", "P", OP_Null);
+	}
 }
-void _IBLayer3PopTask(IBLayer3* ibc) {
+void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP) {
 	IBTask* t;
 	assert(ibc);
 	t=IBLayer3GetTask(ibc);
 	assert(t);
 	DbgFmt(" Pop task %s(%d)\n", GetOpName(t->type),(int)t->type);
 	IBVectorPop(&ibc->TaskStack, TaskFree);
+	if(taskDP) (*taskDP) = IBLayer3GetTask(ibc);
 }
 void _IBLayer3PushObj(IBLayer3* ibc, Obj** o) {
 	Obj *obj=IBLayer3GetObj(ibc);
@@ -1822,7 +1827,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 				IBLayer3PopObj(ibc, true, &o);
 				SetTaskType(t, OP_IfBlockWantCode);
 				IBLayer3ReplaceExpects(ibc, &exp);
-				ExpectsInit(exp, 0, "", "", "Nc", OP_Done);
+				ExpectsInit(exp, 0, "", "", "NNNc", OP_Done, OP_ElseIf, OP_Else);
 				IBLayer3PushCodeBlock(ibc, &cb);
 				break;
 			}
@@ -2341,7 +2346,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		break;
 	}
 	}
-	IBLayer3PopTask(ibc);
+	IBLayer3PopTask(ibc, &t);
 }
 void IBLayer3Prefix(IBLayer3* ibc){
 	Obj* obj;
@@ -2515,6 +2520,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
 		}
+		case OP_BlockWantCode:
 		case OP_IfBlockWantCode:
 		case OP_FuncWantCode: { /*printf*/
 			IBExpects *ap;
@@ -2615,6 +2621,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ExpectsInit(exp, 0, "expected variable name", "", "P", OP_Name);
 			break;
 		}
+		case OP_BlockWantCode:
 		case OP_IfBlockWantCode:
 		case OP_FuncWantCode: {
 			Obj* o;
@@ -2720,7 +2727,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				break;
 			}
 			}
-			IBLayer3PopTask(ibc);
+			IBLayer3PopTask(ibc,NULL);
 			break;
 		}
 		case OP_SpaceNeedName: {
@@ -2865,6 +2872,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_Done:
 			if (ibc->TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
 			switch (t->type) {
+			case OP_BlockWantCode:
 			case OP_IfBlockWantCode: {
 				IBLayer3FinishTask(ibc);
 				break;
@@ -2984,12 +2992,38 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
-		case OP_ElseIf: {
+		case OP_Else: {
+			switch (t->type) {
+			case OP_IfBlockWantCode: {
+				IBLayer3FinishTask(ibc);
 
+				break;
+			}
+			}
+			break;
+		}
+		case OP_ElseIf: {
+			switch (t->type) {
+			case OP_IfBlockWantCode: {
+				IBLayer3FinishTask(ibc);
+				IBLayer3PushTask(ibc, OP_ElseIf, NULL, &t);
+				break;
+			}
+			default: {
+				Err(OP_YouCantUseThatHere, "You may only use @elif in @if blocks!!!");
+				break;
+			}
+			}
 			break;
 		}
 		case OP_If: {
 			switch (t->type) {
+			case OP_ElseIf: {
+				IBCodeBlock* cb=IBLayer3CodeBlocksTop(ibc);
+				IBStrAppendCStr(&cb->code, "else ");
+				IBLayer3PopTask(ibc,&t);
+			}
+			case OP_BlockWantCode:
 			case OP_IfBlockWantCode:
 			case OP_FuncWantCode: {
 				IBTask* nt;
@@ -3027,6 +3061,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 }
 void IBLayer3ExplainErr(IBLayer3* ibc, Op code) {
 	switch (code) {
+	case OP_YouCantUseThatHere: {
+		printf("You can't use that here");
+		break;
+	}
 	case OP_FuncNeedRetVal: {
 		printf("You forgot to return a value from the function");
 		break;
