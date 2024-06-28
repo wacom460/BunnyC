@@ -2496,8 +2496,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	strVal.i32=atoi(ibc->Str);
 	ibc->NameOp = GetOpFromName(ibc->Str);
 	DbgFmt("StrPayload: %s\n", ibc->Str);
-	switch (ibc->Pfx)
-	{
+	switch (ibc->Pfx) {
 	case OP_String: { /* " */
 		switch(t->type){
 		case OP_dbgAssertWantArgs: {
