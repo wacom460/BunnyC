@@ -435,6 +435,7 @@ typedef struct IBLayer3 {
 	Op Pointer;
 	Op Privacy;
 	Op NameOp;
+	Op LastNameOp;
 	char Ch;
 	char LastCh;
 	bool Imaginary;
@@ -1336,6 +1337,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
 	ibc->NameOp = OP_Null;
+	ibc->LastNameOp = OP_Null;
 	ibc->Ch = '\0';
 	ibc->LastCh = '\0';
 	ibc->StringMode = false;
@@ -2005,7 +2007,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			}
 		}
 		assert(ifO);
-		IBStrAppendCh(&cb->header, '\t', tabCount - 1);
+		if (ibc->LastNameOp != OP_ElseIf) {
+			IBStrAppendCh(&cb->header, '\t', tabCount - 1);
+			ibc->LastNameOp = OP_Null;
+		}
 		IBStrAppendFmt(&cb->header, "if (");
 		switch (ifO->lvTYPE) {
 		case OP_Value: {
@@ -2507,6 +2512,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	t=IBLayer3GetTask(ibc);
 	o=IBLayer3GetObj(ibc);
 	strVal.i32=atoi(ibc->Str);
+	//if(ibc->Pfx==OP_Op) ibc->LastNameOp = ibc->NameOp;
 	ibc->NameOp = GetOpFromName(ibc->Str);
 	DbgFmt("StrPayload: %s\n", ibc->Str);
 	switch (ibc->Pfx) {
@@ -3020,6 +3026,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			switch (t->type) {
 			case OP_IfBlockWantCode: {
 				IBLayer3FinishTask(ibc);
+				ibc->LastNameOp = ibc->NameOp;
 				IBLayer3PushTask(ibc, OP_ElseIf, NULL, &t);
 				break;
 			}
