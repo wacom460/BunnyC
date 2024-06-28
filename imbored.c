@@ -145,7 +145,7 @@ typedef enum Op { /* multiple uses */
 
 	OP_VarNeedName, OP_VarWantValue, OP_VarComplete,
 	OP_CallNeedName, OP_CallWantArgs, OP_CallComplete,
-	OP_BlockReturnNeedValue,
+	OP_BlockReturnNeedValue, OP_ArgNeedName, OP_Arg,
 
 	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct,
 	OP_VarType,	OP_LineEnd,	OP_Comment, OP_MultiLineComment,
@@ -2671,6 +2671,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	case OP_VarType: /* % */
 		switch (t->type) {
+		case OP_CallWantArgs: {
+			Obj* o;
+			IBExpects* exp;
+			IBLayer3PushObj(ibc, &o);
+			SetObjType(o, OP_ArgNeedName);
+			iblayer3PushExpects(ibc, &exp);
+			ExpectsInit(exp, 0, "", "", "P", OP_Name);
+			break;
+		}
 		case OP_ThingWantRepr: {
 			SetTaskType(t, OP_ThingWantContent);			
 			PopExpects();
@@ -2727,6 +2736,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	case OP_Name: { /* $ */
 		switch (o->type) {
+		case OP_ArgNeedName: {
+			ObjSetStr(o, ibc->Str);
+			ObjSetType(o, OP_Arg);
+			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3PopExpects(ibc);
+			break;
+		}
 		case OP_CallNeedName: {
 			IBExpects* exp;
 			ObjSetStr(o, ibc->Str);
