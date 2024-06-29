@@ -140,7 +140,7 @@ typedef enum Op { /* multiple uses */
 
 	OP_Func, OP_FuncHasName, OP_FuncNeedName, OP_FuncNeedsRetValType,
 	OP_FuncArgsVarNeedsName, OP_FuncArgNameless, OP_FuncArgComplete,
-	OP_FuncWantCode, OP_FuncSigComplete, OP_FuncNeedRetVal, OP_FuncArg,
+	OP_FuncSigComplete, OP_FuncNeedRetVal, OP_FuncArg,
 	OP_CompletedFunction,
 
 	OP_VarNeedName, OP_VarWantValue, OP_VarComplete,
@@ -158,8 +158,12 @@ typedef enum Op { /* multiple uses */
 	OP_RootTask,OP_Thing,OP_ThingWantName,OP_ThingWantContent,
 	OP_ThingWantRepr,OP_SpaceNeedName,OP_SpaceHasName, OP_Obj, OP_Bool,
 	OP_Task, OP_IBColor,OP_Repr,OP_IfNeedLVal,OP_IfNeedMidOP,OP_IfNeedRVal,
-	OP_IfFinished, OP_IfBlockWantCode, OP_IBCodeBlock, 
-	OP_YouCantUseThatHere, OP_BlockWantCode,
+	OP_IfFinished, OP_IBCodeBlock, 
+	OP_YouCantUseThatHere, 
+
+	OP_IfBlockWantCode,
+	OP_BlockWantCode,
+	OP_FuncWantCode,
 
 	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
 	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
@@ -990,6 +994,7 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char *fmt, ...) {
 			IBVectorCopyPushOp(&exp->pfxs, OP_Op);
 			IBVectorCopyPushOp(&exp->pfxs, OP_VarType);
 			IBVectorCopyPushOp(&exp->pfxs, OP_String);
+			IBVectorCopyPushOp(&exp->pfxs, OP_Name);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Call);
 			IBVectorCopyPushOp(&exp->nameOps, OP_If);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Set);
@@ -2071,10 +2076,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		assert(o->type == OP_BlockReturnNeedValue);
 		switch (o->valType) {
 		case OP_Value: {
-			char buf[64];
-			buf[0] = '\0';
-			Val2Str(buf, 64, o->val, OP_i32);//for now
-			IBStrAppendFmt(&cb->code, "%s", buf);
+			IBStrAppendFmt(&cb->code, "%d", o->val.i32);//for now
 			break;
 		}
 		case OP_String: {
@@ -2674,7 +2676,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	}
 	case OP_Value: { /*=*/
-		switch (t->type) {
+		switch (ibc->NameOp) {
+		case OP_EmptyStr: {
+			IBExpects* exp;
+			IBLayer3PushExpects(ibc, &exp);
+			ExpectsInit(exp, "PPPPN", OP_Op, OP_Name, OP_Value, OP_String, OP_Call);
+			break;
+		}
 		}
 		switch (o->type) {
 		case OP_ArgNeedValue: {
@@ -2821,18 +2829,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	case OP_Name: { /* $ */
 		switch (o->type) {
-		case OP_ArgNeedValue: {
-			if (t->type == OP_CallWantArgs) {
-				ObjSetStr(o, ibc->Str);
-				ObjSetType(o, OP_Arg);
-				o->valType = OP_Name;
-				IBLayer3PopObj(ibc, true, &o);
-				IBLayer3PushObj(ibc, &o);
-				SetObjType(o, OP_ArgNeedValue);
-				//IBLayer3PopExpects(ibc);
-			}
-			break;
-		}
 		case OP_CallNeedName: {
 			IBExpects* exp;
 			ObjSetStr(o, ibc->Str);
@@ -2853,6 +2849,24 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		}
 		switch(t->type){
+		case OP_CallWantArgs: {
+			if (o->type == OP_ArgNeedValue) {
+				ObjSetStr(o, ibc->Str);
+				ObjSetType(o, OP_Arg);
+				o->valType = OP_Name;
+				IBLayer3PopObj(ibc, true, &o);
+				IBLayer3PushObj(ibc, &o);
+				SetObjType(o, OP_ArgNeedValue);
+				//IBLayer3PopExpects(ibc);
+			}
+			break;
+		}
+		case OP_IfBlockWantCode:
+		case OP_BlockWantCode:
+		case OP_FuncWantCode: {
+
+			break;
+		}
 		case OP_IfNeedLVal: {
 			IBExpects* exp;
 			OverwriteStr(&o->ifO.lvName, ibc->Str);

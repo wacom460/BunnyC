@@ -1,24 +1,7 @@
-@use $sys
-@func $test
-	"whats up youtube\n"
-@@
-
-@func $t2 %i32 $a
-	"%%" $a
-@@
+@func $f @ret %i32
+@@ =40
 
 @func $main %i32 $argc %&&c8 $argv @ret %i32
-	@call $test
-	@if $argc @gteq =1
-		"argc is >= one\n"
-	@elif $argc @lteq =0
-		"wtf\n"
-		@call $t2 =20
-		@ret =42069
-	@elif $argc @eq =144
-		"hi\n"
-		@call $test
-	@else
-		"argc is %%\n" $argc
-	@@
-@@ =24
+	%i32 $a =20
+	$a = @call $f
+@@ =0
