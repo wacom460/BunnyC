@@ -2038,7 +2038,23 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrAppendCStr(&cb->code, "(");
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			if (o->type != OP_Arg) continue;
-			IBStrAppendFmt(&cb->code, "%s", o->str);
+			switch(o->valType) {
+			case OP_Value: {
+				char buf[64];
+				buf[0] = '\0';
+				Val2Str(buf, 64, o->val, OP_i32); //for now
+				IBStrAppendFmt(&cb->code, "%s", buf);
+				break;
+			}
+			case OP_String: {
+				IBStrAppendFmt(&cb->code, "\"%s\"", o->str);
+				break;
+			}
+			case OP_Name: {
+				IBStrAppendFmt(&cb->code, "%s", o->str);
+				break;
+			}
+			}
 			if (idx <= wObjs->elemCount - 1) {
 				IBStrAppendCStr(&cb->code, ", ");
 			}
