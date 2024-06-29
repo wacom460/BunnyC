@@ -223,11 +223,11 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP);
 #define IBVectorPush(vec, dataDP){\
 	int c=(vec)->elemCount - 1;\
 	_IBVectorPush((vec), dataDP);\
-	PLINE;\
+	/*PLINE;\
 	DbgFmt(" VectorPush: %s ", #vec); \
 	IBPushColor(IBFgCYAN); \
 	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1);\
-	IBPopColor();\
+	IBPopColor();\*/ \
 }
 void IBVectorCopyPush(IBVector* vec, void* elem);
 void IBVectorCopyPushBool(IBVector* vec, bool val);
@@ -238,11 +238,11 @@ IBVecData* IBVectorFront(IBVector* vec);
 #define IBVectorPop(vec, freeFunc){\
 	int c=(vec)->elemCount - 1;\
 	_IBVectorPop((vec), freeFunc);\
-	PLINE;\
+	/*PLINE;\
 	DbgFmt(" VectorPop: %s ", #vec); \
 	IBPushColor(IBFgCYAN); \
 	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1);\
-	IBPopColor();\
+	IBPopColor();\*/ \
 }
 void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
 void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
@@ -952,7 +952,7 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, int life,
 	exp->nameOpErr=nameOpErr;
 	exp->life=life;
 	exp->lineNumInited=LINENUM;
-	DbgFmt("Expect: { ","");
+	//DbgFmt("Expect: { ","");
 	va_start(args, fmt);
 	for (i = 0; i < strlen(fmt); i++) {
 		char ch = fmt[i];
@@ -960,18 +960,18 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, int life,
 		case 'P': {
 			pfx=va_arg(args, Op);
 			IBVectorCopyPushOp(&exp->pfxs, pfx);
-			DbgFmt("Pfx:%s(%d) ", GetPfxName(pfx), (int)pfx);
+			//DbgFmt("Pfx:%s(%d) ", GetPfxName(pfx), (int)pfx);
 			break;
 		}
 		case 'N':{
 			nameOp=va_arg(args, Op);
 			IBVectorCopyPushOp(&exp->nameOps, nameOp);
-			DbgFmt("NameOP:%s(%d) ", GetOpName(nameOp), (int)nameOp);
+			//DbgFmt("NameOP:%s(%d) ", GetOpName(nameOp), (int)nameOp);
 			break;
 		}
 		case 'c': {
 			PLINE;
-			DbgFmt("CodeBlockMacro ", "");
+			//DbgFmt("CodeBlockMacro ", "");
 			IBVectorCopyPushOp(&exp->pfxs, OP_Op);
 			IBVectorCopyPushOp(&exp->pfxs, OP_VarType);
 			IBVectorCopyPushOp(&exp->pfxs, OP_String);
@@ -984,7 +984,7 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, int life,
 		}
 		}
 	}
-	DbgFmt("}\n","");
+	//DbgFmt("}\n","");
 	va_end(args);
 }
 void ExpectsPrint(IBExpects* ap) {
@@ -1475,8 +1475,11 @@ void _IBLayer3PopCodeBlock(IBLayer3* ibc, bool copyToParent, IBCodeBlock** cbDP)
 	if(cbDP) (*cbDP) = IBLayer3CodeBlocksTop(ibc);
 }
 void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** taskDP) {
-	IBTask* t;
-	DbgFmt(" Push task %s(%d)\n", GetOpName(taskOP), (int)taskOP);
+	IBTask* t = IBLayer3GetTask(ibc);
+	DbgFmt(" Push task ", "");
+	if (t)
+		DbgFmt("%s(%d) -> ", GetOpName(t->type), (int)t->type);
+	DbgFmt(" %s(%d)\n", GetOpName(taskOP), (int)taskOP);
 	IBVectorPush(&ibc->TaskStack, &t);
 	if(taskDP) (*taskDP) = t;
 	TaskInit(t, taskOP);
@@ -1487,13 +1490,17 @@ void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** 
 	}
 }
 void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP) {
-	IBTask* t;
+	IBTask* t=NULL;
+	IBTask* t2=NULL;
 	assert(ibc);
 	t=IBLayer3GetTask(ibc);
 	assert(t);
-	DbgFmt(" Pop task %s(%d)\n", GetOpName(t->type),(int)t->type);
+	DbgFmt(" Pop task %s(%d) ", GetOpName(t->type), (int)t->type);
 	IBVectorPop(&ibc->TaskStack, TaskFree);
-	if(taskDP) (*taskDP) = IBLayer3GetTask(ibc);
+	t2 = IBLayer3GetTask(ibc);
+	assert(t2);
+	DbgFmt("-> %s(%d)\n", GetOpName(t2->type), (int)t2->type);
+	if(taskDP) (*taskDP) = t2;
 }
 void _IBLayer3PushObj(IBLayer3* ibc, Obj** o) {
 	Obj *obj=IBLayer3GetObj(ibc);
@@ -1589,7 +1596,7 @@ void _IBLayer3Pop(IBLayer3* ibc) {
 	assert(t->expStack.elemCount);
 #ifdef DEBUGPRINTS
 	exp=IBTaskGetExpTop(t);
-	ExpectsPrint(exp);
+	//ExpectsPrint(exp);
 #endif
 }
 Op ObjGetType(Obj* obj) { return obj->type; }
@@ -1688,8 +1695,8 @@ void IBLayer3ReplaceExpects(IBLayer3* ibc, IBExpects** expDP){
 	assert(exp);
 #ifdef DEBUGPRINTS
 	PLINE;
-	DbgFmt(" Replace expects:\n", "");
-	ExpectsPrint(exp);
+	/*DbgFmt(" Replace expects:\n", "");
+	ExpectsPrint(exp);*/
 #endif
 	ExpectsFree(exp);
 	*expDP = exp;
@@ -1893,15 +1900,15 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	}
 	m = IBLayer3GetMode(ibc);
 	if (!nl && ibc->CommentMode == OP_NotSet) {
-#ifdef DEBUGPRINTS
-		{
-			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
-			int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
-			if (ibc->Ch == ' ') printf("-> SPACE (0x%x)\n", ibc->Ch);
-			else printf("-> %c (0x%x) %d:%d\n",
-				ibc->Ch, ibc->Ch, l, c);
-		}
-#endif
+//#ifdef DEBUGPRINTS
+//		{
+//			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
+//			int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
+//			if (ibc->Ch == ' ') printf("-> SPACE (0x%x)\n", ibc->Ch);
+//			else printf("-> %c (0x%x) %d:%d\n",
+//				ibc->Ch, ibc->Ch, l, c);
+//		}
+//#endif
 		switch (m) {
 		case OP_ModeComment:
 		case OP_ModeMultiLineComment:
@@ -2441,7 +2448,10 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	{
 		Err(OP_ErrUnexpectedNextPfx, "");
 	}
-	DbgFmt("PFX: %s(%d)\n", GetPfxName(ibc->Pfx), (int)ibc->Pfx);
+	IBPushColor(IBFgBLUE);
+	DbgFmt("PFX: %s(%d)", GetPfxName(ibc->Pfx), (int)ibc->Pfx);
+	IBPopColor();
+	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
 	case OP_String: { /* " */
 		ibc->StringMode = true;
@@ -2530,7 +2540,10 @@ void IBLayer3Str(IBLayer3* ibc){
 }
 IBTask* IBLayer3GetTask(IBLayer3* ibc){
 	IBTask* ret= (IBTask*)IBVectorTop(&ibc->TaskStack);
-	if (!ret)Err(OP_Error, "no task in stack");
+	//if (!ret)Err(OP_Error, "no task in stack");
+	if (ret) {
+		assert(ret->type >= 0);
+	}
 	return ret;
 }
 Op IBLayer3GetMode(IBLayer3* ibc){
@@ -2571,7 +2584,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	strVal.i32=atoi(ibc->Str);
 	//if(ibc->Pfx==OP_Op) ibc->LastNameOp = ibc->NameOp;
 	ibc->NameOp = GetOpFromName(ibc->Str);
-	DbgFmt("StrPayload: %s\n", ibc->Str);
+	IBPushColor(IBFgGREEN);
+	DbgFmt("StrPayload: ", "");
+	IBPushColor(IBBgWHITE);
+	DbgFmt("%s", ibc->Str);
+	IBPopColor();
+	IBPopColor();
+	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
 	case OP_String: { /* " */
 		switch (o->type) {
@@ -3204,7 +3223,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	ibc->Str[0] = '\0';
 #ifdef DEBUGPRINTS
-	printf("Str payload complete\n");
+	IBPushColor(IBFgMAGENTA);
+	printf("Str payload complete");
+	IBPopColor();
+	printf("\n");
 #endif
 	IBLayer3Pop(ibc);
 	if(ibc->StrReadPtrsStack.elemCount > 1){
