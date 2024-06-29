@@ -1059,10 +1059,10 @@ void _Err(IBLayer3* ibc, Op code, char *msg){
 	/*IBLayer3VecPrint(ibc, &ibc->ObjStack);
 	IBLayer3VecPrint(ibc, &ibc->TaskStack);*/
 #endif
-	IBPushColor(IBFgCYAN);
+	/*IBPushColor(IBFgCYAN);
 	printf("PRESS ENTER TO CONTINUE ANYWAY");
-	IBPopColor();
-	getchar();
+	IBPopColor();*/
+	//getchar();
 #if _DEBUG
 	//__debugbreak();
 #else
@@ -3432,8 +3432,9 @@ void IBLayer3ExplainErr(IBLayer3* ibc, Op code) {
 				printf("%s(%d),", GetPfxName(*oi), (int)*oi);
 			}
 		}else{
-			printf("No task. Only Op(@) prefix allowed. Pfx: %s. Allowed pfxs: %s\n", GetPfxName(ibc->Pfx),
-					GetPfxName(OP_Op));
+			printf("No task. Only Op(@) prefix allowed. "
+				"Pfx: %s. Allowed pfxs: %s\n", 
+				GetPfxName(ibc->Pfx), GetPfxName(OP_Op));
 		}
 		break;
 	}
@@ -3479,7 +3480,7 @@ int main(int argc, char** argv) {
 		DbgFmt("Exiting\n","");
 		//assert(comp.InputStr == NULL);
 		IBLayer3Free(&comp);
-		getchar();
+		//getchar();
 		fclose(f);
 		rv = 0;
 	}
