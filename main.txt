@@ -1,7 +1,15 @@
-@func $f @ret %i32
-@@ =40
+@thing $at
+	%i32 $ff
 
+	@func $aaa @ret %i64
+	@@ =420
+@@
 @func $main %i32 $argc %&&c8 $argv @ret %i32
-	%i32 $a =20
-	$a = @call $f
+	@if $argc @eq =1
+		"a\n"
+	@elif $argc @neq =0
+		"test\n"
+	@else
+		"what\n"
+	@@
 @@ =0

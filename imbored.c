@@ -86,6 +86,11 @@ void IBPopColor();
 
 #define DEBUGPRINTS
 
+#define CASE_BLOCKWANTCODE \
+case OP_BlockWantCode: \
+case OP_IfBlockWantCode: \
+case OP_FuncWantCode:
+
 #ifdef DEBUGPRINTS
 void _PrintLine(int l) {
 	IBPushColor(IBFgRED);
@@ -160,7 +165,6 @@ typedef enum Op { /* multiple uses */
 	OP_Task, OP_IBColor,OP_Repr,OP_IfNeedLVal,OP_IfNeedMidOP,OP_IfNeedRVal,
 	OP_IfFinished, OP_IBCodeBlock, 
 	OP_YouCantUseThatHere, 
-	OP_ActOnVarName,
 	OP_IfBlockWantCode,
 	OP_BlockWantCode,
 	OP_FuncWantCode,
@@ -173,6 +177,7 @@ typedef enum Op { /* multiple uses */
 	OP_dbgAssertWantArgs,OP_TaskType, OP_TaskStack, OP_NotEmpty,
 	OP_TabChar,OP_UseNeedStr,OP_UseStrSysLib,OP_NameInfoDB,
 	OP_NameInfo,OP_Expects,OP_ElseIf,OP_EmptyStr, OP_BuildingIf,
+	OP_SetNeedName,OP_SetNeedAction,
 
 	OP_NotFound, OP_Error, OP_ErrUnexpectedNextPfx,
 	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
@@ -2632,15 +2637,18 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
 	case OP_String: { /* " */
-		switch (o->type) {
+		switch(t->type){
 		case OP_BlockReturnNeedValue: {
-			ObjSetStr(o, ibc->Str);
-			o->valType = OP_String;
-			IBLayer3FinishTask(ibc);
+			switch (o->type) {
+			case OP_BlockReturnNeedValue: {
+				ObjSetStr(o, ibc->Str);
+				o->valType = OP_String;
+				IBLayer3FinishTask(ibc);
+				break;
+			}
+			}
 			break;
 		}
-		}
-		switch(t->type){
 		case OP_dbgAssertWantArgs: {
 			switch (GetOpFromNameList(ibc->Str, OP_dbgAssert)) {
 			case OP_TaskType:{
@@ -2675,25 +2683,11 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		break;
 	}
-	case OP_Value: { /*=*/
+	case OP_Value: { /*=*/		
+		switch (t->type) {
+		CASE_BLOCKWANTCODE
+		{
 		switch (o->type) {
-		case OP_ArgNeedValue: {
-			if (t->type == OP_CallWantArgs) {
-				o->val = strVal;
-				ObjSetType(o, OP_Arg);
-				o->valType = OP_Value;
-				IBLayer3PopObj(ibc, true, &o);
-				IBLayer3PushObj(ibc, &o);
-				SetObjType(o, OP_ArgNeedValue);
-			}
-			break;
-		}
-		case OP_BlockReturnNeedValue: {
-			o->val = strVal;
-			o->valType = OP_Value;
-			IBLayer3FinishTask(ibc);
-			break;
-		}
 		case OP_VarWantValue: {
 			Obj* o;
 			o = IBLayer3GetObj(ibc);
@@ -2704,76 +2698,122 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			break;
 		}
 		}
-		if (ibc->TaskStack.elemCount) {
-			switch (t->type) {
-			case OP_BuildingIf: {
-				switch (o->type) {
-				case OP_IfNeedLVal: {
-					o->ifO.lvVal = strVal;
-					o->ifO.lvTYPE = OP_Value;
-					o->ifO.lvDataType = OP_i32;
-					SetObjType(o, OP_IfNeedMidOP);
-					break;
-				}
-				case OP_IfNeedRVal: {
-					IBExpects* exp;
-					o->ifO.rvVal = strVal;
-					o->ifO.rvTYPE = OP_Value;
-					o->ifO.rvDataType = OP_i32;
-					SetObjType(o, OP_IfFinished);
-					SetTaskType(t, OP_IfFinished);
-					IBLayer3ReplaceExpects(ibc, &exp);
-					ExpectsInit(exp, "P", OP_LineEnd);
-					break;
-				}
-				default: {
-					Err(OP_Error, "Unimplemented If task context");
-				}
-				}
-				break;
-			}
-			case OP_ActOnVarName: {
-				switch (ibc->NameOp) {
-				case OP_EmptyStr: {
-					IBExpects* exp;
-					IBLayer3PushExpects(ibc, &exp);
-					ExpectsInit(exp, "PPPPN", OP_Op, OP_Name, OP_Value, OP_String, OP_Call);
-					break;
-				}
-				}
-				break;
-			}
-			case OP_CPrintfHaveFmtStr:{
-				Obj *o;
-				IBLayer3PushObj(ibc, &o);
+			break;
+		}
+		case OP_BlockReturnNeedValue: {
+			switch (o->type) {
+			case OP_BlockReturnNeedValue: {
 				o->val = strVal;
-				ObjSetType(o, OP_Value);
-				o->var.type = OP_i32;/*for now*/
-				IBLayer3PopObj(ibc, true, NULL);
+				o->valType = OP_Value;
+				IBLayer3FinishTask(ibc);
 				break;
 			}
-			case OP_FuncNeedRetVal: {
-				Obj* o;
-				int idx;
-				idx = 0;
-				while (o = (Obj*)IBVectorIterNext(&t->working,&idx)) {
-					if (ObjGetType(o) == OP_FuncSigComplete) {
-						DbgFmt("Finishing func got ret value\n","");
-						o->func.retVal = IBLayer3StrToVal(ibc, ibc->Str, o->func.retType);
-						PopExpects();
-						SetTaskType(t, OP_Func);
-						IBLayer3FinishTask(ibc);
-						break;
-					}
+			}
+			break;
+		}
+		case OP_CallWantArgs: {
+			switch (o->type) {
+			case OP_ArgNeedValue: {
+				o->val = strVal;
+				ObjSetType(o, OP_Arg);
+				o->valType = OP_Value;
+				IBLayer3PopObj(ibc, true, &o);
+				IBLayer3PushObj(ibc, &o);
+				SetObjType(o, OP_ArgNeedValue);
+				break;
+			}
+			}
+			break;
+		}
+		case OP_BuildingIf: {
+			switch (o->type) {
+			case OP_IfNeedLVal: {
+				o->ifO.lvVal = strVal;
+				o->ifO.lvTYPE = OP_Value;
+				o->ifO.lvDataType = OP_i32;
+				SetObjType(o, OP_IfNeedMidOP);
+				break;
+			}
+			case OP_IfNeedRVal: {
+				IBExpects* exp;
+				o->ifO.rvVal = strVal;
+				o->ifO.rvTYPE = OP_Value;
+				o->ifO.rvDataType = OP_i32;
+				SetObjType(o, OP_IfFinished);
+				SetTaskType(t, OP_IfFinished);
+				IBLayer3ReplaceExpects(ibc, &exp);
+				ExpectsInit(exp, "P", OP_LineEnd);
+				break;
+			}
+			default: {
+				Err(OP_Error, "Unimplemented If task context");
+			}
+			}
+			break;
+		}
+		/*case OP_ActOnVarName: {
+			switch (ibc->NameOp) {
+			case OP_EmptyStr: {
+				IBExpects* exp;
+				IBLayer3PushExpects(ibc, &exp);
+				ExpectsInit(exp, "PPPPN", OP_Op, OP_Name, OP_Value, OP_String, OP_Call);
+				break;
+			}
+			}
+			break;
+		}*/
+		case OP_CPrintfHaveFmtStr:{
+			Obj *o;
+			IBLayer3PushObj(ibc, &o);
+			o->val = strVal;
+			ObjSetType(o, OP_Value);
+			o->var.type = OP_i32;/*for now*/
+			IBLayer3PopObj(ibc, true, NULL);
+			break;
+		}
+		case OP_FuncNeedRetVal: {
+			Obj* o;
+			int idx;
+			idx = 0;
+			while (o = (Obj*)IBVectorIterNext(&t->working,&idx)) {
+				if (ObjGetType(o) == OP_FuncSigComplete) {
+					DbgFmt("Finishing func got ret value\n","");
+					o->func.retVal = IBLayer3StrToVal(ibc, ibc->Str, o->func.retType);
+					PopExpects();
+					SetTaskType(t, OP_Func);
+					IBLayer3FinishTask(ibc);
+					break;
 				}
-				break;
 			}
-			}
+			break;
+		}
 		}
 		break;
 	}
 	case OP_VarType: /* % */
 		switch (t->type) {
+		case OP_FuncHasName: {
+			switch (o->type) {
+			case OP_FuncHasName: {
+				Obj* o;
+				IBExpects* exp;
+				IBLayer3PushObj(ibc, &o);
+				SetObjType(o, OP_FuncArgNameless);
+				o->arg.type = ibc->NameOp;
+				o->arg.mod = ibc->Pointer;
+				IBLayer3PushExpects(ibc, &exp);
+				ExpectsInit(exp, "1P", "expected func arg name", OP_Name);
+				break;
+			}
+			case OP_FuncNeedsRetValType: {
+				IBLayer3GetObj(ibc)->func.retType = ibc->NameOp;
+				IBLayer3GetObj(ibc)->func.retTypeMod = ibc->Pointer;
+				SetObjType(o, OP_FuncSigComplete);
+				break;
+			}
+			}
+			break;
+		}
 		/*case OP_CallWantArgs: {
 			Obj* o;
 			IBExpects* exp;
@@ -2816,49 +2856,40 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			break;
 		}
 		}
-		switch (o->type) {
-		case OP_FuncNeedsRetValType: {
-			if (t->type != OP_FuncHasName)Err(OP_Error, "func signature needs name");
-			IBLayer3GetObj(ibc)->func.retType = ibc->NameOp;
-			IBLayer3GetObj(ibc)->func.retTypeMod = ibc->Pointer;
-			SetObjType(o, OP_FuncSigComplete);
-			break;
-		}
-		case OP_FuncHasName: {
-			Obj* o;
-			IBExpects* exp;
-			IBLayer3PushObj(ibc, &o);
-			SetObjType(o, OP_FuncArgNameless);
-			o->arg.type = ibc->NameOp;
-			o->arg.mod = ibc->Pointer;
-			IBLayer3PushExpects(ibc, &exp);
-			ExpectsInit(exp, "1P", "expected func arg name", OP_Name);
-			break;
-		}
-		}
 		break;
 	case OP_Name: { /* $ */
-		switch (o->type) {
-		case OP_CallNeedName: {
-			IBExpects* exp;
-			ObjSetStr(o, ibc->Str);
-			ObjSetType(o, OP_Call);
-			IBLayer3PopObj(ibc, true, &o);
-			IBLayer3PushObj(ibc, &o);
-			SetObjType(o, OP_ArgNeedValue);
-			SetTaskType(t, OP_CallWantArgs);
-			IBLayer3ReplaceExpects(ibc, &exp);
-			ExpectsInit(exp, "PPPP", OP_Name, OP_Value, OP_String, OP_LineEnd);
-			break;
-		}
-		case OP_BlockReturnNeedValue: {
-			ObjSetStr(o, ibc->Str);
-			o->valType = OP_Name;
-			IBLayer3FinishTask(ibc);
-			break;
-		}
-		}
 		switch(t->type){
+		case OP_CallNeedName: {
+			switch (o->type) {
+			case OP_CallNeedName: {
+				IBExpects* exp;
+				ObjSetStr(o, ibc->Str);
+				ObjSetType(o, OP_Call);
+				IBLayer3PopObj(ibc, true, &o);
+				IBLayer3PushObj(ibc, &o);
+				SetObjType(o, OP_ArgNeedValue);
+				SetTaskType(t, OP_CallWantArgs);
+				IBLayer3ReplaceExpects(ibc, &exp);
+				ExpectsInit(exp, "PPPP", OP_Name, OP_Value, OP_String, OP_LineEnd);
+				break;
+			}
+			}
+			break;
+		}
+		case OP_SetNeedName: {
+			switch (o->type) {
+			case OP_Set: {
+				ObjSetStr(o, ibc->Str);
+				SetTaskType(t, OP_SetNeedAction);
+				break;
+			}
+			default: {
+				Err(OP_Error, "wrong obj type");
+				break;
+			}
+			}
+			break;
+		}
 		case OP_CallWantArgs: {
 			if (o->type == OP_ArgNeedValue) {
 				ObjSetStr(o, ibc->Str);
@@ -2871,13 +2902,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
-		case OP_IfBlockWantCode:
-		case OP_BlockWantCode:
-		case OP_FuncWantCode: {
-			IBExpects* exp=NULL;
-			IBTask* t=NULL;
-			IBLayer3PushTask(ibc, OP_ActOnVarName, &exp, &t);
-			ExpectsInit(exp, "P", OP_Value);
+		case OP_BlockReturnNeedValue: {
+			switch (o->type) {
+			case OP_BlockReturnNeedValue: {
+				ObjSetStr(o, ibc->Str);
+				o->valType = OP_Name;
+				IBLayer3FinishTask(ibc);
+				break;
+			}
+			}
 			break;
 		}
 		case OP_BuildingIf: {
@@ -2888,10 +2921,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				o->ifO.lvTYPE = OP_Name;
 				SetObjType(o, OP_IfNeedMidOP);
 				IBLayer3ReplaceExpects(ibc, &exp);
-				ExpectsInit(exp, "PNNNNN",
+				ExpectsInit(exp, "PNNNNNN",
 					OP_Op, OP_Equals, OP_LessThan,
 					OP_GreaterThan, OP_LessThanOrEquals,
-					OP_GreaterThanOrEquals);
+					OP_GreaterThanOrEquals, OP_NotEquals);
 				break;
 			}
 			case OP_IfNeedRVal: {
@@ -2960,20 +2993,26 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
 		}
-		}
-		switch (o->type) {
-		case OP_VarNeedName: {
-			IBExpects* exp;
-			ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
-			NameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, IBLayer3GetObj(ibc)->var.type);
-			SetObjType(o, OP_VarWantValue);
-			PopExpects();
-			IBLayer3PushExpects(ibc, &exp);
-			ExpectsInit(exp, "1PP",
-				"expected value or line end after var name",
-				OP_Value, OP_LineEnd);
+		CASE_BLOCKWANTCODE
+		case OP_ThingWantContent: {
+			switch (o->type) {
+			case OP_VarNeedName: {
+				IBExpects* exp;
+				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
+				NameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, IBLayer3GetObj(ibc)->var.type);
+				SetObjType(o, OP_VarWantValue);
+				PopExpects();
+				IBLayer3PushExpects(ibc, &exp);
+				ExpectsInit(exp, "1PP",
+					"expected value or line end after var name",
+					OP_Value, OP_LineEnd);
+				break;
+			}
+			}
 			break;
 		}
+		}
+		switch (o->type) {
 		case OP_CallNeedName: { /* =@call */
 			IBExpects* exp;
 			SetObjType(o, OP_CallWantArgs);
@@ -3061,7 +3100,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				break;
 			}
 			}
-			switch (o->type) {
+			/*switch (o->type) {
 			case OP_VarWantValue: {
 				Obj* o;
 				IBExpects* exp;
@@ -3070,7 +3109,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBLayer3PushExpects(ibc, &exp);
 				ExpectsInit(exp, "1P", "expected function name", OP_Name);
 			}
-			}
+			}*/
 			break;
 		}
 		case OP_dbgBreak: {
@@ -3140,9 +3179,24 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			break;
 		case OP_Return: {
 			switch (t->type) {
-			case OP_BlockWantCode:
-			case OP_IfBlockWantCode:
-			case OP_FuncWantCode: {
+			case OP_FuncHasName: {
+				switch (o->type) {
+				case OP_FuncHasName: {
+					IBExpects* exp;
+					SetObjType(o, OP_FuncNeedsRetValType);
+					IBLayer3PushExpects(ibc, &exp);
+					ExpectsInit(exp, "P", OP_VarType);
+					break;
+				}
+				default: {
+					Err(OP_Error, "wrong obj type");
+					break;
+				}
+				}
+				break;
+			}
+			CASE_BLOCKWANTCODE
+			{
 				IBTask* t;
 				IBExpects* exp;
 				Obj* o;
@@ -3152,18 +3206,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				ExpectsInit(exp, "PPP", OP_Value, OP_String, OP_Name);
 				break;
 			}
-			}
-			switch (o->type) {
-			case OP_FuncHasName: {
-				IBExpects* exp;
-				SetObjType(o, OP_FuncNeedsRetValType);
-				IBLayer3PushExpects(ibc, &exp);
-				ExpectsInit(exp, "P", OP_VarType);
-				break;
-			}
-			/*default:
-				Err(OP_ErrUnexpectedOp, "");
-				break;*/
 			}
 			break;
 		}
@@ -3191,6 +3233,25 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBExpects* ap;
 			IBLayer3PushTask(ibc, OP_UseNeedStr, &ap, NULL);
 			ExpectsInit(ap, "1P", "expected @use $name", OP_Name);
+			break;
+		}
+		case OP_Set: {
+			switch (t->type) {
+			CASE_BLOCKWANTCODE 
+			{
+				IBExpects* ap;
+				Obj* o;
+				IBLayer3PushObj(ibc, &o);
+				ObjSetType(o, OP_Set);
+				IBLayer3PushTask(ibc, OP_SetNeedName, &ap, NULL);
+				ExpectsInit(ap, "1P", "expected @set $name", OP_Name);
+				break;
+			}
+			default: {
+				Err(OP_Error, "can't use set here");
+				break;
+			}
+			}
 			break;
 		}
 		case OP_LessThanOrEquals: //@lteq
@@ -3258,9 +3319,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBStrAppendCStr(&cb->code, "else ");
 				IBLayer3PopTask(ibc, &t);
 			}
-			case OP_BlockWantCode:
-			case OP_IfBlockWantCode:
-			case OP_FuncWantCode: {
+			CASE_BLOCKWANTCODE {
 				IBTask* nt;
 				IBExpects* nexp;
 				Obj* o;
