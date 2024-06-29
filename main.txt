@@ -1,3 +1,4 @@
+@use $sys
 @func $test
 	"whats up youtube\n"
 @@
@@ -12,7 +13,7 @@
 		"argc is >= one\n"
 	@elif $argc @lteq =0
 		"wtf\n"
-		@call $t2 =50
+		@call $t2 =20
 		@ret =42069
 	@elif $argc @eq =144
 		"hi\n"

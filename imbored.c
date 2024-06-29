@@ -1876,6 +1876,8 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		}
 		case OP_FuncSigComplete:
 		case OP_FuncHasName: {
+			o=IBLayer3GetObj(ibc);
+			assert(o);
 			SetObjType(o, OP_FuncSigComplete);
 			PopExpects();
 			IBLayer3PopObj(ibc, true, &o);
@@ -2448,8 +2450,12 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	{
 		Err(OP_ErrUnexpectedNextPfx, "");
 	}
-	IBPushColor(IBFgBLUE);
-	DbgFmt("PFX: %s(%d)", GetPfxName(ibc->Pfx), (int)ibc->Pfx);
+	IBPushColor(IBBgMAGENTA);
+	DbgFmt("PFX","");
+	IBPopColor();
+	DbgFmt(": ", "");
+	IBPushColor(IBBgBROWN);
+	DbgFmt("%s(%d)", GetPfxName(ibc->Pfx), (int)ibc->Pfx);
 	IBPopColor();
 	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
@@ -2640,6 +2646,17 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		switch (t->type) {
 		}
 		switch (o->type) {
+		case OP_ArgNeedValue: {
+			if (t->type == OP_CallWantArgs) {
+				o->val = strVal;
+				ObjSetType(o, OP_Arg);
+				o->valType = OP_Value;
+				IBLayer3PopObj(ibc, true, &o);
+				IBLayer3PushObj(ibc, &o);
+				SetObjType(o, OP_ArgNeedValue);
+			}
+			break;
+		}
 		case OP_BlockReturnNeedValue: {
 			o->val = strVal;
 			o->valType = OP_Value;
@@ -3331,6 +3348,7 @@ void IBLayer3ExplainErr(IBLayer3* ibc, Op code) {
 }
 void IBSetColor(IBColor col) {
 #ifdef _WIN32
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0);
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), col);
 #endif
 }
