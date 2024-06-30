@@ -139,54 +139,164 @@ void _PrintLine(int l) {
 
 struct IBDatabase* g_DB;
 
+#define _IB_OPS_ \
+X(Null) \
+X(False) \
+X(True) \
+X(Unknown) \
+X(NotSet) \
+X(Any) \
+X(Use) \
+X(Build) \
+X(Space) \
+X(Func) \
+X(FuncHasName) \
+X(FuncNeedName) \
+X(FuncNeedsRetValType) \
+X(FuncArgsVarNeedsName) \
+X(FuncArgNameless) \
+X(FuncArgComplete) \
+X(FuncSigComplete) \
+X(FuncNeedRetVal) \
+X(FuncArg) \
+X(CompletedFunction) \
+X(VarNeedName) \
+X(VarWantValue) \
+X(VarComplete) \
+X(CallNeedName) \
+X(CallWantArgs) \
+X(CallComplete) \
+X(BlockReturnNeedValue) \
+X(ArgNeedValue) \
+X(Arg) \
+X(Op) \
+X(Value) \
+X(Done) \
+X(Return) \
+X(NoChange) \
+X(Struct) \
+X(VarType) \
+X(LineEnd) \
+X(Comment) \
+X(MultiLineComment) \
+X(Public) \
+X(Private) \
+X(Imaginary) \
+X(Void) \
+X(Set) \
+X(set) \
+X(SetAdd) \
+X(Call) \
+X(Colon) \
+X(Dot) \
+X(Add) \
+X(Subtract) \
+X(Multiply) \
+X(Divide) \
+X(AddEq) \
+X(SubEq) \
+X(MultEq) \
+X(DivEq) \
+X(Equals) \
+X(NotEquals) \
+X(LessThan) \
+X(GreaterThan) \
+X(LessThanOrEquals) \
+X(GreaterThanOrEquals) \
+X(CPrintfHaveFmtStr) \
+X(ParenthesisOpen) \
+X(ParenthesisClose) \
+X(ScopeOpen) \
+X(ScopeClose) \
+X(TaskStackEmpty) \
+X(RootTask) \
+X(Thing) \
+X(ThingWantName) \
+X(ThingWantContent) \
+X(ThingWantRepr) \
+X(SpaceNeedName) \
+X(SpaceHasName) \
+X(NameOps) \
+X(Obj) \
+X(Bool) \
+X(Task) \
+X(IBColor) \
+X(Repr) \
+X(IfNeedLVal) \
+X(IfNeedMidOP) \
+X(IfNeedRVal) \
+X(IfFinished) \
+X(IBCodeBlock) \
+X(YouCantUseThatHere) \
+X(IfBlockWantCode) \
+X(BlockWantCode) \
+X(FuncWantCode) \
+X(SpaceChar) \
+X(Comma) \
+X(CommaSpace) \
+X(Name) \
+X(String) \
+X(CPrintfFmtStr) \
+X(Char) \
+X(If) \
+X(Else) \
+X(For) \
+X(While) \
+X(Block) \
+X(c8) \
+X(u8) \
+X(u16) \
+X(u32) \
+X(u64) \
+X(i8) \
+X(i16) \
+X(i32) \
+X(i64) \
+X(f32) \
+X(d64) \
+X(Pointer) \
+X(DoublePointer) \
+X(TripplePointer) \
+X(IBLayer3Flags) \
+X(dbgBreak) \
+X(dbgAssert) \
+X(dbgAssertWantArgs) \
+X(TaskType) \
+X(TaskStack) \
+X(NotEmpty) \
+X(TabChar) \
+X(UseNeedStr) \
+X(UseStrSysLib) \
+X(NameInfoDB) \
+X(NameInfo) \
+X(Expects) \
+X(ElseIf) \
+X(EmptyStr) \
+X(BuildingIf) \
+X(SetNeedName) \
+X(SetNeedVal) \
+X(NotFound) \
+X(Error) \
+X(ErrUnexpectedNextPfx) \
+X(ErrExpectedVariablePfx) \
+X(ErrNoTask) \
+X(ErrUnexpectedOp) \
+X(ErrQuadriplePointersNOT_ALLOWED) \
+X(ErrUnknownOpStr) \
+X(ErrProtectedSlot) \
+X(ErrUnknownPfx) \
+X(ErrUnexpectedNameOP) \
+X(ErrDirtyTaskStack) \
+X(ModePrefixPass) \
+X(ModeStrPass) \
+X(ModeComment) \
+X(ModeMultiLineComment)
+
+#define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
-	OP_Null, OP_False, OP_True, OP_Unknown, OP_NotSet, OP_Any, OP_Use,
-	OP_Build, OP_Space,
-
-	OP_Func, OP_FuncHasName, OP_FuncNeedName, OP_FuncNeedsRetValType,
-	OP_FuncArgsVarNeedsName, OP_FuncArgNameless, OP_FuncArgComplete,
-	OP_FuncSigComplete, OP_FuncNeedRetVal, OP_FuncArg,
-	OP_CompletedFunction,
-
-	OP_VarNeedName, OP_VarWantValue, OP_VarComplete,
-	OP_CallNeedName, OP_CallWantArgs, OP_CallComplete,
-	OP_BlockReturnNeedValue, OP_ArgNeedValue, OP_Arg,
-
-	OP_Op, OP_Value, OP_Done, OP_Return, OP_NoChange, OP_Struct,
-	OP_VarType,	OP_LineEnd,	OP_Comment, OP_MultiLineComment,
-	OP_Public, OP_Private, OP_Imaginary, OP_Void, OP_Set, OP_SetAdd,
-	OP_Call, OP_Colon, OP_Dot, 	OP_Add, OP_Subtract, OP_Multiply,
-	OP_Divide, OP_AddEq, OP_SubEq, OP_MultEq, OP_DivEq, OP_Equals,
-	OP_NotEquals, OP_LessThan, OP_GreaterThan, OP_LessThanOrEquals,
-	OP_GreaterThanOrEquals,OP_CPrintfHaveFmtStr,OP_ParenthesisOpen,
-	OP_ParenthesisClose, OP_ScopeOpen, OP_ScopeClose,OP_TaskStackEmpty,
-	OP_RootTask,OP_Thing,OP_ThingWantName,OP_ThingWantContent,
-	OP_ThingWantRepr,OP_SpaceNeedName,OP_SpaceHasName, OP_Obj, OP_Bool,
-	OP_Task, OP_IBColor,OP_Repr,OP_IfNeedLVal,OP_IfNeedMidOP,OP_IfNeedRVal,
-	OP_IfFinished, OP_IBCodeBlock, 
-	OP_YouCantUseThatHere, 
-	OP_IfBlockWantCode,
-	OP_BlockWantCode,
-	OP_FuncWantCode,
-
-	OP_SpaceChar, OP_Comma, OP_CommaSpace, OP_Name, OP_String,
-	OP_CPrintfFmtStr, OP_Char, OP_If, OP_Else, OP_For, OP_While,
-	OP_Block, OP_c8, OP_u8, OP_u16, OP_u32, OP_u64, OP_i8, OP_i16,
-	OP_i32, OP_i64, OP_f32, OP_d64, OP_Pointer, OP_DoublePointer,
-	OP_TripplePointer, OP_IBLayer3Flags, OP_dbgBreak, OP_dbgAssert,
-	OP_dbgAssertWantArgs,OP_TaskType, OP_TaskStack, OP_NotEmpty,
-	OP_TabChar,OP_UseNeedStr,OP_UseStrSysLib,OP_NameInfoDB,
-	OP_NameInfo,OP_Expects,OP_ElseIf,OP_EmptyStr, OP_BuildingIf,
-	OP_SetNeedName,OP_SetNeedAction,
-
-	OP_NotFound, OP_Error, OP_ErrUnexpectedNextPfx,
-	OP_ErrExpectedVariablePfx, OP_ErrNoTask, OP_ErrUnexpectedOp,
-	OP_ErrQuadriplePointersNOT_ALLOWED, OP_ErrUnknownOpStr,
-	OP_ErrProtectedSlot,OP_ErrUnknownPfx,OP_ErrUnexpectedNameOP,
-	OP_ErrDirtyTaskStack,
-
-	OP_ModePrefixPass, OP_ModeStrPass, OP_ModeComment, OP_ModeMultiLineComment,
+	_IB_OPS_
 } Op;
+#undef X
 #define CLAMP_IMP {\
 	return val < min ? min : val > max ? max : val;\
 }
@@ -570,15 +680,19 @@ typedef struct OpNamePair {
 char* GetCEqu(Op op);
 char* GetOpName(Op op);
 char* GetPfxName(Op op);
-Op GetOpFromName(char* name);
+//Op GetOpFromName(char* name);
 Op GetOpFromNameList(char* name, Op list);
 Op fromPfxCh(char ch);
 void OverwriteStr(char** str, char* with);
 
 #ifndef IB_HEADER
 char* IBLayer3StringModeIgnoreChars = "";
-#define OP(op) {#op, ##op},
-OpNamePair opNames[] = {
+#define X(a) {#a, OP_##a},
+OpNamePair opNamesAR[] = {
+	_IB_OPS_
+};
+#define OP(op) {#op, OP_##op},
+OpNamePair PairNameOps[] = {
 	{"null", OP_Null},{"no", OP_False},{"yes", OP_True},{"set", OP_Set},
 	{"call", OP_Call},{"add", OP_SetAdd},{"func", OP_Func},{"~", OP_Comment},
 	{"%", OP_VarType},{"Value", OP_Value},{"@", OP_Done},{"ret", OP_Return},
@@ -587,39 +701,15 @@ OpNamePair opNames[] = {
 	{"*", OP_Multiply},{"/", OP_Divide},{"eq", OP_Equals},{"neq", OP_NotEquals},
 	{"lt", OP_LessThan},{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
 	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},{"$", OP_Name},{"for", OP_For},
-	{"loop", OP_While},{"block", OP_Block},{"struct", OP_Struct},{"priv", OP_Private},
+	{"loop", OP_While},{"priv", OP_Private},
 	{"pub", OP_Public},{"?", OP_Void},{"c8", OP_c8},{"u8", OP_u8},{"u16", OP_u16},
 	{"u32", OP_u32},{"u64", OP_u64},{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},
-	{"i64", OP_i64},{"f32", OP_f32},{"d64", OP_d64},{"pointer", OP_Pointer},
-	{"double pointer", OP_DoublePointer},{"tripple pointer", OP_TripplePointer},
-	{"ErrUnexpectedNextPfx", OP_ErrUnexpectedNextPfx},{"ModePrefixPass", OP_ModePrefixPass},
-	{"ModeStrPass", OP_ModeStrPass},{"ModeComment", OP_ModeComment},{"NotSet", OP_NotSet},
-	{"ModeMultiLineComment", OP_ModeMultiLineComment},{"FuncHasName", OP_FuncHasName},
-	{"Return", OP_Return},{"FuncArgNameless", OP_FuncArgNameless},
-	{"FuncArgComplete",OP_FuncArgComplete},{"FuncNeedsRetValType",OP_FuncNeedsRetValType},
-	{"FuncSignatureComplete", OP_FuncSigComplete},{"VarNeedName", OP_VarNeedName},
-	{"ErrExpectedVariablePfx",OP_ErrExpectedVariablePfx},{"VarComplete", OP_VarComplete},
-	{"ErrNoTask", OP_ErrNoTask},{"FuncNeedRetVal",OP_FuncNeedRetVal},
-	{"CompletedFunction",OP_CompletedFunction},{"ErrUnknownOpStr",OP_ErrUnknownOpStr},
-	{"Error", OP_Error},{"FuncNeedName",OP_FuncNeedName},{"String", OP_String},
-	{"VarComplete", OP_VarComplete},{"VarWantValue",OP_VarWantValue},{"LineEnd", OP_LineEnd},
-	{"CPrintfHaveFmtStr",OP_CPrintfHaveFmtStr},{"FuncWantCode",OP_FuncWantCode},
-	{"dbgBreak", OP_dbgBreak},{"dbgAssert", OP_dbgAssert}, { "CallNeedName",OP_CallNeedName },
-	{"CallWantArgs", OP_CallWantArgs},{"CallComplete", OP_CallComplete},
-	{"TaskStackEmpty", OP_TaskStackEmpty}, {"CPrintfFmtStr", OP_CPrintfFmtStr},
-	{"SpaceChar",OP_SpaceChar},{"use",OP_Use},{"UseNeedStr",OP_UseNeedStr},
-	{"sys", OP_UseStrSysLib},{"thing", OP_Thing},{"SpaceNeedName",OP_SpaceNeedName},
-	{"RootTask", OP_RootTask},{"ErrUnknownPfx",OP_ErrUnknownPfx},
-	{"ErrUnexpectedNameOP",OP_ErrUnexpectedNameOP},{"ThingWantName",OP_ThingWantName},
-	{"ThingWantContent",OP_ThingWantContent},{"SpaceHasName",OP_SpaceHasName},
-	{"ErrDirtyTaskStack",OP_ErrDirtyTaskStack},{"repr", OP_Repr},{"NotEmpty",OP_NotEmpty},
-	{"ThingWantRepr",OP_ThingWantRepr},{"IfNeedLVal",OP_IfNeedLVal},
-	{"IfNeedMidOP",OP_IfNeedMidOP},{"IfNeedRVal",OP_IfNeedRVal},
-	{"IfFinished",OP_IfFinished},{"IfBlockWantCode",OP_IfBlockWantCode},
-	{"NoChange",OP_NoChange},{"elif", OP_ElseIf},{"", OP_EmptyStr},
-	OP(OP_BlockWantCode) OP(OP_YouCantUseThatHere) OP(OP_Arg)
+	{"i64", OP_i64},{"f32", OP_f32},{"d64", OP_d64},
+	{"use",OP_Use},{"sys", OP_UseStrSysLib},{"thing", OP_Thing},
+	{"repr", OP_Repr},{"elif", OP_ElseIf},{"", OP_EmptyStr},
 };
 #undef OP
+#undef X
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
 	{"Comment(~)", OP_Comment},{"Name($)", OP_Name},
@@ -1055,19 +1145,7 @@ void _Err(IBLayer3* ibc, Op code, char *msg){
 		l, c, GetOpName(code), (int)code, msg);
 	IBLayer3ExplainErr(ibc, code);
 	IBPopColor();
-#ifdef DEBUGPRINTS
-	/*IBLayer3VecPrint(ibc, &ibc->ObjStack);
-	IBLayer3VecPrint(ibc, &ibc->TaskStack);*/
-#endif
-	/*IBPushColor(IBFgCYAN);
-	printf("PRESS ENTER TO CONTINUE ANYWAY");
-	IBPopColor();*/
-	//getchar();
-#if _DEBUG
-	//__debugbreak();
-#else
 	exit(-1);
-#endif
 }
 char* GetCEqu(Op op) {
 	int sz;
@@ -1096,9 +1174,9 @@ IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location){
 char* GetOpName(Op op) {
 	int sz;
 	int i;
-	sz=sizeof(opNames) / sizeof(opNames[0]);
+	sz=sizeof(opNamesAR) / sizeof(opNamesAR[0]);
 	for (i = 0; i < sz; i++) {
-		if (op == opNames[i].op) return opNames[i].name;
+		if (op == opNamesAR[i].op) return opNamesAR[i].name;
 	}
 	return "?";
 }
@@ -1111,28 +1189,31 @@ char* GetPfxName(Op op) {
 	}
 	return "?";
 }
-Op GetOpFromName(char* name) {
-	int sz;
-	int i;
-	sz=sizeof(opNames) / sizeof(opNames[0]);
-	for (i = 0; i < sz; i++) {
-		if (!strcmp(opNames[i].name, name)) return opNames[i].op;
-	}
-	return OP_Error;
-}
+//Op GetOpFromName(char* name) {
+//	int sz;
+//	int i;
+//	sz=sizeof(opNames) / sizeof(opNames[0]);
+//	for (i = 0; i < sz; i++) {
+//		if (!strcmp(opNames[i].name, name)) return opNames[i].op;
+//	}
+//	return OP_Error;
+//}
 Op GetOpFromNameList(char* name, Op list) {
+#define IBListM(_OP, _PAIRS) case _OP: { \
+	int sz; \
+	int i; \
+	sz = sizeof(_PAIRS) / sizeof(_PAIRS[0]); \
+	for (i = 0; i < sz; i++) \
+		if (!strcmp(_PAIRS[i].name, name)) return _PAIRS[i].op; \
+	break; \
+}
 	switch (list) {
-	case OP_dbgAssert: {
-		int sz;
-		int i;
-		sz = sizeof(dbgAssertsNP) / sizeof(dbgAssertsNP[0]);
-		for (i = 0; i < sz; i++) {
-			if (!strcmp(dbgAssertsNP[i].name, name)) return dbgAssertsNP[i].op;
-		}
-		break;
-	}
+		IBListM(OP_Op, opNamesAR)
+			IBListM(OP_NameOps, PairNameOps)
+			IBListM(OP_dbgAssert, dbgAssertsNP)
 	}
 	return OP_Unknown;
+#undef IBListM
 }
 Op fromPfxCh(char ch) {
 	switch (ch) {
@@ -2040,6 +2121,20 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	cb=IBLayer3CodeBlocksTop(ibc);
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
+	case OP_SetNeedVal:{
+		Obj* o = IBVectorGet(wObjs, 0);
+		IBStrAppendCh(&cb->code, '\t', tabCount);
+		IBStrAppendFmt(&cb->code, "%s ", o->str);
+		switch(o->valType) {
+		case OP_Value:{
+			IBStrAppendFmt(&cb->code, " = %d", o->val.i32);
+			break;
+		}
+		default: Err(OP_Error, "Unimplemented");
+		}
+		IBStrAppendFmt(&cb->code, "%s", ";");
+		break;
+	}
 	case OP_CallWantArgs: {
 		Obj* o = IBVectorGet(wObjs, 0);
 		int idx = 0;
@@ -2627,7 +2722,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	o=IBLayer3GetObj(ibc);
 	strVal.i32=atoi(ibc->Str);
 	//if(ibc->Pfx==OP_Op) ibc->LastNameOp = ibc->NameOp;
-	ibc->NameOp = GetOpFromName(ibc->Str);
+	ibc->NameOp = GetOpFromNameList(ibc->Str, OP_NameOps);
 	IBPushColor(IBFgGREEN);
 	DbgFmt("StrPayload: ", "");
 	IBPushColor(IBBgWHITE);
@@ -2685,6 +2780,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	case OP_Value: { /*=*/		
 		switch (t->type) {
+		case OP_SetNeedVal:{
+			o->val = strVal;
+			o->valType = OP_Value;
+			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3FinishTask(ibc);
+			break;
+		}
 		CASE_BLOCKWANTCODE
 		{
 		switch (o->type) {
@@ -2873,14 +2975,21 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				ExpectsInit(exp, "PPPP", OP_Name, OP_Value, OP_String, OP_LineEnd);
 				break;
 			}
+			default: {
+				Err(OP_Error, "wrong obj type");
+				break;
+			}
 			}
 			break;
 		}
 		case OP_SetNeedName: {
 			switch (o->type) {
 			case OP_Set: {
+				IBExpects* exp;
 				ObjSetStr(o, ibc->Str);
-				SetTaskType(t, OP_SetNeedAction);
+				SetTaskType(t, OP_SetNeedVal);
+				IBLayer3PushExpects(ibc, &exp);
+				ExpectsInit(exp, "PPP", OP_Value, OP_Name, OP_String);
 				break;
 			}
 			default: {
@@ -2899,7 +3008,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBLayer3PushObj(ibc, &o);
 				SetObjType(o, OP_ArgNeedValue);
 				//IBLayer3PopExpects(ibc);
-			}
+			} else Err(OP_Error, "wrong obj type");
 			break;
 		}
 		case OP_BlockReturnNeedValue: {
