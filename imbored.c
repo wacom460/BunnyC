@@ -691,25 +691,24 @@ char* IBLayer3StringModeIgnoreChars = "";
 OpNamePair opNamesAR[] = {
 	_IB_OPS_
 };
-#define OP(op) {#op, OP_##op},
+#undef X
+/*#define OP(op) {#op, OP_##op},
+#undef OP*/
 OpNamePair PairNameOps[] = {
 	{"null", OP_Null},{"no", OP_False},{"yes", OP_True},{"set", OP_Set},
 	{"call", OP_Call},{"add", OP_SetAdd},{"func", OP_Func},{"~", OP_Comment},
-	{"%", OP_VarType},{"Value", OP_Value},{"@", OP_Done},{"ret", OP_Return},
-	{"ext", OP_Imaginary},{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
-	{"build", OP_Build},{"space", OP_Space},{"+", OP_Add},{"-", OP_Subtract},
+	{"%", OP_VarType},{"@", OP_Done},{"ret", OP_Return},{"ext", OP_Imaginary},
+	{"if", OP_If},{"else", OP_Else},{"use", OP_Use},{"build", OP_Build},
+	{"space", OP_Space},{"+", OP_Add},{"-", OP_Subtract},{"priv", OP_Private},
 	{"*", OP_Multiply},{"/", OP_Divide},{"eq", OP_Equals},{"neq", OP_NotEquals},
 	{"lt", OP_LessThan},{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
 	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},{"$", OP_Name},{"for", OP_For},
-	{"loop", OP_While},{"priv", OP_Private},
+	{"loop", OP_While},{"i64", OP_i64},{"f32", OP_f32},{"d64", OP_d64},
 	{"pub", OP_Public},{"?", OP_Void},{"c8", OP_c8},{"u8", OP_u8},{"u16", OP_u16},
 	{"u32", OP_u32},{"u64", OP_u64},{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},
-	{"i64", OP_i64},{"f32", OP_f32},{"d64", OP_d64},
 	{"use",OP_Use},{"sys", OP_UseStrSysLib},{"thing", OP_Thing},
 	{"repr", OP_Repr},{"elif", OP_ElseIf},{"", OP_EmptyStr},
 };
-#undef OP
-#undef X
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
 	{"Comment(~)", OP_Comment},{"Name($)", OP_Name},
