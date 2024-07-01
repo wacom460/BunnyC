@@ -1,4 +1,4 @@
 @func $main @ret %i32
 %i32 $a
 @set $a =20
-@@ =0
+@@ $a
