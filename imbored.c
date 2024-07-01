@@ -443,6 +443,7 @@ typedef struct IBNameInfoDB {
 	IBVector pairs;
 } IBNameInfoDB;
 typedef struct FuncObj {
+	char* retStr;
 	Val retVal;
 	Op retType;
 	Op retTypeMod;
@@ -486,7 +487,6 @@ typedef struct Obj {
 	Val val;
 	Op valType;
 } Obj;
-Op ObjGetType(Obj* obj);
 void _ObjSetType(Obj* obj, Op type);
 #define ObjSetType(obj, type){\
 	PLINE;\
@@ -1027,6 +1027,7 @@ void ObjInit(Obj* o) {
 	o->val.i32 = 0;
 	o->valType = OP_Unknown;
 	memset(&o->func, 0, sizeof(FuncObj));
+	o->func.retStr = NULL;
 	memset(&o->var, 0, sizeof(VarObj));
 	memset(&o->ifO, 0, sizeof(IfObj));
 	o->arg.type = OP_Null;
@@ -1036,6 +1037,7 @@ void ObjInit(Obj* o) {
 }
 void ObjFree(Obj* o) {
 	assert(o);
+	if(o->func.retStr) free(o->func.retStr);
 	if (o->name) free(o->name);
 	if (o->str) free(o->str);
 }
@@ -1704,7 +1706,6 @@ void _IBLayer3Pop(IBLayer3* ibc) {
 	//ExpectsPrint(exp);
 #endif
 }
-Op ObjGetType(Obj* obj) { return obj->type; }
 void _ObjSetType(Obj* obj, Op type) {
 	DbgFmt(" obj type: %s(%d) -> %s(%d)\n",
 		GetOpName(obj->type), (int)obj->type, GetOpName(type), (int)type);
@@ -2126,12 +2127,12 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrAppendFmt(&cb->code, "%s ", o->str);
 		switch(o->valType) {
 		case OP_Value:{
-			IBStrAppendFmt(&cb->code, " = %d", o->val.i32);
+			IBStrAppendFmt(&cb->code, "= %d", o->val.i32);
 			break;
 		}
 		default: Err(OP_Error, "Unimplemented");
 		}
-		IBStrAppendFmt(&cb->code, "%s", ";");
+		IBStrAppendFmt(&cb->code, "%s\n", ";");
 		break;
 	}
 	case OP_CallWantArgs: {
@@ -2389,7 +2390,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		}
 		idx = 0;
 		while (o= (Obj*)IBVectorIterNext(wObjs,&idx)) {
-			switch (ObjGetType(o)) {
+			switch (o->type) {
 			case OP_VarComplete: {
 				char valBuf[32];
 				valBuf[0] = '\0';
@@ -2481,7 +2482,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 							vo = (Obj*)IBVectorGet(wObjs, varIdx);
 							/*printf("cfmt vidx:%d\n",varIdx);*/
 							assert(vo);
-							voT = ObjGetType(vo);
+							voT = vo->type;
 							/*if(voT==OP_String)DB*/
 							switch (voT) {
 							case OP_Name:{
@@ -2528,7 +2529,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			for (i = 1; i < wObjs->elemCount; ++i) {
 				Obj* o;
 				o = (Obj*)IBVectorGet(wObjs, i);
-				switch (ObjGetType(o)) {
+				switch (o->type) {
 				case OP_Name: {
 					IBStrAppendCStr(&cb->code, o->name);
 					break;
@@ -2877,7 +2878,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			int idx;
 			idx = 0;
 			while (o = (Obj*)IBVectorIterNext(&t->working,&idx)) {
-				if (ObjGetType(o) == OP_FuncSigComplete) {
+				if (o->type == OP_FuncSigComplete) {
 					DbgFmt("Finishing func got ret value\n","");
 					o->func.retVal = IBLayer3StrToVal(ibc, ibc->Str, o->func.retType);
 					PopExpects();
@@ -2960,6 +2961,22 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	case OP_Name: { /* $ */
 		switch(t->type){
+		case OP_FuncNeedRetVal: {
+			Obj* o;
+			int idx;
+			idx = 0;
+			while (o = (Obj*)IBVectorIterNext(&t->working, &idx)) {
+				if (o->type == OP_FuncSigComplete) {
+					DbgFmt("Finishing func got ret value as name\n", "");
+					OverwriteStr(&o->func.retStr, ibc->Str);
+					PopExpects();
+					SetTaskType(t, OP_Func);
+					IBLayer3FinishTask(ibc);
+					break;
+				}
+			}
+			break;
+		}
 		case OP_CallNeedName: {
 			switch (o->type) {
 			case OP_CallNeedName: {
@@ -3267,12 +3284,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 						if (o->func.retType != OP_Void) {
 							IBExpects* exp;
 							IBLayer3PushExpects(ibc, &exp);
-							if (o->func.retType == OP_c8 && o->func.retTypeMod == OP_Pointer) {
+							/*if (o->func.retType == OP_c8 && o->func.retTypeMod == OP_Pointer) {
 								ExpectsInit(exp, "PP", OP_Name, OP_String);
 							}
 							else {
-								ExpectsInit(exp, "P", OP_Value);
-							}
+								
+							}*/
+							ExpectsInit(exp, "PPP", OP_Value, OP_Name, OP_String);
 							SetTaskType(t, OP_FuncNeedRetVal);
 						}
 						else {
