@@ -1,5 +1,7 @@
 @use $sys
+@func $t @ret %i32
+@@ =4
 @func $main @ret %i32
 	%&i32 $a
-	@set $a @call $malloc =32
+	@set $a @call $t
 @@ $a
