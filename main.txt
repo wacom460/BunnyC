@@ -1,6 +1,7 @@
-@func $t @ret %i32
-@@ =4
+@func $t %i32 $a @ret %i32
+@@ $a
 @func $main @ret %i32
 	%i32 $a
-	@set $a @call $t
+	%i32 $b =40
+	@set $a @call $t $b
 @@ $a

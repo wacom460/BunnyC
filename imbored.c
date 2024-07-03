@@ -2004,6 +2004,8 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		assert(t->type > 0);
 		switch(t->type){
 		case OP_SetCallWantArgs: {
+			if (o->type == OP_ArgNeedValue)
+				IBLayer3PopObj(ibc, false, &o);
 			IBLayer3FinishTask(ibc);
 			t= IBLayer3GetTask(ibc);
 			assert(t->type == OP_SetNeedVal);
@@ -2496,7 +2498,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				if (thingObj) {
 					IBStrAppendCStr(&cFuncArgsThing, "struct ");
 					IBStrAppendCStr(&cFuncArgsThing, thingObj->name);
-					IBStrAppendCStr(&cFuncArgsThing, "* ptr");
+					IBStrAppendCStr(&cFuncArgsThing, "* self");
 				}
 				break;
 			}
@@ -2941,6 +2943,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
+		case OP_SetCallWantArgs:
 		case OP_CallWantArgs: {
 			switch (o->type) {
 			case OP_ArgNeedValue: {
@@ -3112,17 +3115,17 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			break; }
 		case OP_SetCall: { 
 			IBExpects* exp=NULL;
-			//IBTask* t=NULL;
 			Obj* o=NULL;
 			IBLayer3PushObj(ibc, &o);
 			ObjSetType(o, OP_SetCall);
 			ObjSetStr(o, ibc->Str);
-			//IBLayer3PushTask(ibc, OP_SetCallWantArgs, &exp, &t);
 			IBLayer3ReplaceExpects(ibc, &exp);
 			SetTaskType(t, OP_SetCallWantArgs);
 			ExpectsInit(exp, "PPPP", 
 				OP_LineEnd, OP_Name, OP_String, OP_Value);
 			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3PushObj(ibc, &o);
+			SetObjType(o, OP_ArgNeedValue);
 			break; }
 		case OP_FuncNeedRetVal: {
 			Obj* o;
@@ -3181,6 +3184,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
+		case OP_SetCallWantArgs:
 		case OP_CallWantArgs: {
 			if (o->type == OP_ArgNeedValue) {
 				ObjSetStr(o, ibc->Str);
