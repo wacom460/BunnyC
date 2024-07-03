@@ -1961,6 +1961,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	switch (ibc->Ch) {
 	case '\0': return;
 	case '\n': {
+		t=IBLayer3GetTask(ibc);
 		nl = true;
 		/*if (ibc->CommentMode == OP_NotSet)*/ {
 			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
@@ -1998,15 +1999,17 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			break;
 		}
 		}
-
+		t=IBLayer3GetTask(ibc);
+		o=IBLayer3GetObj(ibc);
+		assert(t->type > 0);
 		switch(t->type){
-		case OP_SetCallWantArgs: {			
-			assert(o->type == OP_SetCall);
-			IBLayer3PopObj(ibc, true, &o);
+		case OP_SetCallWantArgs: {
 			IBLayer3FinishTask(ibc);
 			t= IBLayer3GetTask(ibc);
 			assert(t->type == OP_SetNeedVal);
-			//o->valType = OP_Call;
+			assert(o->type == OP_Set);
+			o->valType = OP_Call;
+			IBLayer3PopObj(ibc, true, &o);
 			IBLayer3FinishTask(ibc);
 			break;
 		}
@@ -2186,12 +2189,14 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		Obj *scObj=IBVectorGet(wObjs, 0);
 		Obj* o = NULL;
 		int idx = 0;
+		assert(scObj);
 		assert(scObj->type == OP_SetCall);
 		pop2Parent=true;
 		assert(scObj->str);
 		IBStrAppendFmt(&t->code, "%s(", scObj->str);
 		while (o = IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
+			case OP_SetCall: break;
 			case OP_Arg: {
 				switch (o->valType) {
 				case OP_Value: {
@@ -2221,11 +2226,12 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	}
 	case OP_SetNeedVal:{
 		Obj* o = IBVectorGet(wObjs, 0);		
+		assert(o);
 		IBStrAppendCh(&cb->code, '\t', tabCount);
-		IBStrAppendFmt(&cb->code, "%s ", o->str);
+		IBStrAppendFmt(&cb->code, "%s = ", o->str);
 		switch (o->valType) {
 		case OP_Value: {
-			IBStrAppendFmt(&cb->code, "= %d", o->val.i32);
+			IBStrAppendFmt(&cb->code, "%d", o->val.i32);
 			break;
 		}
 		case OP_Call: {
@@ -2233,6 +2239,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				IBTask* cst = IBVectorGet(&t->subTasks, 0);
 				assert(cst);
 				assert(cst->type == OP_SetCallWantArgs);
+				IBCodeBlockFinish(&cst->code, &cb->code);
 			}
 			break;
 		}
@@ -3105,14 +3112,17 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			break; }
 		case OP_SetCall: { 
 			IBExpects* exp=NULL;
-			IBTask* t=NULL;
+			//IBTask* t=NULL;
 			Obj* o=NULL;
 			IBLayer3PushObj(ibc, &o);
 			ObjSetType(o, OP_SetCall);
 			ObjSetStr(o, ibc->Str);
-			IBLayer3PushTask(ibc, OP_SetCallWantArgs, &exp, &t);
+			//IBLayer3PushTask(ibc, OP_SetCallWantArgs, &exp, &t);
+			IBLayer3ReplaceExpects(ibc, &exp);
+			SetTaskType(t, OP_SetCallWantArgs);
 			ExpectsInit(exp, "PPPP", 
 				OP_LineEnd, OP_Name, OP_String, OP_Value);
+			IBLayer3PopObj(ibc, true, &o);
 			break; }
 		case OP_FuncNeedRetVal: {
 			Obj* o;
