@@ -716,13 +716,11 @@ OpNamePair PairNameOps[] = {
 	{"func", OP_Func},{"~", OP_Comment},{"%", OP_VarType},
 	{"@", OP_Done},{"ret", OP_Return},{"ext", OP_Imaginary},
 	{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
-	{"build", OP_Build},{"space", OP_Space},{"+", OP_Add},
-	{"-", OP_Subtract},{"priv", OP_Private},{"*", OP_Multiply},
-	{"/", OP_Divide},{"eq", OP_Equals},{"neq", OP_NotEquals},
-	{"lt", OP_LessThan},{"gt", OP_GreaterThan},
-	{"lteq", OP_LessThanOrEquals},{"gteq", OP_GreaterThanOrEquals},
-	{",", OP_Comma},{"$", OP_Name},{"for", OP_For},{"loop", OP_While},
-	{"i64", OP_i64},{"f32", OP_f32},{"d64", OP_d64},{"pub", OP_Public},
+	{"build", OP_Build},{"space", OP_Space},{"priv", OP_Private},
+	{"eq", OP_Equals},{"neq", OP_NotEquals},{"lt", OP_LessThan},
+	{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
+	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},
+	{"for", OP_For},{"loop", OP_While},{"i64", OP_i64},{"f32", OP_f32},{"d64", OP_d64},{"pub", OP_Public},
 	{"?", OP_Void},{"c8", OP_c8},{"u8", OP_u8},{"u16", OP_u16},
 	{"u32", OP_u32},{"u64", OP_u64},{"i8", OP_i8},{"i16", OP_i16},
 	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
@@ -1995,7 +1993,15 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		}
 
 		switch(t->type){
-		case OP_SetCallWantArgs:
+		case OP_SetCallWantArgs: {			
+			assert(o->type == OP_SetCall);
+			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3FinishTask(ibc);
+			t= IBLayer3GetTask(ibc);
+			assert(t->type == OP_SetNeedVal);
+			IBLayer3FinishTask(ibc);
+			break;
+		}
 		case OP_CallWantArgs: {
 			IBLayer3FinishTask(ibc);
 			break;
@@ -2155,6 +2161,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	IBCodeBlock* cb;
 	int tabCount;
 	IBTask* t;
+	bool pop2Parent=false;
 	t = IBLayer3GetTask(ibc);
 	assert(t);
 	DbgFmt(" FinishTask: %s(%d)\n", GetOpName(t->type), (int)t->type);
@@ -2167,6 +2174,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	cb=IBLayer3CodeBlocksTop(ibc);
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
+	case OP_SetCallWantArgs: {
+		pop2Parent=true;
+
+		break;
+	}
 	case OP_SetNeedVal:{
 		Obj* o = IBVectorGet(wObjs, 0);
 		IBStrAppendCh(&cb->code, '\t', tabCount);
@@ -2181,9 +2193,6 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrAppendFmt(&cb->code, "%s\n", ";");
 		break;
 	}
-	case OP_SetCallWantArgs: { 
-
-		break; }
 	case OP_CallWantArgs: {
 		Obj* o = IBVectorGet(wObjs, 0);
 		int idx = 0;
@@ -2619,7 +2628,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		break;
 	}
 	}
-	IBLayer3PopTask(ibc, &t, false);
+	IBLayer3PopTask(ibc, &t, pop2Parent);
 }
 void IBLayer3Prefix(IBLayer3* ibc){
 	Obj* obj;
@@ -3098,6 +3107,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			switch (o->type) {
 			case OP_Set: {
 				IBExpects* exp;
+				assert(o->type == OP_Set);
 				ObjSetStr(o, ibc->Str);
 				SetTaskType(t, OP_SetNeedVal);
 				IBLayer3PushExpects(ibc, &exp);
@@ -3300,9 +3310,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			case OP_SetNeedVal: {
 				IBTask* t=NULL;
 				IBExpects* exp=NULL;
-				Obj* o=NULL;
-				IBLayer3PushObj(ibc, &o);
-				ObjSetType(o, OP_NeedName);
 				IBLayer3PushTask(ibc, OP_SetCall, &exp, &t);
 				ExpectsInit(exp, "P", OP_Name);
 				break;
