@@ -91,6 +91,11 @@ case OP_BlockWantCode: \
 case OP_IfBlockWantCode: \
 case OP_FuncWantCode:
 
+#define CASE_UNIMP default: { \
+	Err(OP_Error, "Unimplemented case"); \
+	break; \
+}
+
 #ifdef DEBUGPRINTS
 void _PrintLine(int l) {
 	IBPushColor(IBFgRED);
@@ -576,11 +581,19 @@ typedef struct IBLayer3 {
 	Op CommentMode;
 	IBNameInfoDB NameTypeCtx;
 } IBLayer3;
-void _Err(IBLayer3* ibc, Op code, char *msg);
-#define Err(code, msg){\
-	IBPushColor(IBFgRED);\
-	PLINE;\
-	_Err(ibc, code, msg);\
+//void _Err(IBLayer3* ibc, Op code, char *msg);
+#define Err(code, msg){ \
+	int l = ibc->InputStr ? ibc->LineIS : ibc->Line; \
+	int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column; \
+	IBPushColor(IBFgRED); \
+	PLINE; \
+	if (ibc->InputStr) printf("ERROR IN InputStr!!!\n"); \
+	printf("Error at %u:%u \"%s\"(%d). %s\n", \
+		l, c, GetOpName(code), (int)code, msg); \
+	IBLayer3ExplainErr(ibc, code); \
+	IBPopColor(); \
+	DB \
+	exit(-1); \
 }
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
@@ -1165,14 +1178,6 @@ void TaskFree(IBTask* t) {
 	IBVectorFree(&t->working, ObjFree);
 }
 void _Err(IBLayer3* ibc, Op code, char *msg){
-	int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
-	int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
-	if (ibc->InputStr) printf("ERROR IN InputStr!!!\n");
-	printf("Error at %u:%u \"%s\"(%d). %s\n",
-		l, c, GetOpName(code), (int)code, msg);
-	IBLayer3ExplainErr(ibc, code);
-	IBPopColor();
-	exit(-1);
 }
 char* GetCEqu(Op op) {
 	int sz;
@@ -1816,8 +1821,8 @@ void IBLayer3PopExpects(IBLayer3* ibc) {
 	assert(exp);
 	IBVector* pfxsIb = &exp->pfxs;
 	if (pfxsIb->elemCount) {
-		Op* oi;
-		int idx;
+		Op* oi=NULL;
+		int idx=0;
 
 #ifdef DEBUGPRINTS
 		DbgFmt(" Expects POP: { ", "");
@@ -1828,10 +1833,12 @@ void IBLayer3PopExpects(IBLayer3* ibc) {
 		DbgFmt("} -> { ","");
 #endif
 		IBVectorPop(&t->expStack, ExpectsFree);
-		//if (!GetExpectsStack->elemCount) Err(OP_Error, "catastrophic failure");
+		if (t->expStack.elemCount<1) Err(OP_Error, "catastrophic failure");
 		pfxsIb = &((IBExpects*)IBVectorTop(&t->expStack))->pfxs;
+		assert(pfxsIb);
 #ifdef DEBUGPRINTS
 		idx = 0;
+		oi = NULL;
 		while (oi = (Op*)IBVectorIterNext(pfxsIb,&idx)) {
 			DbgFmt("%s ", GetPfxName(*oi));
 		}
@@ -1999,6 +2006,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			IBLayer3FinishTask(ibc);
 			t= IBLayer3GetTask(ibc);
 			assert(t->type == OP_SetNeedVal);
+			//o->valType = OP_Call;
 			IBLayer3FinishTask(ibc);
 			break;
 		}
@@ -2091,7 +2099,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	if (!ibc->InputStr) ibc->Column++;
 	else ibc->ColumnIS++;
 	if (nl) {
-		if (IBLayer3IsPfxExpected(ibc, OP_LineEnd)) PopExpects();
+		if (IBLayer3IsPfxExpected(ibc, OP_LineEnd) && t->expStack.elemCount>1) PopExpects();
 		if (!ibc->InputStr) {
 			ibc->Column = 1;
 			ibc->Line++;
@@ -2175,22 +2183,62 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
 	case OP_SetCallWantArgs: {
+		Obj *scObj=IBVectorGet(wObjs, 0);
+		Obj* o = NULL;
+		int idx = 0;
+		assert(scObj->type == OP_SetCall);
 		pop2Parent=true;
-
+		assert(scObj->str);
+		IBStrAppendFmt(&t->code, "%s(", scObj->str);
+		while (o = IBVectorIterNext(wObjs, &idx)) {
+			switch (o->type) {
+			case OP_Arg: {
+				switch (o->valType) {
+				case OP_Value: {
+					IBStrAppendFmt(&t->code, "%d", o->val.i32);//for now
+					break;
+				}
+				case OP_String: {
+					IBStrAppendFmt(&t->code, "\"%s\"", o->str);
+					break;
+				}
+				case OP_Name: {
+					IBStrAppendFmt(&t->code, "%s", o->str);
+					break;
+				}
+				CASE_UNIMP
+				}
+				if (idx < wObjs->elemCount - 2) {
+					IBStrAppendCStr(&cb->code, ", ");
+				}
+				break;
+			}
+			CASE_UNIMP
+			}
+		}
+		IBStrAppendFmt(&t->code, "%s", ")");
 		break;
 	}
 	case OP_SetNeedVal:{
-		Obj* o = IBVectorGet(wObjs, 0);
+		Obj* o = IBVectorGet(wObjs, 0);		
 		IBStrAppendCh(&cb->code, '\t', tabCount);
 		IBStrAppendFmt(&cb->code, "%s ", o->str);
-		switch(o->valType) {
-		case OP_Value:{
+		switch (o->valType) {
+		case OP_Value: {
 			IBStrAppendFmt(&cb->code, "= %d", o->val.i32);
 			break;
 		}
-		default: Err(OP_Error, "Unimplemented");
+		case OP_Call: {
+			if (t->subTasks.elemCount > 0) {
+				IBTask* cst = IBVectorGet(&t->subTasks, 0);
+				assert(cst);
+				assert(cst->type == OP_SetCallWantArgs);
+			}
+			break;
 		}
-		IBStrAppendFmt(&cb->code, "%s\n", ";");
+		CASE_UNIMP
+		}
+		IBStrAppendFmt(&cb->code, "%s\n", ";");		
 		break;
 	}
 	case OP_CallWantArgs: {
@@ -2217,6 +2265,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				IBStrAppendFmt(&cb->code, "%s", o->str);
 				break;
 			}
+			CASE_UNIMP
 			}
 			if (idx <= wObjs->elemCount - 1) {
 				IBStrAppendCStr(&cb->code, ", ");
