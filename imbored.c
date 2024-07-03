@@ -1631,15 +1631,25 @@ void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** 
 void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP, bool popToParent) {
 	IBTask* t=NULL;
 	IBTask* t2=NULL;
+	IBTask copy;
 	assert(ibc);
 	t=IBLayer3GetTask(ibc);
 	assert(t);
 	DbgFmt(" Pop task %s(%d) ", GetOpName(t->type), (int)t->type);
-	IBVectorPop(&ibc->TaskStack, TaskFree);
+	if (popToParent) {
+		if (ibc->TaskStack.elemCount >= 2) {
+			memcpy(&copy, t, sizeof(IBTask));
+		}else Err(OP_Error, "COMPILER FAILURE. No parent task!");
+	}
+	IBVectorPop(&ibc->TaskStack, popToParent ? NULL : TaskFree);
 	t2 = IBLayer3GetTask(ibc);
 	assert(t2);
 	DbgFmt("-> %s(%d) Pop to parent: %s\n", 
 		GetOpName(t2->type), (int)t2->type, BoolStr(popToParent));
+	if (popToParent) {
+		assert(t2->type != OP_RootTask);
+		IBVectorCopyPush(&t2->subTasks, &copy);
+	}
 	if(taskDP) (*taskDP) = t2;
 }
 void _IBLayer3PushObj(IBLayer3* ibc, Obj** o) {
