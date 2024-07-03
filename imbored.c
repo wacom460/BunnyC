@@ -536,6 +536,7 @@ void ExpectsPrint(IBExpects* exp);
 void ExpectsFree(IBExpects* exp);
 typedef struct IBTask {
 	Op type;
+	IBCodeBlock code;
 	IBVector expStack; /*IBExpects*/
 	IBVector working;/*Obj*/
 	IBVector subTasks;/*IBTask*/
@@ -998,10 +999,12 @@ void IBCodeBlockInit(IBCodeBlock* block){
 	IBStrInit(&block->footer, 1);
 }
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
-	IBStrAppend(output, &block->header);
-	IBStrAppend(output, &block->variables);
-	IBStrAppend(output, &block->code);
-	IBStrAppend(output, &block->footer);
+	IBStrAppendFmt(output, 
+		"%s%s%s%s", 
+		block->header.start, 
+		block->variables.start, 
+		block->code.start, 
+		block->footer.start);
 }
 void IBCodeBlockFree(IBCodeBlock* block){
 	IBStrFree(&block->header);
@@ -1153,10 +1156,12 @@ void TaskInit(IBTask* t, Op type) {
 	IBVectorInit(&t->working, sizeof(Obj), OP_Obj);
 	IBVectorInit(&t->expStack, sizeof(IBExpects), OP_Expects);
 	IBVectorInit(&t->subTasks, sizeof(IBTask), OP_Task);
+	IBCodeBlockInit(&t->code);
 	t->type = type;
 }
 void TaskFree(IBTask* t) {
 	assert(t);
+	IBCodeBlockFree(&t->code);
 	IBVectorFree(&t->subTasks, TaskFree);
 	IBVectorFree(&t->expStack, ExpectsFree);
 	IBVectorFree(&t->working, ObjFree);
