@@ -3,5 +3,12 @@
 @func $main @ret %i32
 	%i32 $a
 	%i32 $b =40
-	@set $a @call $t $b
+	@if $a @eq =0
+		@set $a @call $t $b
+		@if $a @eq =40
+			"success\n"
+		@@
+	@else
+		"wtf\n"
+	@@
 @@ $a
