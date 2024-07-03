@@ -1,13 +1,26 @@
+@use $sys
+@thing $tz
+	%i64 $e
+	@func $test
+	@@
+@@
 @func $t %i32 $a @ret %i32
 @@ $a
 @func $main @ret %i32
 	%i32 $a
 	%i32 $b =40
+	~~@table $a
+		@case =0
+			
+		@@
+	@@~~
 	@if $a @eq =0
 		@set $a @call $t $b
 		@if $a @eq =40
 			"success\n"
 		@@
+	@elif $b @gteq =39
+		"w\n"
 	@else
 		"wtf\n"
 	@@

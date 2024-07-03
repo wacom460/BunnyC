@@ -212,8 +212,8 @@ X(GreaterThanOrEquals) \
 X(CPrintfHaveFmtStr) \
 X(ParenthesisOpen) \
 X(ParenthesisClose) \
-X(ScopeOpen) \
-X(ScopeClose) \
+X(CurlyBraceOpen) \
+X(CurlyBraceClose) \
 X(TaskStackEmpty) \
 X(RootTask) \
 X(Thing) \
@@ -230,12 +230,16 @@ X(Bool) \
 X(Task) \
 X(IBColor) \
 X(Repr) \
+X(Table) \
 X(IfNeedLVal) \
 X(IfNeedMidOP) \
 X(IfNeedRVal) \
 X(IfFinished) \
 X(IBCodeBlock) \
+X(Exclaimation) \
+X(Underscore) \
 X(YouCantUseThatHere) \
+X(TableNeedExpr) \
 X(IfBlockWantCode) \
 X(BlockWantCode) \
 X(FuncWantCode) \
@@ -250,7 +254,7 @@ X(Char) \
 X(If) \
 X(Else) \
 X(For) \
-X(While) \
+X(Loop) \
 X(Block) \
 X(c8) \
 X(u8) \
@@ -581,8 +585,7 @@ typedef struct IBLayer3 {
 	Op CommentMode;
 	IBNameInfoDB NameTypeCtx;
 } IBLayer3;
-//void _Err(IBLayer3* ibc, Op code, char *msg);
-#define Err(code, msg){ \
+#define Err(code, msg) { \
 	int l = ibc->InputStr ? ibc->LineIS : ibc->Line; \
 	int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column; \
 	IBPushColor(IBFgRED); \
@@ -733,12 +736,13 @@ OpNamePair PairNameOps[] = {
 	{"eq", OP_Equals},{"neq", OP_NotEquals},{"lt", OP_LessThan},
 	{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
 	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},
-	{"for", OP_For},{"loop", OP_While},{"i64", OP_i64},{"f32", OP_f32},{"d64", OP_d64},{"pub", OP_Public},
-	{"?", OP_Void},{"c8", OP_c8},{"u8", OP_u8},{"u16", OP_u16},
-	{"u32", OP_u32},{"u64", OP_u64},{"i8", OP_i8},{"i16", OP_i16},
+	{"for", OP_For},{"loop", OP_Loop},{"i64", OP_i64},{"f32", OP_f32},
+	{"d64", OP_d64},{"pub", OP_Public},{"?", OP_Void},{"c8", OP_c8},
+	{"u8", OP_u8},{"u16", OP_u16},{"u32", OP_u32},{"u64", OP_u64},
+	{"i8", OP_i8},{"i16", OP_i16},
 	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
 	{"thing", OP_Thing},{"repr", OP_Repr},{"elif", OP_ElseIf},
-	{"", OP_EmptyStr},
+	{"", OP_EmptyStr},{"table", OP_Table},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -757,7 +761,7 @@ OpNamePair cEquivelents[] = {
 	{"*", OP_Pointer},{"**", OP_DoublePointer},
 	{"***", OP_TripplePointer},{", ", OP_CommaSpace},
 	{"(", OP_ParenthesisOpen},{")", OP_ParenthesisClose},
-	{"{", OP_ScopeOpen},{"}", OP_ScopeClose},
+	{"{", OP_CurlyBraceOpen},{"}", OP_CurlyBraceClose},
 	{"", OP_NotSet},
 	{"extern", OP_Imaginary},{"float", OP_f32},{"double", OP_d64},
 	{"==", OP_Equals},{"!=", OP_NotEquals},{"<", OP_LessThan},
@@ -1131,6 +1135,8 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char *fmt, ...) {
 			IBVectorCopyPushOp(&exp->nameOps, OP_Set);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Done);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Return);
+			IBVectorCopyPushOp(&exp->nameOps, OP_Table);
+			IBVectorCopyPushOp(&exp->nameOps, OP_Loop);
 			break;
 		}
 		}
@@ -1144,11 +1150,12 @@ void ExpectsPrint(IBExpects* ap) {
 	idx = 0;
 	assert(ap);
 	oi=NULL;
-	printf(
 #ifdef DEBUGPRINTS
-		"[LN:%d] "
+	IBPushColor(IBBgGREEN);
+	printf("[LN:%d] ", ap->lineNumInited);
+	IBPopColor();
 #endif
-		"Prefix { ", ap->lineNumInited);
+	printf("Prefix { ");
 	while (oi = (Op*)IBVectorIterNext(&ap->pfxs, &idx))
 		printf("%s(%d) ", GetPfxName(*oi), (int)*oi);
 	printf("}\nNameOP { ");
@@ -1176,8 +1183,6 @@ void TaskFree(IBTask* t) {
 	IBVectorFree(&t->subTasks, TaskFree);
 	IBVectorFree(&t->expStack, ExpectsFree);
 	IBVectorFree(&t->working, ObjFree);
-}
-void _Err(IBLayer3* ibc, Op code, char *msg){
 }
 char* GetCEqu(Op op) {
 	int sz;
@@ -1254,10 +1259,22 @@ Op fromPfxCh(char ch) {
 	case '@': return OP_Op;
 	case '$': return OP_Name;
 	case '%': return OP_VarType;
-	case '&': return OP_Pointer;
 	case '\"': return OP_String;
-	case '\'': return OP_Char;
 	case '=': return OP_Value;
+	case '\'': return OP_Char;
+	case '&': return OP_Pointer;
+	case '+': return OP_Add;
+	case '-': return OP_Subtract;
+	case '/': return OP_Divide;
+	case '*': return OP_Multiply;
+	case '<': return OP_LessThan;
+	case '>': return OP_GreaterThan;
+	case '!': return OP_Exclaimation;
+	case '_': return OP_Underscore;
+	case '(': return OP_ParenthesisOpen;
+	case ')': return OP_ParenthesisClose;
+	case '{': return OP_CurlyBraceOpen;
+	case '}': return OP_CurlyBraceClose;
 	default: return OP_Unknown;
 	}
 }
@@ -2182,7 +2199,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	wObjs = &t->working;
 	assert(wObjs);
 	if (!wObjs->elemCount) {/*Err(OP_Error, "workingObjs EMPTY!");*/
-		DbgFmt("Warning: working objs for this task is empty!", "");
+		DbgFmt("Warning: working objs for this task is empty!\n", "");
 	}
 	cb=IBLayer3CodeBlocksTop(ibc);
 	tabCount=IBLayer3GetTabCount(ibc);
@@ -3368,6 +3385,22 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ExpectsInit(ap, "1P", "expected string", OP_String);
 			break;
 		}
+		case OP_Table: {
+			switch (t->type) {
+			CASE_BLOCKWANTCODE
+			{
+				IBTask* t=NULL;
+				Obj* o=NULL;
+				IBExpects* exp=NULL;
+				IBLayer3PushTask(ibc, OP_TableNeedExpr, &exp, &t);
+				ExpectsInit(exp, "P", OP_Name);
+				/*IBLayer3PushObj(ibc, &o);
+				ObjSetType(o, OP_Table);*/
+				break;
+			}
+			}
+			break;
+		}
 		case OP_Call: {
 			switch (t->type) {
 			case OP_SetNeedVal: {
@@ -3689,9 +3722,11 @@ void IBLayer3ExplainErr(IBLayer3* ibc, Op code) {
 		t=IBLayer3GetTask(ibc);
 		assert(t);
 		exp = IBTaskGetExpTop(t);
+		IBPushColor(IBBgBLUE | IBBgGREEN);
 		printf("NameOP \"@%s\" wasn't expected.\nExpected:\n", 
 			ibc->Str);
 		ExpectsPrint(exp);
+		IBPopColor();
 		break;
 	}
 	case OP_ErrUnknownPfx:
