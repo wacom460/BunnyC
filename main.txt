@@ -15,6 +15,7 @@
 		@@
 	@@~~
 	@if $a @eq =0
+		$a = !t $b
 		@set $a @call $t $b
 		@if $a @eq =40
 			"success\n"

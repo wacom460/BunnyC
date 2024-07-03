@@ -223,6 +223,7 @@ X(ThingWantRepr) \
 X(SpaceNeedName) \
 X(SpaceHasName) \
 X(Placeholder) \
+X(ThingInit) \
 X(NameOps) \
 X(SetCall) \
 X(Obj) \
@@ -236,6 +237,7 @@ X(IfNeedMidOP) \
 X(IfNeedRVal) \
 X(IfFinished) \
 X(IBCodeBlock) \
+X(ThingInitNeedName) \
 X(Exclaimation) \
 X(Underscore) \
 X(YouCantUseThatHere) \
@@ -287,6 +289,7 @@ X(Expects) \
 X(ElseIf) \
 X(EmptyStr) \
 X(BuildingIf) \
+X(SubtaskArgs) \
 X(SetNeedName) \
 X(SetNeedVal) \
 X(NotFound) \
@@ -420,6 +423,7 @@ typedef union {
 typedef struct IBCodeBlock {
 	IBStr header;
 	IBStr variables;
+	IBStr varsInit;
 	IBStr code;
 	IBStr footer;
 } IBCodeBlock;
@@ -1010,20 +1014,23 @@ char* StrConcat(char* dest, int count, char* src) {
 void IBCodeBlockInit(IBCodeBlock* block){
 	IBStrInit(&block->header, 1);
 	IBStrInit(&block->variables, 1);
+	IBStrInit(&block->varsInit, 1);
 	IBStrInit(&block->code, 1);
 	IBStrInit(&block->footer, 1);
 }
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
 	IBStrAppendFmt(output, 
-		"%s%s%s%s", 
+		"%s%s%s%s%s", 
 		block->header.start, 
 		block->variables.start, 
+		block->varsInit.start,
 		block->code.start, 
 		block->footer.start);
 }
 void IBCodeBlockFree(IBCodeBlock* block){
 	IBStrFree(&block->header);
 	IBStrFree(&block->variables);
+	IBStrFree(&block->varsInit);
 	IBStrFree(&block->code);
 	IBStrFree(&block->footer);
 }
@@ -3101,6 +3108,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	case OP_Name: { /* $ PFXNAME */
 		switch(t->type){
+		case OP_ThingInitNeedName: {
+			IBExpects* exp;
+			assert(o->type == OP_ThingInit);
+			ObjSetName(o, ibc->Str);
+			IBLayer3PushTask(ibc, OP_SubtaskArgs, &exp, &t);
+			ExpectsInit(exp, "PPP", OP_Name, OP_String, OP_Value);
+			break;
+		}
 		case OP_FuncHasName: {
 			switch (o->type) {
 			case OP_FuncArgNameless: {
@@ -3372,7 +3387,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			CASE_BLOCKWANTCODE
 			{
-
+				IBTask* t;
+				IBExpects* exp;
+				Obj* o;
+				IBLayer3PushTask(ibc, OP_ThingInitNeedName, &exp, &t);
+				ExpectsInit(exp, "1P", "expected thing name", OP_Name);
+				IBLayer3PushObj(ibc, &o);
+				ObjSetType(o, OP_ThingInit);
 				break;
 			}
 			default: Err(OP_Error, "can't use thing here");
