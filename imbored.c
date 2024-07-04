@@ -758,7 +758,7 @@ OpNamePair pfxNames[] = {
 	{"VarType(%)", OP_VarType},{"Pointer(&)", OP_Pointer},
 	{"Return(@ret)", OP_Return},{"OP_Unknown", OP_Unknown},
 	{"String(\")", OP_String},{"LineEnd(\\n)", OP_LineEnd},
-	{"Tab character", OP_TabChar},
+	{"Tab character", OP_TabChar},{"Exclaim", OP_Exclaim},
 };
 OpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
@@ -2751,6 +2751,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 		Err(OP_ErrUnexpectedNextPfx, "");
 	}
 	IBPushColor(IBBgMAGENTA);
+	//PFX: 
 	DbgFmt("PFX","");
 	IBPopColor();
 	DbgFmt(": ", "");
@@ -2766,6 +2767,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	}
 	case OP_VarType:
 		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
+	case OP_Exclaim:
 	case OP_Value:
 	case OP_Op:
 	case OP_Name:
@@ -3358,7 +3360,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBTask* t=NULL;
 			IBExpects* exp=NULL;
 			IBLayer3PushTask(ibc, OP_ActOnName, &exp, &t);
-			ExpectsInit(exp, "P", OP_Equals);
+			ExpectsInit(exp, "P", OP_Value);
 			break;
 		}
 		case OP_VarNeedName:
