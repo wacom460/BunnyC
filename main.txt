@@ -1,4 +1,6 @@
 @use $sys
+@thing $az
+@@
 @thing $tz
 	%i64 $e
 	@func $test

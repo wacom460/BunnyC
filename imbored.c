@@ -4,6 +4,8 @@
 #define IB_HEADER
 #include "imbored.c" //access the compiler and structures
 */
+#define DEBUGPRINTS
+
 #define _CRT_SECURE_NO_WARNINGS 1
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,8 +85,6 @@ typedef enum IBColor {
 void IBSetColor(IBColor col);
 void IBPushColor(IBColor col);
 void IBPopColor();
-
-#define DEBUGPRINTS
 
 #define CASE_BLOCKWANTCODE \
 case OP_BlockWantCode: \
@@ -210,6 +210,8 @@ X(GreaterThan) \
 X(LessThanOrEquals) \
 X(GreaterThanOrEquals) \
 X(CPrintfHaveFmtStr) \
+X(BracketOpen) \
+X(BracketClose) \
 X(ParenthesisOpen) \
 X(ParenthesisClose) \
 X(CurlyBraceOpen) \
@@ -238,7 +240,8 @@ X(IfNeedRVal) \
 X(IfFinished) \
 X(IBCodeBlock) \
 X(ThingInitNeedName) \
-X(Exclaimation) \
+X(Exclaim) \
+X(Caret) \
 X(Underscore) \
 X(YouCantUseThatHere) \
 X(TableNeedExpr) \
@@ -308,6 +311,8 @@ X(ModePrefixPass) \
 X(ModeStrPass) \
 X(ModeComment) \
 X(ModeMultiLineComment) \
+X(ActOnName) \
+X(ActOnNameEquals) \
 
 #define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
@@ -512,7 +517,6 @@ void _ObjSetType(Obj* obj, Op type);
 	PLINE;\
 	_ObjSetType(obj, type);\
 }
-Op ObjGetMod(Obj* obj);
 void ObjSetMod(Obj* obj, Op mod);
 void _ObjSetName(Obj* obj, char* name);
 #define ObjSetName(obj, name){\
@@ -1276,12 +1280,17 @@ Op fromPfxCh(char ch) {
 	case '*': return OP_Multiply;
 	case '<': return OP_LessThan;
 	case '>': return OP_GreaterThan;
-	case '!': return OP_Exclaimation;
+	case '!': return OP_Exclaim;
+	case '^': return OP_Caret; /* "code portals" */
 	case '_': return OP_Underscore;
 	case '(': return OP_ParenthesisOpen;
 	case ')': return OP_ParenthesisClose;
 	case '{': return OP_CurlyBraceOpen;
 	case '}': return OP_CurlyBraceClose;
+	case '[': return OP_BracketOpen;
+	case ']': return OP_BracketClose;
+	case ',': return OP_Comma;
+	case '.': return OP_Dot;
 	default: return OP_Unknown;
 	}
 }
@@ -1786,7 +1795,6 @@ void _ObjSetType(Obj* obj, Op type) {
 		GetOpName(obj->type), (int)obj->type, GetOpName(type), (int)type);
 	obj->type = type;
 }
-Op ObjGetMod(Obj* obj) { return obj->modifier; }
 void ObjSetMod(Obj* obj, Op mod) {
 	DbgFmt("obj mod: %s(%d) -> %s(%d)\n",
 		GetOpName(obj->modifier), (int)obj->modifier, GetOpName(mod), (int)mod);
@@ -1984,7 +1992,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	}
 	switch (ibc->Ch) {
 	case '\0': return;
-	case '\n': {
+	case '\n': { /* \n PFXLINEEND */
 		t=IBLayer3GetTask(ibc);
 		nl = true;
 		/*if (ibc->CommentMode == OP_NotSet)*/ {
@@ -2027,6 +2035,10 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		o=IBLayer3GetObj(ibc);
 		assert(t->type > 0);
 		switch(t->type){
+		case OP_VarWantValue:{
+			IBLayer3PopTask(ibc, &t, false);
+			break;
+		}
 		case OP_SetCallWantArgs: {
 			if (o->type == OP_ArgNeedValue)
 				IBLayer3PopObj(ibc, false, &o);
@@ -2494,7 +2506,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			case OP_CompletedFunction: {/*should only happen once*/
 				Op mod;
 				funcObj = o;
-				mod = ObjGetMod(o);
+				mod = o->modifier;
 				if (mod != OP_NotSet) {
 					IBStrAppendCStr(&cFuncModsTypeName, GetCEqu(mod));
 					IBStrAppendCStr(&cFuncModsTypeName, " ");
@@ -2886,7 +2898,28 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	IBPopColor();
 	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
-	case OP_String: { /* " PFXSTRING */
+	/* ! PFXEXCLAIM */ case OP_Exclaim: {
+		switch (t->type) {
+		case OP_ActOnNameEquals: {
+			IBExpects* exp;
+			Obj* o;
+			IBLayer3PushObj(ibc, &o);
+			ObjSetStr(o, ibc->Str);
+			ObjSetType(o, OP_Call);
+			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3PushObj(ibc, &o);
+			SetObjType(o, OP_ArgNeedValue);
+			SetTaskType(t, OP_CallWantArgs);
+			IBLayer3ReplaceExpects(ibc, &exp);
+			ExpectsInit(exp, "PPPP",
+				OP_Name, OP_Value, OP_String, OP_LineEnd);
+			break;
+		}
+		CASE_UNIMP
+		}
+		break;
+	}
+	/* " PFXSTRING */ case OP_String: {
 		switch(t->type){
 		case OP_BlockReturnNeedValue: {
 			switch (o->type) {
@@ -2932,8 +2965,20 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		break;
 	}
-	case OP_Value: { /* = PFXVALUE */		
+	/* = PFXVALUE */ case OP_Value: {
 		switch (t->type) {
+		case OP_ActOnName: {
+			switch (ibc->NameOp) {
+			case OP_EmptyStr: {
+				IBExpects* exp;
+				IBLayer3ReplaceExpects(ibc, &exp);
+				ExpectsInit(exp, "P", OP_Exclaim);
+				break;
+			}
+			CASE_UNIMP
+			}
+			break;
+		}
 		case OP_SetNeedVal:{
 			o->val = strVal;
 			o->valType = OP_Value;
@@ -3008,17 +3053,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
-		/*case OP_ActOnVarName: {
-			switch (ibc->NameOp) {
-			case OP_EmptyStr: {
-				IBExpects* exp;
-				IBLayer3PushExpects(ibc, &exp);
-				ExpectsInit(exp, "PPPPN", OP_Op, OP_Name, OP_Value, OP_String, OP_Call);
-				break;
-			}
-			}
-			break;
-		}*/
 		case OP_CPrintfHaveFmtStr:{
 			Obj *o;
 			IBLayer3PushObj(ibc, &o);
@@ -3048,7 +3082,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		break;
 	}
-	case OP_VarType: { /* % PFXVARTYPE */
+	/* % PFXVARTYPE */ case OP_VarType: {
 		switch (t->type) {
 		case OP_FuncHasName: {
 			switch (o->type) {
@@ -3094,20 +3128,21 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		{
 			Obj* o;
 			IBExpects* exp;
+			IBTask* t;
 			IBLayer3PushObj(ibc, &o);
 			o->var.type = ibc->NameOp;
 			o->var.mod = ibc->Pointer;
 			o->var.valSet = false;
 			SetObjType(o, OP_VarNeedName);
-			IBLayer3PushExpects(ibc, &exp);
+			IBLayer3PushTask(ibc, OP_VarNeedName, &exp, &t);
 			ExpectsInit(exp, "1P", "expected variable name", OP_Name);
 			break;
 		}
 		}
 		break;
 	}
-	case OP_Name: { /* $ PFXNAME */
-		switch(t->type){
+	/* $ PFXNAME */ case OP_Name: {
+		switch(t->type) {
 		case OP_ThingInitNeedName: {
 			IBExpects* exp;
 			assert(o->type == OP_ThingInit);
@@ -3209,10 +3244,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 					OP_Value, OP_Name, OP_String, OP_Op, OP_Call);
 				break;
 			}
-			default: {
-				Err(OP_Error, "wrong obj type");
-				break;
-			}
+			CASE_UNIMP
 			}
 			break;
 		}
@@ -3322,6 +3354,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			break;
 		}
 		CASE_BLOCKWANTCODE
+		{
+			IBTask* t=NULL;
+			IBExpects* exp=NULL;
+			IBLayer3PushTask(ibc, OP_ActOnName, &exp, &t);
+			ExpectsInit(exp, "P", OP_Equals);
+			break;
+		}
+		case OP_VarNeedName:
 		case OP_ThingWantContent: {
 			switch (o->type) {
 			case OP_VarNeedName: {
@@ -3329,9 +3369,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
 				NameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
 					IBLayer3GetObj(ibc)->var.type);
+				if(t->type==OP_VarNeedName) SetTaskType(t, OP_VarWantValue);//FIXME: bad
 				SetObjType(o, OP_VarWantValue);
-				PopExpects();
-				IBLayer3PushExpects(ibc, &exp);
+				IBLayer3ReplaceExpects(ibc, &exp);
 				ExpectsInit(exp, "1PP",
 					"expected value or line end after var name",
 					OP_Value, OP_LineEnd);
@@ -3343,7 +3383,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		break;
 	}
-	case OP_Op: { /* @ PFXOP */
+	/* @ PFXOP */ case OP_Op: {
 		bool expected;
 		expected = IBLayer3IsNameOpExpected(ibc, ibc->NameOp);
 		if(!expected)Err(OP_ErrUnexpectedNameOP, "unexpected nameOP");
@@ -3743,11 +3783,11 @@ void IBLayer3ExplainErr(IBLayer3* ibc, Op code) {
 		t=IBLayer3GetTask(ibc);
 		assert(t);
 		exp = IBTaskGetExpTop(t);
-		IBPushColor(IBBgBLUE | IBBgGREEN);
+		//IBPushColor(IBBgBLUE | IBBgGREEN);
 		printf("NameOP \"@%s\" wasn't expected.\nExpected:\n", 
 			ibc->Str);
 		ExpectsPrint(exp);
-		IBPopColor();
+		//IBPopColor();
 		break;
 	}
 	case OP_ErrUnknownPfx:
