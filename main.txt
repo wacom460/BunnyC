@@ -5,7 +5,7 @@
 @@
 @func $main @ret %i32
 	%i32 $a
-	~%i32 $b =40
-	~$a = !t $b
+	%i32 $b =40
+	$a = !t $b
 	~!v
 @@ $a

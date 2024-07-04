@@ -168,9 +168,9 @@ X(FuncSigComplete) \
 X(FuncNeedRetVal) \
 X(FuncArg) \
 X(CompletedFunction) \
+X(Var) \
 X(VarNeedName) \
 X(VarWantValue) \
-X(VarComplete) \
 X(BlockReturnNeedValue) \
 X(ArgNeedValue) \
 X(Arg) \
@@ -233,7 +233,6 @@ X(IfNeedMidOP) \
 X(IfNeedRVal) \
 X(IfFinished) \
 X(IBCodeBlock) \
-X(Var) \
 X(ThingInitNeedName) \
 X(Exclaim) \
 X(Caret) \
@@ -2015,13 +2014,12 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		{
 			switch (o->type) {
 			case OP_Var:
-			case OP_VarWantValue:
-			case OP_VarComplete: {
+			case OP_VarWantValue: {
 				IBLayer3PopObj(ibc, true, &o);
 				break;
 			}
-			case OP_NotSet: break;
-			CASE_UNIMP
+			//case OP_NotSet: break;
+			//CASE_UNIMP
 			}
 			break;
 		}
@@ -2452,8 +2450,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				break;
 			}
 			case OP_Var:
-			case OP_VarWantValue:
-			case OP_VarComplete: {
+			case OP_VarWantValue: {
 				IBStrAppendCStr(&body, "\t");
 				IBStrAppendCStr(&body, GetCEqu(o->var.type));
 				IBStrAppendCStr(&body, GetCEqu(o->var.mod));
@@ -2569,8 +2566,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		while (o= (Obj*)IBVectorIterNext(wObjs,&idx)) {
 			switch (o->type) {
 			case OP_Var:
-			case OP_VarWantValue:
-			case OP_VarComplete: {
+			case OP_VarWantValue: {
 				char valBuf[32];
 				valBuf[0] = '\0';
 				IBStrAppendCStr(&cFuncCode, "\t");
@@ -3028,7 +3024,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				o = IBLayer3GetObj(ibc);
 				o->var.val = strVal;
 				o->var.valSet = true;
-				SetObjType(o, OP_VarComplete);
+				SetObjType(o, OP_Var);
 				IBLayer3PopTask(ibc, &t, false);
 				break;
 			}
