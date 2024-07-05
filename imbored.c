@@ -112,6 +112,18 @@ void _PrintLine(int l) {
 #else
 #define PLINE
 #endif
+#define CASE_0THRU9 case '0': case '1': case '2': case '3': \
+case '4': case '5': case '6': case '7': case '8': case '9':
+#define CASE_aTHRUz case 'a': case 'b': case 'c': case 'd': \
+case 'e': case 'f': case 'g': case 'h': case 'i': case 'j': \
+case 'k': case 'l': case 'm': case 'n': case 'o': case 'p': \
+case 'q': case 'r': case 's': case 't': case 'u': case 'v': \
+case 'w': case 'x': case 'y': case 'z':
+#define CASE_ATHRUZ case 'A': case 'B': case 'C': case 'D': \
+case 'E': case 'F': case 'G': case 'H': case 'I': case 'J': \
+case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': \
+case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': \
+case 'W': case 'X': case 'Y': case 'Z':
 #define OP_NAME_LEN 32
 #define COMMENT_CHAR ('~')
 #define IBLayer3STR_MAX 64
@@ -284,12 +296,13 @@ X(UseNeedStr) \
 X(UseStrSysLib) \
 X(NameInfoDB) \
 X(NameInfo) \
-X(Bool) \
 X(Expects) \
 X(ElseIf) \
 X(EmptyStr) \
 X(BuildingIf) \
 X(SubtaskArgs) \
+X(FloatOrDouble) \
+X(Int) \
 /*X(SetNeedName) \
 X(SetNeedVal) \ */ \
 X(NotFound) \
@@ -327,7 +340,7 @@ typedef struct IBStr {
 	char *start;
 	char* end; /*ptr of null terminator '\0'*/
 } IBStr;
-void IBStrInit(IBStr* str, size_t reserve);
+void IBStrInit(IBStr* str);
 void IBStrFree(IBStr* str);
 void IBStrClear(IBStr* str);
 void IBStrInitNTStr(IBStr* str, char* nullTerminated);
@@ -699,6 +712,7 @@ Op IBLayer3GetMode(IBLayer3* ibc);
 IBExpects* IBTaskGetExpTop(IBTask* t);
 IBVector* IBTaskGetExpPfxsTop(IBTask *t);
 IBVector* IBTaskGetExpNameOPsTop(IBTask* t);
+Op IBJudgeTypeOfStrValue(IBLayer3* ibc, IBStr* str);
 
 #define SetTaskType(task, tt){\
 	assert(task);\
@@ -798,10 +812,9 @@ char* SysLibCodeStr =
 ;
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
-void IBStrInit(IBStr* str, size_t reserve){
-	IBASSERT(reserve > 0, "Reserve must be > 0");
+void IBStrInit(IBStr* str) {
 	assert(str);
-	str->start = (char*)malloc(reserve);
+	str->start = (char*)malloc(1);
 	assert(str->start);
 	str->end = str->start;
 	if(str->start) (*str->start) = '\0';
@@ -1022,11 +1035,11 @@ char* StrConcat(char* dest, int count, char* src) {
 	return strcat(dest, src);
 }
 void IBCodeBlockInit(IBCodeBlock* block){
-	IBStrInit(&block->header, 1);
-	IBStrInit(&block->variables, 1);
-	IBStrInit(&block->varsInit, 1);
-	IBStrInit(&block->code, 1);
-	IBStrInit(&block->footer, 1);
+	IBStrInit(&block->header);
+	IBStrInit(&block->variables);
+	IBStrInit(&block->varsInit);
+	IBStrInit(&block->code);
+	IBStrInit(&block->footer);
 }
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
 	IBStrAppendFmt(output, 
@@ -1512,12 +1525,12 @@ void IBLayer3Init(IBLayer3* ibc){
 	ibc->ColumnIS = 1;
 	ibc->Pfx = OP_Null;
 	ibc->Str[0] = '\0';
-	IBStrInit(&ibc->CHeaderStructs, 1);
-	IBStrInit(&ibc->CHeaderFuncs, 1);
-	IBStrInit(&ibc->CurrentLineStr, 1);
+	IBStrInit(&ibc->CHeaderStructs);
+	IBStrInit(&ibc->CHeaderFuncs);
+	IBStrInit(&ibc->CurrentLineStr);
 	IBStrAppendCStr(&ibc->CHeaderStructs, 
 		"#ifndef HEADER_H_\n#define HEADER_H_\n\n");
-	IBStrInit(&ibc->CFile, 1);
+	IBStrInit(&ibc->CFile);
 	IBStrAppendCStr(&ibc->CFile, "#include \"header.h\"\n\n");
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
@@ -2214,6 +2227,7 @@ char* IBLayer3GetCPrintfFmtForType(IBLayer3* ibc, Op type) {
 	case OP_f32:    return "f";
 	case OP_u32:    return "u";
 	case OP_Char:   return "c";
+	case OP_Bool:   return "s";
 	}
 	Err(OP_Error, "GetPrintfFmtForType: unknown type");
 	return "???";
@@ -2264,7 +2278,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		assert(st);
 		assert(o);
 		assert(o->type == OP_ActOnName);
-		IBStrInit(&fc, 1);
+		IBStrInit(&fc);
 		IBCodeBlockFinish(&st->code, &fc);
 		IBStrAppendCh(&cb->variables, '\t', tabCount);
 		IBStrAppendFmt(&cb->variables, "%s = %s;\n", o->name, fc.start);
@@ -2492,11 +2506,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		Obj* o;
 		int idx;
 
-		IBStrInit(&header, 1);
-		IBStrInit(&body, 1);
-		IBStrInit(&footer, 1);
-		IBStrInit(&hFile, 1);
-		IBStrInit(&cFile, 1);
+		IBStrInit(&header);
+		IBStrInit(&body);
+		IBStrInit(&footer);
+		IBStrInit(&hFile);
+		IBStrInit(&cFile);
 		idx = 0;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
@@ -2563,11 +2577,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 
 		thingObj = NULL;
 		argc = 0;
-		IBStrInit(&cFuncModsTypeName, 1);
-		IBStrInit(&cFuncArgsThing, 1);
-		IBStrInit(&cFuncArgs, 1);
-		IBStrInit(&cFuncArgsEnd, 1);
-		IBStrInit(&cFuncCode, 1);
+		IBStrInit(&cFuncModsTypeName);
+		IBStrInit(&cFuncArgsThing);
+		IBStrInit(&cFuncArgs);
+		IBStrInit(&cFuncArgsEnd);
+		IBStrInit(&cFuncCode);
 		idx = 0;
 		funcObj = NULL;
 		for (i = 0; i < wObjs->elemCount; ++i) {
@@ -2664,7 +2678,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			IBStr cbOut;
 			IBCodeBlock* cb;
 			IBStrAppendCStr(&cFuncArgsEnd, ") {\n");
-			IBStrInit(&cbOut, 1);
+			IBStrInit(&cbOut);
 			cb=IBLayer3CodeBlocksTop(ibc);
 			IBCodeBlockFinish(cb, &cbOut);
 			IBStrAppend(&cFuncCode, &cbOut);
@@ -2785,7 +2799,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				o = (Obj*)IBVectorGet(wObjs, i);
 				switch (o->type) {
 				case OP_Name: {
-					IBStrAppendCStr(&cb->code, o->name);
+					Op type =
+						NameInfoDBFindType(&ibc->NameTypeCtx, o->name);
+					if(type == OP_Bool) IBStrAppendFmt(&cb->code, "%s ? \"yes\" : \"no\"", o->name);
+					else IBStrAppendCStr(&cb->code, o->name);
 					break;
 				}
 				case OP_String: {
@@ -2981,6 +2998,31 @@ IBVector* IBTaskGetExpNameOPsTop(IBTask* t){
 	ret = (IBExpects*)IBVectorTop(&t->expStack);
 	assert(ret);
 	return &ret->nameOps;
+}
+Op IBJudgeTypeOfStrValue(IBLayer3* ibc, IBStr* str) {
+	int numbers = 0;
+	int letters = 0;
+	int periods = 0;
+	int sl = 0;
+	int i;
+	assert(str);
+	sl = IBStrGetLen(str);
+	if (!sl) return OP_EmptyStr;
+	for (i = 0; i < sl; i++) {
+		char c = str->start[i];
+		switch (c) {
+		case '.': { periods++; break; }
+		CASE_0THRU9 { numbers++; break; }
+		CASE_aTHRUz
+		CASE_ATHRUZ { letters++; break; }
+		}
+	}
+	if (!strcmp(str->start, "yes")) return OP_True;
+	if (!strcmp(str->start, "no")) return OP_False;
+	if (numbers > letters && periods == 1) return OP_FloatOrDouble;
+	if (letters && numbers) return OP_String;
+	if (numbers) return OP_Int;
+	return OP_Unknown;
 }
 void IBLayer3StrPayload(IBLayer3* ibc){
 	Val strVal;
