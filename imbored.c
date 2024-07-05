@@ -2293,7 +2293,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			case OP_VarComplete:
 			case OP_VarWantValue: {
 				IBStrAppendCh(&cb->variables, '\t', tabCount);
-				IBStrAppendFmt(&cb->variables, "%s%s %s = %d;\n", GetCEqu(o->var.type), GetCEqu(o->var.mod), o->name, o->val.i32);
+				IBStrAppendFmt(&cb->variables, "%s%s %s = %d;\n", GetCEqu(o->var.type), GetCEqu(o->var.mod), o->name, o->var.val.i32);
 				break;
 			}
 			}
