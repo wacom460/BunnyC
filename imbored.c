@@ -170,6 +170,7 @@ X(Any) \
 X(Use) \
 X(Build) \
 X(Call) \
+X(Case) \
 X(CallWantArgs) \
 X(Space) \
 X(Func) \
@@ -254,6 +255,7 @@ X(Caret) \
 X(Underscore) \
 X(YouCantUseThatHere) \
 X(TableNeedExpr) \
+X(TableWantCase) \
 X(IfBlockWantCode) \
 X(BlockWantCode) \
 X(FuncWantCode) \
@@ -769,6 +771,7 @@ OpNamePair PairNameOps[] = {
 	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
 	{"thing", OP_Thing},{"repr", OP_Repr},{"elif", OP_ElseIf},
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
+	{"case", OP_Case},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -1123,6 +1126,7 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char *fmt, ...) {
 	Op pfx;
 	Op nameOp;
 	int i;
+	assert(exp);
 	IBVectorInit(&exp->pfxs, sizeof(Op), OP_Op);
 	IBVectorInit(&exp->nameOps, sizeof(Op), OP_Op);
 	exp->pfxErr="";
@@ -1692,7 +1696,16 @@ void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** 
 	IBVectorPush(&t->expStack, exectsDP);
 	if (!exectsDP) {
 		IBExpects* exp=IBTaskGetExpTop(t);
-		ExpectsInit(exp, "P", OP_Null);
+		switch (taskOP) {
+		case OP_NeedExpression: {
+			ExpectsInit(exp, "PPPPPP", OP_Value, OP_Name, OP_Add, OP_Subtract, OP_Divide, OP_Multiply);
+			break;
+		}
+		default: {
+			ExpectsInit(exp, "P", OP_Null);
+			break;
+		}
+		}
 	}
 }
 void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP, bool popToParent) {
@@ -2048,6 +2061,15 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			IBLayer3FinishTask(ibc);
 			t= IBLayer3GetTask(ibc);
 			switch (t->type) {
+			case OP_TableNeedExpr: {
+				IBExpects* exp=NULL;
+				assert(t->subTasks.elemCount == 1);
+				SetTaskType(t, OP_TableWantCase);
+				IBLayer3ReplaceExpects(ibc, &exp);
+				ExpectsInit(exp, "PNN", OP_Op, OP_Case, OP_Done);
+				IBLayer3PushCodeBlock(ibc, NULL);
+				break;
+			}
 			case OP_ExprToName: {
 				IBLayer3FinishTask(ibc);
 				break;
@@ -2273,6 +2295,20 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	cb=IBLayer3CodeBlocksTop(ibc);
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
+	case OP_TableWantCase: {
+		IBStr fo;
+		IBTask* st;
+		assert(t->subTasks.elemCount == 1);
+		st=IBVectorGet(&t->subTasks, 0);
+		IBStrInit(&fo);
+		IBCodeBlockFinish(&st->code, &fo);
+		IBStrAppendCh(&cb->header, '\t', tabCount - 1);
+		IBStrAppendFmt(&cb->header, "switch (%s) {\n", fo.start);
+		IBStrAppendCh(&cb->footer, '\t', tabCount - 1);
+		IBStrAppendFmt(&cb->footer, "}\n");
+		IBLayer3PopCodeBlock(ibc, true, &cb);
+		break;
+	}
 	case OP_ExprToName: /*{
 
 		break;
@@ -2295,17 +2331,48 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	case OP_NeedExpression: {
 		int idx = 0;
 		Obj* o = NULL;
+		bool onOp = false;
+		bool gotVal = false;
 		if(wObjs->elemCount < 1)Err(OP_Error, "empty expression!");
 		pop2Parent = true;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
+			case OP_Add: {
+				if(!gotVal)Err(OP_Error, "missing op lval in expression");
+				onOp = true;
+				gotVal = false;
+				IBStrAppendFmt(&t->code.code, "%s", " + ");
+			}
+			case OP_Name: {
+				IBStrAppendFmt(&t->code.code, "%s", o->name);
+				break;
+			}
 			case OP_Value: {
-				IBStrAppendFmt(&t->code, "%d", o->val.i32);
+				gotVal = true;
+				switch (o->valType) {
+				case OP_d64: {
+					IBStrAppendFmt(&t->code.code, "%f", o->val.d64);
+					break;
+				}
+				case OP_f32: {
+					IBStrAppendFmt(&t->code.code, "%f", o->val.f32);
+					break;
+				}
+				case OP_i32: {
+					IBStrAppendFmt(&t->code.code, "%d", o->val.i32);
+					break;
+				}
+				}
+				if (onOp) {
+					IBStrAppendFmt(&t->code.header, "%s", "(");
+					IBStrAppendFmt(&t->code.code, "%s", ")");
+				}
 				break;
 			}
 			CASE_UNIMP
 			}
 		}
+		if (onOp) Err(OP_Error, "missing op rval in expression");
 		break;
 	}
 	case OP_VarWantValue: {
@@ -2316,7 +2383,24 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			case OP_VarComplete:
 			case OP_VarWantValue: {
 				IBStrAppendCh(&cb->variables, '\t', tabCount);
-				IBStrAppendFmt(&cb->variables, "%s%s %s = %d;\n", GetCEqu(o->var.type), GetCEqu(o->var.mod), o->name, o->var.val.i32);
+				IBStrAppendFmt(&cb->variables, "%s%s %s = ", GetCEqu(o->var.type), GetCEqu(o->var.mod), o->name);
+				switch (o->var.type) {
+				case OP_i64:
+				case OP_i32: {
+					IBStrAppendFmt(&cb->variables, "%d", o->var.val.i32);
+					break;
+				}
+				case OP_d64: {
+					IBStrAppendFmt(&cb->variables, "%f", o->var.val.d64);
+					break;
+				}
+				case OP_f32: {
+					IBStrAppendFmt(&cb->variables, "%f", o->var.val.f32);
+					break;
+				}
+				CASE_UNIMP
+				}
+				IBStrAppendFmt(&cb->variables, "%s\n", ";");
 				break;
 			}
 			}
@@ -2883,6 +2967,10 @@ void IBLayer3Prefix(IBLayer3* ibc){
 		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
 	case OP_LessThan:
 	case OP_GreaterThan:
+	case OP_Add:
+	case OP_Subtract:
+	case OP_Multiply:
+	case OP_Divide:
 	case OP_Dot:
 	case OP_Caret:
 	case OP_Underscore:
@@ -3098,6 +3186,27 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	IBPopColor();
 	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
+	case OP_Multiply:
+	case OP_Divide:
+	case OP_Subtract:
+	case OP_Add: {
+		switch (ibc->NameOp) {
+		case OP_EmptyStr: {
+			switch (t->type) {
+			case OP_NeedExpression: {
+				Obj* o;
+				IBLayer3PushObj(ibc, &o);
+				ObjSetType(o, ibc->Pfx);
+				IBLayer3PopObj(ibc, true, &o);
+				break;
+			}
+			}
+			break;
+		}
+		CASE_UNIMP
+		}
+		break;
+	}
 	/* < PFXLESSTHAN */ case OP_LessThan: {
 		switch (t->type) {
 		case OP_ActOnName: {
@@ -3106,8 +3215,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			case OP_Subtract: {
 				IBExpects* exp=NULL;
 				SetTaskType(t, OP_ExprToName);
-				IBLayer3PushTask(ibc, OP_NeedExpression, &exp, NULL);
-				ExpectsInit(exp, "P", OP_Value);
+				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, NULL);
 				break;
 			}
 			CASE_UNIMP
@@ -3339,6 +3447,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			idx = 0;
 			while (o = (Obj*)IBVectorIterNext(&t->working,&idx)) {
 				if (o->type == OP_FuncSigComplete) {
+					Op valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
+					switch (o->func.retValType) {
+					case OP_i32: { 
+						if (valType != OP_Number)
+							Err(OP_YouCantUseThatHere, "wrong return value type for this function");
+						break;
+					}
+					CASE_UNIMP
+					}
 					DbgFmt("Finishing func got ret value\n","");
 					o->func.retVal = IBLayer3StrToVal(ibc, ibc->Str, o->func.retValType);
 					o->func.retTYPE = OP_Value;
@@ -3414,6 +3531,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	/* $ PFXNAME */ case OP_Name: {
 		switch(t->type) {
+		case OP_NeedExpression: {
+			Obj* o;
+			IBLayer3PushObj(ibc, &o);
+			ObjSetType(o, OP_Name);
+			ObjSetName(o, ibc->Str);
+			IBLayer3PopObj(ibc, true, &o);
+			break;
+		}
 		case OP_ThingInitNeedName: {
 			IBExpects* exp;
 			assert(o->type == OP_ThingInit);
@@ -3471,6 +3596,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			idx = 0;
 			while (o = (Obj*)IBVectorIterNext(&t->working, &idx)) {
 				if (o->type == OP_FuncSigComplete) {
+					Op nameType = NameInfoDBFindType(&ibc->NameTypeCtx, ibc->Str);
+					if(nameType==OP_NotFound)Err(OP_NotFound, "variable name not found");
+					if (o->func.retValType != nameType) Err(OP_Error, "variable doesn't match function return type");
 					DbgFmt("Finishing func got ret value as name\n", "");
 					OverwriteStr(&o->func.retStr, ibc->Str);
 					o->func.retTYPE = OP_Name;
@@ -3742,12 +3870,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			CASE_BLOCKWANTCODE
 			{
 				IBTask* t=NULL;
-				Obj* o=NULL;
-				IBExpects* exp=NULL;
-				IBLayer3PushTask(ibc, OP_TableNeedExpr, &exp, &t);
-				ExpectsInit(exp, "P", OP_Name);
-				/*IBLayer3PushObj(ibc, &o);
-				ObjSetType(o, OP_Table);*/
+				IBLayer3PushTask(ibc, OP_TableNeedExpr, NULL, NULL);
+				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
 				break;
 			}
 			}
@@ -3802,6 +3926,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_Done: {
 			if (ibc->TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
 			switch (t->type) {
+			case OP_TableWantCase: {
+				IBLayer3FinishTask(ibc);
+				break;
+			}
 			case OP_ThingWantContent: {
 				Obj* o;
 				o = IBLayer3GetObj(ibc);
