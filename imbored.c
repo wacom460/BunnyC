@@ -2432,6 +2432,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 					IBStrAppendFmt(&t->code.header, "%s", "(");
 					IBStrAppendFmt(&t->code.code, "%s", ")");
 				}
+				onOp = false;
 				break;
 			}
 			CASE_UNIMP
