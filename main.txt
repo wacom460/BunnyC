@@ -1,16 +1,10 @@
+@use $sys
+
 @func $f %i32 $z @ret %i32
 	
 @@ =20
+
 @func $main @ret %i32
 	%i32 $a
-	%i32 $b
-	$a = !f =10
-	"fuck"
-	@if $a @gteq =10
-		%i32 $z
-	@elif $b @eq =20
-		%i16 $s
-	@else
-		%i64 $f
-	@@
+	$a <- =10
 @@ $a

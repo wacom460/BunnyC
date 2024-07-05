@@ -246,6 +246,7 @@ X(SpaceChar) \
 X(Comma) \
 X(CommaSpace) \
 X(Name) \
+X(ExprToName) \
 X(String) \
 X(CPrintfFmtStr) \
 X(Char) \
@@ -269,6 +270,7 @@ X(Pointer) \
 X(DoublePointer) \
 X(TripplePointer) \
 X(IBLayer3Flags) \
+X(NeedExpression) \
 X(dbgBreak) \
 X(dbgAssert) \
 X(dbgAssertWantArgs) \
@@ -743,7 +745,7 @@ OpNamePair PairNameOps[] = {
 	{"i8", OP_i8},{"i16", OP_i16},
 	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
 	{"thing", OP_Thing},{"repr", OP_Repr},{"elif", OP_ElseIf},
-	{"", OP_EmptyStr},{"table", OP_Table},
+	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -751,7 +753,17 @@ OpNamePair pfxNames[] = {
 	{"VarType(%)", OP_VarType},{"Pointer(&)", OP_Pointer},
 	{"Return(@ret)", OP_Return},{"OP_Unknown", OP_Unknown},
 	{"String(\")", OP_String},{"LineEnd(\\n)", OP_LineEnd},
-	{"Tab character", OP_TabChar},{"Exclaim", OP_Exclaim},
+	{"Tab character", OP_TabChar},{"Exclaim(!)", OP_Exclaim},
+	{"Caret(^)", OP_Caret},{"Underscore(_)", OP_Underscore},
+	{"ParenthesisOpen( ( )", OP_ParenthesisOpen},
+	{"ParenthesisClose( ) )", OP_ParenthesisClose},
+	{"CurlyBraceOpen( { )", OP_CurlyBraceOpen},
+	{"CurlyBraceClose( } )", OP_CurlyBraceClose},
+	{"BracketOpen( [ )", OP_BracketOpen},
+	{"BracketClose( ] )", OP_BracketClose},
+	{"Dot(.)", OP_Dot},{"LessThan(<)", OP_LessThan},
+	{"GreaterThan(>)", OP_GreaterThan},
+	{"Comma(,)", OP_Comma},
 };
 OpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
@@ -2010,6 +2022,18 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		o=IBLayer3GetObj(ibc);
 		assert(t->type > 0);
 		switch(t->type){
+		case OP_NeedExpression: {
+			IBLayer3FinishTask(ibc);
+			t= IBLayer3GetTask(ibc);
+			switch (t->type) {
+			case OP_ExprToName: {
+				IBLayer3FinishTask(ibc);
+				break;
+			}
+			CASE_UNIMP
+			}
+			break;
+		}
 		CASE_BLOCKWANTCODE
 		{			
 			break;
@@ -2226,6 +2250,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	cb=IBLayer3CodeBlocksTop(ibc);
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
+	case OP_ExprToName: /*{
+
+		break;
+	}*/
 	case OP_ActOnNameEquals: {
 		IBTask* st;
 		IBStr fc;
@@ -2239,6 +2267,22 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBCodeBlockFinish(&st->code, &fc);
 		IBStrAppendCh(&cb->variables, '\t', tabCount);
 		IBStrAppendFmt(&cb->variables, "%s = %s;\n", o->name, fc.start);
+		break;
+	}
+	case OP_NeedExpression: {
+		int idx = 0;
+		Obj* o = NULL;
+		if(wObjs->elemCount < 1)Err(OP_Error, "empty expression!");
+		pop2Parent = true;
+		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
+			switch (o->type) {
+			case OP_Value: {
+				IBStrAppendFmt(&t->code, "%d", o->val.i32);
+				break;
+			}
+			CASE_UNIMP
+			}
+		}
 		break;
 	}
 	case OP_VarWantValue: {
@@ -2811,6 +2855,18 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	}
 	case OP_VarType:
 		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
+	case OP_LessThan:
+	case OP_GreaterThan:
+	case OP_Dot:
+	case OP_Caret:
+	case OP_Underscore:
+	case OP_BracketOpen:
+	//case OP_BracketClose:
+	case OP_CurlyBraceOpen:
+	//case OP_CurlyBraceClose:
+	case OP_ParenthesisOpen:
+	//case OP_ParenthesisClose:
+	case OP_Comma:
 	case OP_Exclaim:
 	case OP_Value:
 	case OP_Op:
@@ -2944,6 +3000,26 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	IBPopColor();
 	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
+	/* < PFXLESSTHAN */ case OP_LessThan: {
+		switch (t->type) {
+		case OP_ActOnName: {
+			switch (ibc->NameOp)
+			{
+			case OP_Subtract: {
+				IBExpects* exp=NULL;
+				SetTaskType(t, OP_ExprToName);
+				IBLayer3PushTask(ibc, OP_NeedExpression, &exp, NULL);
+				ExpectsInit(exp, "P", OP_Value);
+				break;
+			}
+			CASE_UNIMP
+			}
+			break;
+		}
+		CASE_UNIMP
+		}
+		break;
+	}
 	/* ! PFXEXCLAIM */ case OP_Exclaim: {
 		switch (t->type) {
 		CASE_BLOCKWANTCODE
@@ -3019,6 +3095,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	/* = PFXVALUE */ case OP_Value: {
 		switch (t->type) {
+		case OP_NeedExpression: {
+			Obj* o=NULL;
+			IBLayer3PushObj(ibc, &o);
+			ObjSetType(o, OP_Value);
+			o->valType=OP_Value;
+			o->val=strVal;
+			IBLayer3PopObj(ibc, true, &o);
+			break;
+		}
 		case OP_ActOnName: {
 			switch (ibc->NameOp) {
 			case OP_EmptyStr: {
@@ -3414,7 +3499,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ObjSetType(o, OP_ActOnName);
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);
-			ExpectsInit(exp, "PN", OP_Value, OP_EmptyStr);
+			ExpectsInit(exp, "PP", OP_Value, OP_LessThan);
 			break;
 		}
 		case OP_VarNeedName: {
