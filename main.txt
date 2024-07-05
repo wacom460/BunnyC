@@ -1,10 +1,10 @@
 @func $main %i32 $argc %&&c8 $argv @ret %i32
 	%i32 $a =2
 	@table $a
-	~~@case =0
-		"a is zero\n"
-	@case =2 @fall
-	@case =1
-		"2 or 1\n"~~
+		@case =0
+			"a is zero\n"
+		@case =2 @fall
+		@case =1
+			"2 or 1\n"
 	@@
 @@ =0

@@ -89,8 +89,9 @@ void IBPushColor(IBColor col);
 void IBPopColor();
 
 #define CASE_BLOCKWANTCODE \
+case OP_CaseWantCode: \
 case OP_BlockWantCode: \
-case OP_IfBlockWantCode: \
+case OP_IfBlockWantCode:\
 case OP_FuncWantCode:
 
 #define CASE_UNIMP default: { \
@@ -255,7 +256,9 @@ X(Caret) \
 X(Underscore) \
 X(YouCantUseThatHere) \
 X(TableNeedExpr) \
+X(TableCaseNeedExpr) \
 X(TableWantCase) \
+X(CaseWantCode) \
 X(IfBlockWantCode) \
 X(BlockWantCode) \
 X(FuncWantCode) \
@@ -265,6 +268,7 @@ X(CommaSpace) \
 X(Name) \
 X(ExprToName) \
 X(String) \
+X(TableCase) \
 X(CPrintfFmtStr) \
 X(Char) \
 X(If) \
@@ -272,6 +276,7 @@ X(Else) \
 X(For) \
 X(Loop) \
 X(Block) \
+X(Fall) \
 X(Number) \
 X(c8) \
 X(u8) \
@@ -287,6 +292,7 @@ X(d64) \
 X(Float) \
 X(Double) \
 X(Pointer) \
+X(Break) \
 X(DoublePointer) \
 X(TripplePointer) \
 X(IBLayer3Flags) \
@@ -517,6 +523,9 @@ typedef struct VarObj {
 	Op mod;
 	Op privacy;
 } VarObj;
+typedef struct TableObj {
+	bool fallthru;
+} TableObj;
 char* GetOpName(Op op);
 typedef struct Obj {
 	Op type;
@@ -528,6 +537,7 @@ typedef struct Obj {
 	VarObj var;
 	ArgObj arg;
 	IfObj ifO;
+	TableObj table;
 	Val val;
 	Op valType;
 } Obj;
@@ -563,8 +573,10 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 * '0': life
 * '1': pfxErr
 * '2': nameOpErr
-* PUT AT END OF FMT STR: e.g. "PPPNNc"
+* 
+* PUT AT END OF FMT STR: e.g. "PPPNNc" "PPPe"
 * 'c': code block macro (adds OP_Op, OP_If, OP_VarType... etc)
+* 'e': expression macro
 */
 #define ExpectsInit(exp, fmt, ...) \
 	_ExpectsInit(__LINE__, exp, fmt, __VA_ARGS__);
@@ -634,6 +646,7 @@ Obj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, Op type);
 Obj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, Op type);
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type);
 int IBLayer3GetTabCount(IBLayer3* ibc);
+Obj* IBLayer3FindWorkingObj(IBLayer3* ibc, Op type);
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc);
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP);
 #define IBLayer3PushCodeBlock(ibc, cbDP){\
@@ -771,7 +784,7 @@ OpNamePair PairNameOps[] = {
 	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
 	{"thing", OP_Thing},{"repr", OP_Repr},{"elif", OP_ElseIf},
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
-	{"case", OP_Case},
+	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -1110,6 +1123,8 @@ void ObjInit(Obj* o) {
 	o->func.retStr = NULL;
 	memset(&o->var, 0, sizeof(VarObj));
 	memset(&o->ifO, 0, sizeof(IfObj));
+	memset(&o->table, 0, sizeof(TableObj));
+	//o->table.fallthru = false;
 	o->arg.type = OP_Null;
 	o->arg.mod = OP_NotSet;
 	o->ifO.lvName=NULL;
@@ -1165,8 +1180,17 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char *fmt, ...) {
 			//DbgFmt("NameOP:%s(%d) ", GetOpName(nameOp), (int)nameOp);
 			break;
 		}
+		case 'e': {
+			IBVectorCopyPushOp(&exp->pfxs, OP_Value);
+			IBVectorCopyPushOp(&exp->pfxs, OP_Name);
+			IBVectorCopyPushOp(&exp->pfxs, OP_Add);
+			IBVectorCopyPushOp(&exp->pfxs, OP_Subtract);
+			IBVectorCopyPushOp(&exp->pfxs, OP_Divide);
+			IBVectorCopyPushOp(&exp->pfxs, OP_Multiply);
+			break;
+		}
 		case 'c': {
-			PLINE;
+			//PLINE;
 			//DbgFmt("CodeBlockMacro ", "");
 			IBVectorCopyPushOp(&exp->pfxs, OP_Op);
 			IBVectorCopyPushOp(&exp->pfxs, OP_VarType);
@@ -1660,6 +1684,15 @@ void IBLayer3Free(IBLayer3* ibc) {
 int IBLayer3GetTabCount(IBLayer3* ibc){
 	return ibc->CodeBlockStack.elemCount - 1;
 }
+Obj* IBLayer3FindWorkingObj(IBLayer3* ibc, Op type){
+	Obj* o=NULL;
+	int idx=0;
+	IBTask* t=IBLayer3GetTask(ibc);
+	assert(t);
+	while (o = (Obj*)IBVectorIterNext(&t->working, &idx))
+		if (o->type == type) return o;
+	return NULL;
+}
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc){
 	assert(ibc->CodeBlockStack.elemCount);
 	return (IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
@@ -2061,6 +2094,15 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			IBLayer3FinishTask(ibc);
 			t= IBLayer3GetTask(ibc);
 			switch (t->type) {
+			case OP_TableCaseNeedExpr: {
+				IBExpects* exp = NULL;
+				assert(t->subTasks.elemCount == 1);
+				SetTaskType(t, OP_CaseWantCode);
+				IBLayer3ReplaceExpects(ibc, &exp);
+				ExpectsInit(exp, "Nc", OP_Case);
+				IBLayer3PushCodeBlock(ibc, NULL);
+				break;
+			}
 			case OP_TableNeedExpr: {
 				IBExpects* exp=NULL;
 				assert(t->subTasks.elemCount == 1);
@@ -3863,6 +3905,41 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBExpects* ap;
 			IBLayer3PushTask(ibc, OP_dbgAssertWantArgs, &ap, NULL);
 			ExpectsInit(ap, "1P", "expected string", OP_String);
+			break;
+		}
+		case OP_Fall: {
+			switch (t->type) {
+			case OP_CaseWantCode: {
+				Obj* o = IBLayer3FindWorkingObj(ibc, OP_TableCase);
+				//assert(o->type==OP_TableCase);
+				o->table.fallthru = true;
+				break;
+			}
+			}
+			break;
+		}
+		case OP_Case: {
+			switch(t->type) {
+			case OP_CaseWantCode: {
+				IBTask* t = NULL;
+				IBLayer3FinishTask(ibc);
+				t= IBLayer3GetTask(ibc);
+				assert(t);
+			}
+			case OP_TableWantCase: {
+				IBTask* t=NULL;
+				IBExpects* exp=NULL;
+				Obj* o = NULL;
+				IBLayer3PushObj(ibc, &o);
+				//o->table.fallthru = false;
+				SetObjType(o, OP_TableCase);
+				IBLayer3PushTask(ibc, OP_TableCaseNeedExpr, NULL, NULL);
+				IBLayer3PushTask(ibc, OP_NeedExpression, &exp, &t);
+				ExpectsInit(exp, "PNe", OP_Op, OP_Fall);
+				break;
+			}
+			CASE_UNIMP
+			}
 			break;
 		}
 		case OP_Table: {
