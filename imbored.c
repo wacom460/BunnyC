@@ -2015,14 +2015,9 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			break;
 		}
 		case OP_VarWantValue:{
-			IBLayer3PopTask(ibc, &t, false);
-			switch (o->type) {
-			case OP_VarWantValue: {
-				IBLayer3PopObj(ibc, true, &o);
-				break;
-			}
-			CASE_UNIMP
-			}
+			assert(o->type == OP_VarWantValue);
+			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3FinishTask(ibc);
 			break;
 		}
 		/*case OP_SetCallWantArgs: {
@@ -2231,6 +2226,36 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	cb=IBLayer3CodeBlocksTop(ibc);
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
+	case OP_ActOnNameEquals: {
+		IBTask* st;
+		IBStr fc;
+		Obj* o = (Obj*)IBVectorGet(wObjs, 0);
+		assert(t->subTasks.elemCount == 1);
+		st = IBVectorGet(&t->subTasks, 0);
+		assert(st);
+		assert(o);
+		assert(o->type == OP_ActOnName);
+		IBStrInit(&fc, 1);
+		IBCodeBlockFinish(&st->code, &fc);
+		IBStrAppendCh(&cb->variables, '\t', tabCount);
+		IBStrAppendFmt(&cb->variables, "%s = %s;\n", o->name, fc.start);
+		break;
+	}
+	case OP_VarWantValue: {
+		int idx = 0;
+		Obj* o = NULL;
+		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
+			switch (o->type) {
+			case OP_VarComplete:
+			case OP_VarWantValue: {
+				IBStrAppendCh(&cb->variables, '\t', tabCount);
+				IBStrAppendFmt(&cb->variables, "%s%s %s = %d;\n", GetCEqu(o->var.type), GetCEqu(o->var.mod), o->name, o->val.i32);
+				break;
+			}
+			}
+		}
+		break;
+	}
 	case OP_CallFunc: {
 		IBTask* st=NULL;
 		/*int idx = 0;
@@ -2335,7 +2360,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				IBStrAppendCStr(&t->code, ", ");
 			}
 		}
-		IBStrAppendCStr(&t->code, ");\n");
+		IBStrAppendCStr(&t->code, ")");
 		pop2Parent=true;
 		break;
 	}
@@ -2559,7 +2584,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			}
 			}
 		}
-		idx = 0;
+		/*idx = 0;
 		while (o= (Obj*)IBVectorIterNext(wObjs,&idx)) {
 			switch (o->type) {
 			case OP_VarComplete:
@@ -2584,7 +2609,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				break;
 			}
 			}
-		}
+		}*/
 		if (ibc->Imaginary) {
 			//DbgFmt("[@ext @func]","");
 			IBStrAppendCStr(&cFuncArgsEnd, ");\n\n");
@@ -3017,13 +3042,11 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_VarWantValue: {
 			switch (o->type) {
 			case OP_VarWantValue: {
-				Obj* o;
-				o = IBLayer3GetObj(ibc);
 				o->var.val = strVal;
 				o->var.valSet = true;
 				SetObjType(o, OP_VarComplete);
-				IBLayer3PopTask(ibc, &t, false);
 				IBLayer3PopObj(ibc, true, &o);
+				IBLayer3FinishTask(ibc);
 				break;
 			}
 			CASE_UNIMP
@@ -3385,8 +3408,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		{
 			IBTask* t=NULL;
 			IBExpects* exp=NULL;
+			Obj* o = NULL;
 			IBLayer3PushTask(ibc, OP_ActOnName, &exp, &t);
-			ExpectsInit(exp, "P", OP_Value);
+			IBLayer3PushObj(ibc, &o);
+			ObjSetType(o, OP_ActOnName);
+			ObjSetName(o, ibc->Str);
+			IBLayer3PopObj(ibc, true, &o);
+			ExpectsInit(exp, "PN", OP_Value, OP_EmptyStr);
 			break;
 		}
 		case OP_VarNeedName: {
