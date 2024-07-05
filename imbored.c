@@ -2347,13 +2347,13 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		assert(st);
 		IBStrInit(&fo);
 		IBCodeBlockFinish(&st->code, &fo);
-		IBStrAppendCh(&cb->header, '\t', tabCount - 1);
+		IBStrAppendCh(&cb->header, '\t', tabCount - 2);
 		IBStrAppendFmt(&cb->header, "case %s: {\n", fo.start);
 		if (to->table.fallthru == false) {
 			IBStrAppendCh(&cb->footer, '\t', tabCount - 1);
 			IBStrAppendCStr(&cb->footer, "break;\n");
 		}
-		IBStrAppendCh(&cb->footer, '\t', tabCount - 1);
+		IBStrAppendCh(&cb->footer, '\t', tabCount - 2);
 		IBStrAppendFmt(&cb->footer, "}\n");
 		IBLayer3PopCodeBlock(ibc, true, &cb);
 		IBStrFree(&fo);
@@ -2407,6 +2407,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				onOp = true;
 				gotVal = false;
 				IBStrAppendFmt(&t->code.code, "%s", " + ");
+				break;
 			}
 			case OP_Name: {
 				IBStrAppendFmt(&t->code.code, "%s", o->name);

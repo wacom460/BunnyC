@@ -1,6 +1,6 @@
 @func $main %i32 $argc %&&c8 $argv @ret %i32
 	%i32 $a =2
 	@table $a
-		@case =0 + =4
+		@case =0 + =4 + =2 + =-4 + =-28
 	@@
 @@ =0
