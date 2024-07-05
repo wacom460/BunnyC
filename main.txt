@@ -1,15 +1,17 @@
 @use $sys
 
-@func $f %i32 $z @ret %i32
-	
-@@ =20
+@func $f %i32 $z @ret %i32	
+@@ $z
 
 @func $main @ret %i32
 	%i64 $z
 	@if $z @eq =0
 		%i32 $a
 		%i32 $b =40
+		%bool $b =yes
 		$a <- =10
+		$a <- =20
 		$a = !f $b
+		"%%%%%%" $a $b $z
 	@@
 @@ $a

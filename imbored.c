@@ -284,6 +284,7 @@ X(UseNeedStr) \
 X(UseStrSysLib) \
 X(NameInfoDB) \
 X(NameInfo) \
+X(Bool) \
 X(Expects) \
 X(ElseIf) \
 X(EmptyStr) \
@@ -742,7 +743,7 @@ OpNamePair PairNameOps[] = {
 	{"for", OP_For},{"loop", OP_Loop},{"i64", OP_i64},{"f32", OP_f32},
 	{"d64", OP_d64},{"pub", OP_Public},{"?", OP_Void},{"c8", OP_c8},
 	{"u8", OP_u8},{"u16", OP_u16},{"u32", OP_u32},{"u64", OP_u64},
-	{"i8", OP_i8},{"i16", OP_i16},
+	{"i8", OP_i8},{"i16", OP_i16},{"bool", OP_Bool},
 	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
 	{"thing", OP_Thing},{"repr", OP_Repr},{"elif", OP_ElseIf},
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
@@ -767,7 +768,7 @@ OpNamePair pfxNames[] = {
 };
 OpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
-	{"int", OP_i32},{"unsigned int", OP_u32},
+	{"int", OP_i32},{"unsigned int", OP_u32},{"char", OP_Bool},
 	{"long long", OP_i64},{"unsigned long long", OP_u64},
 	{"short", OP_i16},{"char", OP_i8},{"char", OP_c8},
 	{"unsigned short", OP_u16},{"unsigned char", OP_u8},
@@ -3489,8 +3490,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
 		}
-		CASE_BLOCKWANTCODE
-		{
+		CASE_BLOCKWANTCODE {
 			IBTask* t=NULL;
 			IBExpects* exp=NULL;
 			Obj* o = NULL;
