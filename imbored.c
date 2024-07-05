@@ -18,7 +18,9 @@
 #define bool char
 #define true 1
 #define false 0
-#define BoolStr(b) (b ? "YES" : "NO")
+#define IB_TRUESTR "yes"
+#define IBFALSESTR "no"
+#define BoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
 #ifdef _MSC_VER
 #define strdup _strdup
 #endif
@@ -124,6 +126,7 @@ case 'E': case 'F': case 'G': case 'H': case 'I': case 'J': \
 case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': \
 case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': \
 case 'W': case 'X': case 'Y': case 'Z':
+
 #define OP_NAME_LEN 32
 #define COMMENT_CHAR ('~')
 #define IBLayer3STR_MAX 64
@@ -267,6 +270,7 @@ X(Else) \
 X(For) \
 X(Loop) \
 X(Block) \
+X(Number) \
 X(c8) \
 X(u8) \
 X(u16) \
@@ -278,6 +282,8 @@ X(i32) \
 X(i64) \
 X(f32) \
 X(d64) \
+X(Float) \
+X(Double) \
 X(Pointer) \
 X(DoublePointer) \
 X(TripplePointer) \
@@ -301,7 +307,7 @@ X(ElseIf) \
 X(EmptyStr) \
 X(BuildingIf) \
 X(SubtaskArgs) \
-X(FloatOrDouble) \
+X(FloatingPoint) \
 X(Int) \
 /*X(SetNeedName) \
 X(SetNeedVal) \ */ \
@@ -423,6 +429,7 @@ void IBPopColor() {
 
 char* StrConcat(char* dest, int count, char* src);
 typedef union {
+	bool boolean;
 	unsigned char u8;
 	unsigned short u16;
 	unsigned int u32;
@@ -712,7 +719,8 @@ Op IBLayer3GetMode(IBLayer3* ibc);
 IBExpects* IBTaskGetExpTop(IBTask* t);
 IBVector* IBTaskGetExpPfxsTop(IBTask *t);
 IBVector* IBTaskGetExpNameOPsTop(IBTask* t);
-Op IBJudgeTypeOfStrValue(IBLayer3* ibc, IBStr* str);
+Op IBStrToBool(IBLayer3* ibc, char* str);
+Op IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str);
 
 #define SetTaskType(task, tt){\
 	assert(task);\
@@ -746,7 +754,7 @@ OpNamePair opNamesAR[] = {
 /*#define OP(op) {#op, OP_##op},
 #undef OP*/
 OpNamePair PairNameOps[] = {
-	{"null", OP_Null},{"no", OP_False},{"yes", OP_True},
+	{"null", OP_Null},{IBFALSESTR, OP_False},{IB_TRUESTR, OP_True},
 	{"func", OP_Func},{"~", OP_Comment},{"%", OP_VarType},
 	{"@", OP_Done},{"ret", OP_Return},{"ext", OP_Imaginary},
 	{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
@@ -2999,17 +3007,24 @@ IBVector* IBTaskGetExpNameOPsTop(IBTask* t){
 	assert(ret);
 	return &ret->nameOps;
 }
-Op IBJudgeTypeOfStrValue(IBLayer3* ibc, IBStr* str) {
+Op IBStrToBool(IBLayer3* ibc, char* str){
+	if(!strcmp(str, IB_TRUESTR)) return OP_True;
+	if(!strcmp(str, IBFALSESTR)) return OP_False;
+	return OP_Unknown;
+}
+Op IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str) {
 	int numbers = 0;
 	int letters = 0;
 	int periods = 0;
 	int sl = 0;
 	int i;
+	char lc = '\0';
+	Op ret=OP_Unknown;
 	assert(str);
-	sl = IBStrGetLen(str);
+	sl = strlen(str);
 	if (!sl) return OP_EmptyStr;
 	for (i = 0; i < sl; i++) {
-		char c = str->start[i];
+		char c = str[i];
 		switch (c) {
 		case '.': { periods++; break; }
 		CASE_0THRU9 { numbers++; break; }
@@ -3017,12 +3032,15 @@ Op IBJudgeTypeOfStrValue(IBLayer3* ibc, IBStr* str) {
 		CASE_ATHRUZ { letters++; break; }
 		}
 	}
-	if (!strcmp(str->start, "yes")) return OP_True;
-	if (!strcmp(str->start, "no")) return OP_False;
-	if (numbers > letters && periods == 1) return OP_FloatOrDouble;
-	if (letters && numbers) return OP_String;
-	if (numbers) return OP_Int;
-	return OP_Unknown;
+	lc=str[sl-1];
+	if (!strcmp(str, IB_TRUESTR)
+		|| !strcmp(str, IBFALSESTR)) return OP_Bool;
+	if (numbers > letters && periods == 1 && letters <= 1) ret = OP_FloatingPoint;
+	if(ret==OP_FloatingPoint && lc=='f') return OP_Float;
+	else if (ret==OP_FloatingPoint && lc == 'd') return OP_Double;
+	if (letters && numbers) ret = OP_String;
+	else if (numbers) ret = OP_Number;
+	return ret;
 }
 void IBLayer3StrPayload(IBLayer3* ibc){
 	Val strVal;
@@ -3030,9 +3048,46 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	int tabCount = IBLayer3GetTabCount(ibc);
 	IBCodeBlock* cb = IBLayer3CodeBlocksTop(ibc);
 	Obj* o;
+	Op valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
+	strVal.i32 = 0;
 	t=IBLayer3GetTask(ibc);
 	o=IBLayer3GetObj(ibc);
-	strVal.i32=atoi(ibc->Str);
+	switch (valType) {
+	case OP_Bool: {
+		Op boolCheck = IBStrToBool(ibc, ibc->Str);
+		switch (boolCheck) {
+		case OP_True: {
+			strVal.boolean = true;
+			break;
+		}
+		case OP_False: {
+			strVal.boolean = false;
+			break;
+		}
+		CASE_UNIMP
+		}
+		break;
+	}
+	case OP_String: break;
+	case OP_Number: {
+		strVal.i32 = atoi(ibc->Str);
+		break;
+	}
+	case OP_Double: {
+		strVal.d64 = atof(ibc->Str);
+		break;
+	}
+	case OP_Float: {
+		strVal.f32 = atof(ibc->Str);
+		break;
+	}
+	//CASE_UNIMP
+	/*default: {
+		strVal.i32 = atoi(ibc->Str);
+		break;
+	}*/
+	}
+	
 	//if(ibc->Pfx==OP_Op) ibc->LastNameOp = ibc->NameOp;
 	ibc->NameOp = GetOpFromNameList(ibc->Str, OP_NameOps);
 	IBPushColor(IBFgGREEN);
@@ -3172,6 +3227,42 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			case OP_VarWantValue: {
 				o->var.val = strVal;
 				o->var.valSet = true;
+				switch (o->var.type) {
+				case OP_Bool: {
+					if (valType != OP_Bool)
+						Err(OP_YouCantUseThatHere, "wrong value for bool variable");
+					break;
+				}
+				case OP_f32: {
+					if (valType != OP_Float)
+						Err(OP_YouCantUseThatHere, "wrong value for float variable");
+					break;
+				}
+				case OP_d64: {
+					if (valType != OP_Double)
+						Err(OP_YouCantUseThatHere, "wrong value for double variable");
+					break;
+				}
+				case OP_u8:
+				case OP_c8: /*{
+					if (o->var.mod == OP_Pointer) {
+						assert(valType == OP_String);
+						break;
+					}
+				}*/
+				case OP_u16:
+				case OP_u64:
+				case OP_u32:
+				case OP_i8:
+				case OP_i16:
+				case OP_i64:
+				case OP_i32: {
+					if(valType!=OP_Number)
+						Err(OP_YouCantUseThatHere, "wrong value for number variable");
+					break;
+				}
+				CASE_UNIMP
+				}
 				SetObjType(o, OP_VarComplete);
 				IBLayer3PopObj(ibc, true, &o);
 				IBLayer3FinishTask(ibc);

@@ -1,4 +1,4 @@
 @func $main
-	%bool $b =yes
+	%i32 $b =yes
 	"%%" $b
 @@
