@@ -1,11 +1,8 @@
-@func $t %i32 $a @ret %i32
-@@ $a
-@func $v
-	"hello\n"
-@@
+@func $f @ret %i32
+@@ =20
 @func $main @ret %i32
 	%i32 $a
-	%i32 $b =40
-	$a = !t $b
-	~!v
+	%i32 $b
+	$a = !f
+	"fuck"
 @@ $a
