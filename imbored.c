@@ -266,6 +266,7 @@ X(SpaceChar) \
 X(Comma) \
 X(CommaSpace) \
 X(Name) \
+X(As) \
 X(ExprToName) \
 X(String) \
 X(TableCase) \
@@ -316,6 +317,7 @@ X(EmptyStr) \
 X(BuildingIf) \
 X(SubtaskArgs) \
 X(FloatingPoint) \
+X(Modulo) \
 X(Int) \
 /*X(SetNeedName) \
 X(SetNeedVal) \ */ \
@@ -582,12 +584,16 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 	_ExpectsInit(__LINE__, exp, fmt, __VA_ARGS__);
 void ExpectsPrint(IBExpects* exp);
 void ExpectsFree(IBExpects* exp);
+typedef struct TaskNeedExpression {
+	Op finalVartype;
+} TaskNeedExpression;
 typedef struct IBTask {
 	Op type;
 	IBCodeBlock code;
 	IBVector expStack; /*IBExpects*/
 	IBVector working;/*Obj*/
 	IBVector subTasks;/*IBTask*/
+	TaskNeedExpression exprData;
 } IBTask;
 void TaskInit(IBTask* t, Op type);
 void TaskFree(IBTask* t);
@@ -785,6 +791,7 @@ OpNamePair PairNameOps[] = {
 	{"thing", OP_Thing},{"repr", OP_Repr},{"elif", OP_ElseIf},
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
+	{"as", OP_As},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -819,6 +826,8 @@ OpNamePair cEquivelents[] = {
 	{"==", OP_Equals},{"!=", OP_NotEquals},{"<", OP_LessThan},
 	{">", OP_GreaterThan},{"<=", OP_LessThanOrEquals},
 	{">=", OP_GreaterThanOrEquals},{"!=", OP_NotEquals},
+	{"+", OP_Add},{"-", OP_Subtract},{"*", OP_Multiply},
+	{"/", OP_Divide},{"%", OP_Modulo},
 };
 OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},
@@ -1241,6 +1250,7 @@ void TaskInit(IBTask* t, Op type) {
 	IBVectorInit(&t->subTasks, sizeof(IBTask), OP_Task);
 	IBCodeBlockInit(&t->code);
 	t->type = type;
+	memset(&t->exprData, 0, sizeof(TaskNeedExpression));
 }
 void TaskFree(IBTask* t) {
 	assert(t);
@@ -1620,21 +1630,15 @@ void IBLayer3Free(IBLayer3* ibc) {
 		IBLayer3InputStr(ibc, ibc->InputStr);
 		ibc->InputStr = NULL;
 	}
-	if(ibc->CodeBlockStack.elemCount != 1)
-		Err(OP_Error, "dirty codeblock stack");
 	cb=(IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
-	assert(!(IBStrGetLen(&cb->variables) + 
-		IBStrGetLen(&cb->code) + 
-		IBStrGetLen(&cb->footer)));
 	o=IBLayer3GetObj(ibc);
 	if (ibc->StringMode)
 		Err(OP_Error, "Reached end of file without closing string");
 	if(ibc->Str[0]) IBLayer3StrPayload(ibc);
 	t=IBLayer3GetTask(ibc);
-	if(t->type != OP_RootTask)Err(OP_ErrDirtyTaskStack,
-		"Reached end of file not at root task");
 	if (ibc->TaskStack.elemCount) {
-		switch (((IBTask*)IBVectorTop(&ibc->TaskStack))->type) {
+		switch (t->type) {
+		case OP_FuncWantCode:
 		case OP_FuncNeedRetVal:
 			Err(OP_Error, "Reached end of file without closing function");
 			break;
@@ -1647,6 +1651,13 @@ void IBLayer3Free(IBLayer3* ibc) {
 		}
 		}
 	}
+	if (t->type != OP_RootTask)Err(OP_ErrDirtyTaskStack,
+		"Reached end of file not at root task");
+	if (ibc->CodeBlockStack.elemCount != 1)
+		Err(OP_Error, "dirty codeblock stack");
+	assert(!(IBStrGetLen(&cb->variables) +
+		IBStrGetLen(&cb->code) +
+		IBStrGetLen(&cb->footer)));
 	IBStrAppendCStr(&ibc->CHeaderFuncs, "\n#endif\n");
 #ifdef DEBUGPRINTS
 	IBPushColor(IBFgMAGENTA);
@@ -2402,11 +2413,14 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		pop2Parent = true;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
+			case OP_Multiply:
+			case OP_Divide:
+			case OP_Subtract:
 			case OP_Add: {
 				if(!gotVal)Err(OP_Error, "missing op lval in expression");
 				onOp = true;
 				gotVal = false;
-				IBStrAppendFmt(&t->code.code, "%s", " + ");
+				IBStrAppendFmt(&t->code.code, " %s ", GetCEqu(o->type));
 				break;
 			}
 			case OP_Name: {
@@ -3280,9 +3294,17 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			switch (ibc->NameOp)
 			{
 			case OP_Subtract: {
+				Obj* o;
+				Op type;
 				IBExpects* exp=NULL;
+				o = IBLayer3FindWorkingObj(ibc, OP_ActOnName);
+				assert(o);
+				assert(o->name[0] != '\0');
+				type=NameInfoDBFindType(&ibc->NameTypeCtx, o->name);
+				assert(type != OP_NotFound);
 				SetTaskType(t, OP_ExprToName);
-				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, NULL);
+				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
+				t->exprData.finalVartype = type;
 				break;
 			}
 			CASE_UNIMP
@@ -3874,6 +3896,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		expected = IBLayer3IsNameOpExpected(ibc, ibc->NameOp);
 		if(!expected)Err(OP_ErrUnexpectedNameOP, "unexpected nameOP");
 		switch (ibc->NameOp) {
+		case OP_As: {
+
+			break;
+		}
 		case OP_Repr: {
 			switch (t->type) {
 			case OP_ThingWantRepr: {
