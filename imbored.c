@@ -20,6 +20,8 @@
 #define false 0
 #define IB_TRUESTR "yes"
 #define IBFALSESTR "no"
+#define IB_FILEEXT "ibl"
+#define IB_IllegalDbObjNameChars " \t\n,.:~!@#$%^&*=/()[]{}<>?|\\`'\""
 #define BoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -192,6 +194,8 @@ X(BlockReturnNeedValue) \
 X(ArgNeedValue) \
 X(Ref) \
 X(Deref) \
+X(DoubleDeref) \
+X(TrippleDeref) \
 X(Arg) \
 X(Op) \
 X(Value) \
@@ -314,6 +318,7 @@ X(UseStrSysLib) \
 X(NameInfoDB) \
 X(NameInfo) \
 X(Expects) \
+X(CodeBlockCallFunc) \
 X(ElseIf) \
 X(EmptyStr) \
 X(BuildingIf) \
@@ -341,6 +346,8 @@ X(ModeComment) \
 X(ModeMultiLineComment) \
 X(ActOnName) \
 X(ActOnNameEquals) \
+X(RootObj) \
+X(DBObj) \
 
 #define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
@@ -483,11 +490,14 @@ typedef struct IB_Func {
 	IBVector args;/*IB_Variable*/
 } IB_Func;
 typedef struct IB_DBObj {
+	IBStr fileName;
+	int fileLine;
+	int fileColumn;
 	Op type;
 	IBStr name;
 	IBVector children;/*IB_DBObj*/
 } IB_DBObj;
-IB_DBObj* IB_DBObjNew(Op type, IBStr name);
+IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn, Op objType, IBStr* objName);
 void IB_DBObjFree(IB_DBObj* obj);
 typedef struct IBDatabase {
 	IB_DBObj* root;
@@ -837,11 +847,11 @@ OpNamePair cEquivelents[] = {
 	{">=", OP_GreaterThanOrEquals},{"!=", OP_NotEquals},
 	{"+", OP_Add},{"-", OP_Subtract},{"*", OP_Multiply},
 	{"/", OP_Divide},{"%", OP_Modulo},{"*", OP_Deref},
-	{"&", OP_Ref},
+	{"&", OP_Ref},{"**", OP_DoubleDeref},{"***", OP_TrippleDeref},
 };
 OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},
-	{ "taskStack", OP_TaskStack },
+	{"taskStack", OP_TaskStack},
 	{"notEmpty", OP_NotEmpty}
 };
 char* SysLibCodeStr =
@@ -877,8 +887,11 @@ void IBStrClear(IBStr* str){
 	free(str->start);
 	str->start = NULL;
 	str->start = malloc(1);
-	*str->start = '\0';
-	str->end = str->start;
+	assert(str->start);
+	if (str->start) {
+		*str->start = '\0';
+		str->end = str->start;
+	}
 }
 void IBStrReplaceWithCStr(IBStr* str, char* cstr){
 	IBStrClear(str);
@@ -899,6 +912,8 @@ bool IBStrContainsAnyOfChars(IBStr* str, char* chars) {
 size_t IBStrGetLen(IBStr* str) {
 	size_t len;
 	assert(str);
+	assert(str->end);
+	assert((*(str->end)) == '\0');
 	assert(str->end >= str->start);
 	len=str->end - str->start;
 	return len;
@@ -983,7 +998,8 @@ int IBStrStripFront(IBStr* str, char ch){
 	free(str->start);
 	str->start=rep;
 	str->end=str->start+(slen - in);
-	assert(*(str->end) == '\0');
+	assert(str->end);
+	if(str->end) assert(*(str->end) == '\0');
 	return in;
 }
 void IBVectorInit(IBVector* vec, size_t elemSize, Op type) {
@@ -1296,15 +1312,37 @@ char* GetCEqu(Op op) {
 	}
 	return "?";
 }
-IB_DBObj* IB_DBObjNew(Op type, IBStr name){
-	return NULL;
+IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn, Op objType, IBStr* objName){
+	IB_DBObj* ret=NULL;
+	ret = malloc(sizeof * ret);
+	assert(ret);
+	if (ret) {
+		bool cic = false;
+		IBStrInit(&ret->fileName);
+		IBStrAppend(&ret->fileName, fileName);
+		ret->fileLine = fileLine;
+		ret->fileColumn = fileColumn;
+		ret->type = objType;
+		IBStrInit(&ret->name);
+		IBStrAppend(&ret->name, objName);
+		cic = IBStrContainsAnyOfChars(&ret->name, IB_IllegalDbObjNameChars);
+		assert(!cic);
+		IBVectorInit(&ret->children, sizeof(IB_DBObj), OP_DBObj);
+	}
+	return ret;
 }
 void IB_DBObjFree(IB_DBObj* obj){
 	IBStrFree(&obj->name);
+	IBStrFree(&obj->fileName);
 	IBVectorFree(&obj->children, IB_DBObjFree);
 	free(obj);
 }
 void IBDatabaseInit(IBDatabase* db){
+	IBStr fn;
+	IBStr on;
+	IBStrInitExt(&fn, "");
+	IBStrInitExt(&on, "root");
+	db->root = IB_DBObjNew(&fn, 0, 0, OP_RootObj, &on);
 }
 void IBDatabaseFree(IBDatabase* db){
 }
@@ -1497,7 +1535,7 @@ void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type){
 		break;
 	}
 	case OP_Task: {
-		IBTask* task = (IBTask*)data;
+		/*IBTask* task = (IBTask*)data;
 		DbgFmt("TASK -> [\n"
 			"\tType: %s(%d)\n"
 			"\tCode1:\n%s(%d)\n"
@@ -1507,7 +1545,7 @@ void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type){
 		IBLayer3VecPrint(ibc, &task->working);
 		DbgFmt("\tExpects:\n", "");
 		IBLayer3VecPrint(ibc, &task->expStack);
-		DbgFmt("]\n", "");
+		DbgFmt("]\n", "");*/
 		break;
 	}
 	default:
@@ -1626,7 +1664,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBVectorInit(&ibc->TaskStack, sizeof(IBTask), OP_Task);
 	IBVectorInit(&ibc->CodeBlockStack, 
 		sizeof(IBCodeBlock), OP_IBCodeBlock);
-	IBVectorPush(&ibc->CodeBlockStack, &cb)
+	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
 	IBVectorCopyPushBool(&ibc->StrReadPtrsStack, false);
 	IBLayer3Push(ibc, OP_ModePrefixPass, false);
@@ -2316,6 +2354,7 @@ void IBLayer3InputStr(IBLayer3* ibc, char* str){
 }
 Val IBLayer3StrToVal(IBLayer3* ibc, char* str, Op expectedType) {
 	Val ret;
+	ret.i32 = 0;
 	switch (expectedType) {
 	case OP_c8:
 	case OP_i16:
@@ -2529,6 +2568,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		assert(st);
 		IBStrAppendCh(&cb->code, '\t', tabCount);
 		IBCodeBlockFinish(&st->code, &cb->code);
+		IBStrAppendFmt(&cb->code, "%s\n", ";");
 		break;
 	}
 	//case OP_SetCallWantArgs: {
@@ -2598,31 +2638,31 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		Obj* o = IBVectorGet(wObjs, 0);
 		int idx = 0;
 		assert(o->type == OP_Call);
-		//IBStrAppendCh(&t->code, '\t', tabCount);
-		IBStrAppendFmt(&t->code, "%s", o->str);
-		IBStrAppendCStr(&t->code, "(");
+		//IBStrAppendCh(&t->code.code, '\t', tabCount);
+		IBStrAppendFmt(&t->code.code, "%s", o->str);
+		IBStrAppendCStr(&t->code.code, "(");
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			if (o->type != OP_Arg) continue;
 			switch(o->valType) {
 			case OP_Value: {
-				IBStrAppendFmt(&t->code, "%d", o->val.i32);//for now
+				IBStrAppendFmt(&t->code.code, "%d", o->val.i32);//for now
 				break;
 			}
 			case OP_String: {
-				IBStrAppendFmt(&t->code, "\"%s\"", o->str);
+				IBStrAppendFmt(&t->code.code, "\"%s\"", o->str);
 				break;
 			}
 			case OP_Name: {
-				IBStrAppendFmt(&t->code, "%s", o->str);
+				IBStrAppendFmt(&t->code.code, "%s", o->str);
 				break;
 			}
 			CASE_UNIMP
 			}
 			if (idx <= wObjs->elemCount - 1) {
-				IBStrAppendCStr(&t->code, ", ");
+				IBStrAppendCStr(&t->code.code, ", ");
 			}
 		}
-		IBStrAppendCStr(&t->code, ")");
+		IBStrAppendCStr(&t->code.code, ")");
 		pop2Parent=true;
 		break;
 	}
@@ -2725,22 +2765,17 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				//assert that this name is unique
 				//blindly trusting for now
 
-				IBStrAppendCStr(&header, "struct ");
-				IBStrAppendCStr(&header, o->name);
-				IBStrAppendCStr(&header, " {\n");
-				IBStrAppendCStr(&footer, "} ");
-				IBStrAppendCStr(&footer, o->name);
-				IBStrAppendCStr(&footer, ";\n\n");
+				IBStrAppendFmt(&header, "struct %s {\n", o->name);
+				IBStrAppendFmt(&footer, "} %s;\n\n", o->name);
 
 				break;
 			}
 			case OP_VarWantValue: {
-				IBStrAppendCStr(&body, "\t");
-				IBStrAppendCStr(&body, GetCEqu(o->var.type));
-				IBStrAppendCStr(&body, GetCEqu(o->var.mod));
-				IBStrAppendCStr(&body, " ");
-				IBStrAppendCStr(&body, o->name);
-				IBStrAppendCStr(&body, ";\n");
+				IBStrAppendFmt(&body, 
+					"\t%s%s %s;\n", 
+					GetCEqu(o->var.type), 
+					GetCEqu(o->var.mod), 
+					o->name);
 				//default values will be stored in db
 				break;
 			}
@@ -2749,17 +2784,20 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrAppend(&ibc->CHeaderStructs, &header);
 		IBStrAppend(&ibc->CHeaderStructs, &body);
 		IBStrAppend(&ibc->CHeaderStructs, &footer);
+		//IBStrAppendFmt(&ibc->CHeaderStructs, "%s%s%s", header, body, footer);
 		IBStrFree(&header);
 		IBStrFree(&body);
 		IBStrFree(&footer);
 		break;
 	}
 	case OP_SpaceHasName: {
-		Obj* o;
+		Obj* o=NULL;
 		int idx = 0;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx))
 			if (o->type == OP_Space) break;
-		IBStrReplaceWithCStr(&ibc->CurSpace, o->name);
+		assert(o);
+		if(o) 
+			IBStrReplaceWithCStr(&ibc->CurSpace, o->name);
 		break;
 	}
 	case OP_FuncWantCode:
@@ -2894,8 +2932,25 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				IBStrAppendCStr(&cFuncCode, "\treturn ");
 				switch (funcObj->func.retTYPE) {
 				case OP_Value: {
-					assert(funcObj->func.retValType==OP_i32);
-					IBStrAppendFmt(&cFuncCode, "%d", funcObj->func.retVal.i32);//for now
+					//assert(funcObj->func.retValType==OP_i32);
+					//IBStrAppendFmt(&cFuncCode, "%d", funcObj->func.retVal.i32);//for now
+					switch (funcObj->func.retValType) {
+					case OP_u8:
+					case OP_u16:
+					case OP_u32:
+					case OP_u64:
+					case OP_i8:
+					case OP_i16:
+					case OP_i32:
+					case OP_i64: {
+						char valBuf[32];
+						valBuf[0] = '\0';
+						Val2Str(valBuf, 32, funcObj->func.retVal, funcObj->func.retValType);
+						IBStrAppendCStr(&cFuncCode, valBuf);
+						break;
+					}
+					CASE_UNIMP
+					}
 					break;
 				}
 				case OP_Name: {
@@ -3350,8 +3405,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		switch (t->type) {
 		CASE_BLOCKWANTCODE
 		{
-			IBTask* t;
-			IBLayer3PushTask(ibc, OP_CallFunc, NULL, &t);
+			//IBTask* t;
+			//IBLayer3PushTask(ibc, OP_CodeBlockCallFunc, NULL, NULL);
+			IBLayer3PushTask(ibc, OP_CallFunc, NULL, NULL);
 			//break;
 		}
 		case OP_ActOnNameEquals: {
@@ -3569,7 +3625,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				if (o->type == OP_FuncSigComplete) {
 					Op valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
 					switch (o->func.retValType) {
-					case OP_i32: { 
+					case OP_u8:
+					case OP_u16:
+					case OP_u32:
+					case OP_u64:
+					case OP_i8:
+					case OP_i16:
+					case OP_i32:
+					case OP_i64: {
 						if (valType != OP_Number)
 							Err(OP_YouCantUseThatHere, "wrong return value type for this function");
 						break;
@@ -3819,7 +3882,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		case OP_ThingWantName: {
 			Obj* o;
-			IBExpects* exp;
 			IBLayer3PushObj(ibc, &o);
 			assert(ibc->Str[0]!='\0');
 			ObjSetName(o, ibc->Str);
