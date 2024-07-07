@@ -190,6 +190,8 @@ X(VarWantValue) \
 X(VarComplete) \
 X(BlockReturnNeedValue) \
 X(ArgNeedValue) \
+X(Ref) \
+X(Deref) \
 X(Arg) \
 X(Op) \
 X(Value) \
@@ -357,9 +359,14 @@ typedef struct IBStr {
 	char* end; /*ptr of null terminator '\0'*/
 } IBStr;
 void IBStrInit(IBStr* str);
+
+//you cannot use IBStrFree on a IBStr init'd with this
+void IBStrInitExt(IBStr* str, char* cstr);
+
 void IBStrFree(IBStr* str);
 void IBStrClear(IBStr* str);
 void IBStrInitNTStr(IBStr* str, char* nullTerminated);
+bool IBStrContainsAnyOfChars(IBStr* str, char* chars);
 size_t IBStrGetLen(IBStr* str);
 void IBStrAppendCh(IBStr* str, char ch, int count);
 char* IBStrAppendCStr(IBStr* str, char *with);
@@ -827,7 +834,8 @@ OpNamePair cEquivelents[] = {
 	{">", OP_GreaterThan},{"<=", OP_LessThanOrEquals},
 	{">=", OP_GreaterThanOrEquals},{"!=", OP_NotEquals},
 	{"+", OP_Add},{"-", OP_Subtract},{"*", OP_Multiply},
-	{"/", OP_Divide},{"%", OP_Modulo},
+	{"/", OP_Divide},{"%", OP_Modulo},{"*", OP_Deref},
+	{"&", OP_Ref},
 };
 OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},
@@ -852,6 +860,10 @@ void IBStrInit(IBStr* str) {
 	str->end = str->start;
 	if(str->start) (*str->start) = '\0';
 }
+void IBStrInitExt(IBStr* str, char* cstr){
+	str->start = cstr;
+	str->end = cstr + strlen(cstr);
+}
 void IBStrFree(IBStr* str){
 	free(str->start);
 }
@@ -867,6 +879,12 @@ void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	assert(str);
 	OverwriteStr(&str->start, nullTerminated);
 	str->end = str->start + strlen(nullTerminated);
+}
+bool IBStrContainsAnyOfChars(IBStr* str, char* chars) {
+	char* p;
+	for(p=str->start; p<str->end; p++)
+		if(strchr(chars, *p)) return true;
+	return false;	
 }
 size_t IBStrGetLen(IBStr* str) {
 	size_t len;
@@ -3045,7 +3063,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 		break;
 	}
 	case OP_VarType:
-		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
+		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);//TODO: move this into func sig task
 	case OP_LessThan:
 	case OP_GreaterThan:
 	case OP_Add:
@@ -3066,6 +3084,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	case OP_Value:
 	case OP_Op:
 	case OP_Name:
+		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
 		/*getchar();*/
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
 		break;
