@@ -1,8 +1,10 @@
-@func $main
+@space
+
+@func $main %i32 $argc %^^c8 $argv @ret %i32
 	%i32 $a
-	%&i32 $ap
+	%^i32 $ap
 	$a <- =10 + =20 / =40 * =2 - =42
 	$a = !fuc
 	!fuc
-	$&ap <- $&a
-@@
+	$ap <- $^a
+@@ $a

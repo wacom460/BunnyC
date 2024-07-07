@@ -348,6 +348,7 @@ X(ActOnName) \
 X(ActOnNameEquals) \
 X(RootObj) \
 X(DBObj) \
+X(None) \
 
 #define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
@@ -1306,6 +1307,7 @@ void TaskFree(IBTask* t) {
 char* GetCEqu(Op op) {
 	int sz;
 	int i;
+	if(op==OP_None)return "";
 	sz=sizeof(cEquivelents) / sizeof(cEquivelents[0]);
 	for (i = 0; i < sz; i++) {
 		if (op == cEquivelents[i].op) return cEquivelents[i].name;
@@ -1403,7 +1405,7 @@ Op fromPfxCh(char ch) {
 	case '\"': return OP_String;
 	case '=': return OP_Value;
 	case '\'': return OP_Char;
-	case '&': return OP_Pointer;
+	case '&': return OP_Ref;
 	case '+': return OP_Add;
 	case '-': return OP_Subtract;
 	case '/': return OP_Divide;
@@ -2469,8 +2471,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		assert(o->type == OP_ActOnName);
 		IBStrInit(&fc);
 		IBCodeBlockFinish(&st->code, &fc);
-		IBStrAppendCh(&cb->variables, '\t', tabCount);
-		IBStrAppendFmt(&cb->variables, "%s = %s;\n", o->name, fc.start);
+		IBStrAppendCh(&cb->code, '\t', tabCount);
+		IBStrAppendFmt(&cb->code, "%s = %s;\n", o->name, fc.start);
 		break;
 	}
 	case OP_NeedExpression: {
@@ -2493,7 +2495,9 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				break;
 			}
 			case OP_Name: {
-				IBStrAppendFmt(&t->code.code, "%s", o->name);
+				Op ceq = o->modifier == OP_Pointer ? OP_Ref
+					: OP_None;
+				IBStrAppendFmt(&t->code.code, "%s%s", GetCEqu(ceq), o->name);
 				break;
 			}
 			case OP_Value: {
@@ -3201,7 +3205,7 @@ void IBLayer3Str(IBLayer3* ibc){
 				return;
 			}
 		}
-		case '&': {
+		case '^': {
 			if (*(bool*)IBVectorTop(&ibc->StrReadPtrsStack)) {
 				switch (ibc->Pointer) {
 				case OP_NotSet:
@@ -3719,6 +3723,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBLayer3PushObj(ibc, &o);
 			ObjSetType(o, OP_Name);
 			ObjSetName(o, ibc->Str);
+			o->modifier = ibc->Pointer;
 			IBLayer3PopObj(ibc, true, &o);
 			break;
 		}
@@ -4022,6 +4027,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			switch (t->type) {
 			case OP_RootTask: {
 				IBExpects* ap;
+				//onion
 				IBLayer3PushTask(ibc, OP_ThingWantName, &ap, NULL);
 				ExpectsInit(ap, "PNN", OP_Op, OP_Done);
 				IBLayer3PushExpects(ibc, &ap);
