@@ -359,12 +359,14 @@ typedef struct IBStr {
 	char* end; /*ptr of null terminator '\0'*/
 } IBStr;
 void IBStrInit(IBStr* str);
+void IBStrInitWithCStr(IBStr* str, char* cstr);
 
 //you cannot use IBStrFree on a IBStr init'd with this
 void IBStrInitExt(IBStr* str, char* cstr);
 
 void IBStrFree(IBStr* str);
 void IBStrClear(IBStr* str);
+void IBStrReplaceWithCStr(IBStr* str, char* cstr);
 void IBStrInitNTStr(IBStr* str, char* nullTerminated);
 bool IBStrContainsAnyOfChars(IBStr* str, char* chars);
 size_t IBStrGetLen(IBStr* str);
@@ -623,7 +625,7 @@ typedef struct IBLayer3 {
 	IBVector CodeBlockStack; /*IBCodeBlock*/
 
 	char* InputStr;
-	char* SpaceNameStr;
+	IBStr CurSpace;
 	Op Pointer;
 	Op Privacy;
 	Op NameOp;
@@ -860,6 +862,10 @@ void IBStrInit(IBStr* str) {
 	str->end = str->start;
 	if(str->start) (*str->start) = '\0';
 }
+void IBStrInitWithCStr(IBStr* str, char* cstr){
+	IBStrInit(str);
+	IBStrAppendCStr(str, cstr);
+}
 void IBStrInitExt(IBStr* str, char* cstr){
 	str->start = cstr;
 	str->end = cstr + strlen(cstr);
@@ -873,6 +879,10 @@ void IBStrClear(IBStr* str){
 	str->start = malloc(1);
 	*str->start = '\0';
 	str->end = str->start;
+}
+void IBStrReplaceWithCStr(IBStr* str, char* cstr){
+	IBStrClear(str);
+	IBStrAppendCStr(str, cstr);
 }
 void IBStrInitNTStr(IBStr* str, char* nullTerminated){
 	assert(nullTerminated);
@@ -1606,8 +1616,9 @@ void IBLayer3Init(IBLayer3* ibc){
 	ibc->StrAllowSpace = false;
 	ibc->CommentMode = OP_NotSet;
 	ibc->InputStr = NULL;
-	ibc->SpaceNameStr = NULL;
-	OverwriteStr(&ibc->SpaceNameStr, "global");
+	/*ibc->SpaceNameStr = NULL;
+	OverwriteStr(&ibc->SpaceNameStr, "global");*/
+	IBStrInit(&ibc->CurSpace);
 	NameInfoDBInit(&ibc->NameTypeCtx);
 	IBVectorInit(&ibc->ObjStack, sizeof(Obj), OP_Obj);
 	IBVectorInit(&ibc->ModeStack, sizeof(Op), OP_Op);
@@ -1696,10 +1707,11 @@ void IBLayer3Free(IBLayer3* ibc) {
 		ibc->CFile.start);
 #endif
 	IBPopColor();
-	if (ibc->SpaceNameStr != NULL) {
+	/*if (ibc->SpaceNameStr != NULL) {
 		free(ibc->SpaceNameStr);
 		ibc->SpaceNameStr = NULL;
-	}
+	}*/
+	IBStrFree(&ibc->CurSpace);
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
 	IBVectorFreeSimple(&ibc->ModeStack);
@@ -2747,7 +2759,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		int idx = 0;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx))
 			if (o->type == OP_Space) break;
-
+		IBStrReplaceWithCStr(&ibc->CurSpace, o->name);
 		break;
 	}
 	case OP_FuncWantCode:
