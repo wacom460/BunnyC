@@ -349,6 +349,11 @@ X(ActOnNameEquals) \
 X(RootObj) \
 X(DBObj) \
 X(None) \
+\
+/*field can only be written by its internals/friends*/ \
+X(ProtectedReadOnly) \
+\
+
 
 #define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
@@ -811,7 +816,7 @@ OpNamePair PairNameOps[] = {
 	{"thing", OP_Thing},{"repr", OP_Repr},{"elif", OP_ElseIf},
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
-	{"as", OP_As},
+	{"as", OP_As},{"pro", OP_ProtectedReadOnly},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
