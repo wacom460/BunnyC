@@ -866,11 +866,11 @@ OpNamePair dbgAssertsNP[] = {
 char* SysLibCodeStr =
 "@space $sys\n"
 "@pub\n"
-"@ext @func $malloc %i32 $size @ret %&?\n"
-"@ext @func $realloc %&? $ptr %i32 $newSize @ret %&?\n"
-"@ext @func $free %&? $ptr\n"
-"@ext @func $strdup %&c8 $str @ret %&c8\n"
-"@ext @func $strcat %&c8 $str1 %&c8 $str2 @ret %&c8\n"
+"@ext @block $malloc %i32 $size -> %&?\n"
+"@ext @block $realloc %&? $ptr %i32 $newSize -> %&?\n"
+"@ext @block $free %&? $ptr\n"
+"@ext @block $strdup %&c8 $str -> %&c8\n"
+"@ext @block $strcat %&c8 $str1 %&c8 $str2 -> %&c8\n"
 ;
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
