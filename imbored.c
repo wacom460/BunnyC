@@ -33,6 +33,8 @@ transpile to ANSI C89
 no order of operations, sequential ONLY
 compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
+
+functions that can access scope variables with type and name specified by the function
 */
 
 //console colors
@@ -801,7 +803,7 @@ OpNamePair opNamesAR[] = {
 #undef OP*/
 OpNamePair PairNameOps[] = {
 	{"null", OP_Null},{IBFALSESTR, OP_False},{IB_TRUESTR, OP_True},
-	{"func", OP_Func},{"~", OP_Comment},{"%", OP_VarType},
+	{"block", OP_Func},{"~", OP_Comment},{"%", OP_VarType},
 	{"@", OP_Done},{"ret", OP_Return},{"ext", OP_Imaginary},
 	{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
 	{"build", OP_Build},{"space", OP_Space},{"priv", OP_Private},
@@ -817,6 +819,7 @@ OpNamePair PairNameOps[] = {
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
 	{"as", OP_As},{"pro", OP_ProtectedReadOnly},
+	{">", OP_GreaterThan},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -3364,7 +3367,20 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	switch (ibc->Pfx) {
 	case OP_Multiply:
 	case OP_Divide:
-	case OP_Subtract:
+	case OP_Subtract: {
+		bool fall = true;
+		switch (ibc->NameOp) {
+		case OP_GreaterThan: {
+			IBExpects* exp;
+			fall = false;
+			SetObjType(o, OP_FuncNeedsRetValType);
+			IBLayer3PushExpects(ibc, &exp);
+			ExpectsInit(exp, "P", OP_VarType);
+			break;
+		}
+		}
+		if (!fall) break;
+	}
 	case OP_Add: {
 		switch (ibc->NameOp) {
 		case OP_EmptyStr: {
@@ -3762,8 +3778,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				SetObjType(o, OP_FuncHasName);
 				SetTaskType(t, OP_FuncHasName);
 				IBLayer3PushExpects(ibc, &exp);
-				ExpectsInit(exp, "PPPN",
-					OP_VarType, OP_Op, OP_LineEnd, OP_Return);
+				ExpectsInit(exp, "PPPPN",
+					OP_VarType, OP_Op, OP_LineEnd, OP_Subtract, OP_Return);
 				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
 				break;
 			}
