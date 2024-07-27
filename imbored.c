@@ -349,6 +349,7 @@ X(ActOnNameEquals) \
 X(RootObj) \
 X(DBObj) \
 X(None) \
+X(FuncPtr) \
 
 #define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
@@ -617,6 +618,11 @@ typedef struct IBTask {
 } IBTask;
 void TaskInit(IBTask* t, Op type);
 void TaskFree(IBTask* t);
+typedef struct IBSpace {
+	IBStr name;
+} IBSpace;
+void IBSpaceInit(IBSpace* sp, char* name);
+void IBSpaceFree(IBSpace* sp);
 typedef struct IBLayer3 {
 	int Line;
 	int Column;
@@ -634,9 +640,10 @@ typedef struct IBLayer3 {
 	IBVector TaskStack; /*IBTask*/
 	IBVector StrReadPtrsStack; /*bool*/
 	IBVector CodeBlockStack; /*IBCodeBlock*/
+	IBVector SpaceStack; /*IBSpace*/
 
 	char* InputStr;
-	IBStr CurSpace;
+	//IBStr CurSpace;
 	Op Pointer;
 	Op Privacy;
 	Op NameOp;
@@ -666,6 +673,16 @@ typedef struct IBLayer3 {
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
 Obj* IBLayer3GetObj(IBLayer3* ibc);
+#define IBLayer3PushSpace(ibc, name, spDP){\
+	PLINE; \
+	_IBLayer3PushSpace(ibc, name, spDP); \
+}
+void _IBLayer3PushSpace(IBLayer3* ibc, char* name, IBSpace** spDP);
+#define IBLayer3PopSpace(ibc){ \
+	PLINE; \
+	_IBLayer3PopSpace(ibc, name); \
+}
+void _IBLayer3PopSpace(IBLayer3* ibc);
 void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type);
 void IBLayer3VecPrint(IBLayer3* ibc, IBVector* vec);
 Obj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, Op type);
@@ -811,7 +828,7 @@ OpNamePair PairNameOps[] = {
 	{"thing", OP_Thing},{"repr", OP_Repr},{"elif", OP_ElseIf},
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
-	{"as", OP_As},
+	{"as", OP_As},{"funcptr", OP_FuncPtr},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -1304,6 +1321,12 @@ void TaskFree(IBTask* t) {
 	IBVectorFree(&t->expStack, ExpectsFree);
 	IBVectorFree(&t->working, ObjFree);
 }
+void IBSpaceInit(IBSpace* sp, char* name){
+	IBStrInitWithCStr(&sp->name, name);
+}
+void IBSpaceFree(IBSpace* sp){
+	IBStrFree(&sp->name);
+}
 char* GetCEqu(Op op) {
 	int sz;
 	int i;
@@ -1440,6 +1463,16 @@ void OverwriteStr(char** str, char* with) {
 }
 Obj* IBLayer3GetObj(IBLayer3* ibc) {
 	return (Obj*)IBVectorTop(&ibc->ObjStack);
+}
+void _IBLayer3PushSpace(IBLayer3* ibc, char* name, IBSpace** spDP){
+	IBSpace* sp=NULL;
+	IBVectorPush(&ibc->SpaceStack, &sp);
+	assert(sp);
+	IBSpaceInit(sp, name);
+	if (spDP) (*spDP) = sp;
+}
+void _IBLayer3PopSpace(IBLayer3* ibc){
+	IBVectorPop(&ibc->SpaceStack, IBSpaceFree);
 }
 void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type){
 	if (!data)return;
@@ -1658,7 +1691,9 @@ void IBLayer3Init(IBLayer3* ibc){
 	ibc->InputStr = NULL;
 	/*ibc->SpaceNameStr = NULL;
 	OverwriteStr(&ibc->SpaceNameStr, "global");*/
-	IBStrInit(&ibc->CurSpace);
+	//IBStrInit(&ibc->CurSpace);
+	IBVectorInit(&ibc->SpaceStack, sizeof(IBSpace), OP_Space);
+	IBLayer3PushSpace(ibc, "root", NULL);
 	NameInfoDBInit(&ibc->NameTypeCtx);
 	IBVectorInit(&ibc->ObjStack, sizeof(Obj), OP_Obj);
 	IBVectorInit(&ibc->ModeStack, sizeof(Op), OP_Op);
@@ -1751,7 +1786,8 @@ void IBLayer3Free(IBLayer3* ibc) {
 		free(ibc->SpaceNameStr);
 		ibc->SpaceNameStr = NULL;
 	}*/
-	IBStrFree(&ibc->CurSpace);
+	//IBStrFree(&ibc->CurSpace);
+	IBVectorFree(&ibc->SpaceStack, IBSpaceFree);
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
 	IBVectorFreeSimple(&ibc->ModeStack);
@@ -2800,8 +2836,9 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx))
 			if (o->type == OP_Space) break;
 		assert(o);
-		if(o) 
-			IBStrReplaceWithCStr(&ibc->CurSpace, o->name);
+		if (o)
+			IBLayer3PushSpace(ibc, o->name, NULL);
+			//IBStrReplaceWithCStr(&ibc->CurSpace, o->name);
 		break;
 	}
 	case OP_FuncWantCode:
@@ -4029,7 +4066,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBExpects* ap;
 				//onion
 				IBLayer3PushTask(ibc, OP_ThingWantName, &ap, NULL);
-				ExpectsInit(ap, "PNN", OP_Op, OP_Done);
+				ExpectsInit(ap, "PN", OP_Op, OP_Done);
 				IBLayer3PushExpects(ibc, &ap);
 				ExpectsInit(ap, "PPN", OP_Op, OP_LineEnd, OP_Repr);
 				IBLayer3PushExpects(ibc, &ap);
