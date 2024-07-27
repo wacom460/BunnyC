@@ -837,7 +837,9 @@ OpNamePair pfxNames[] = {
 	{"BracketClose( ] )", OP_BracketClose},
 	{"Dot(.)", OP_Dot},{"LessThan(<)", OP_LessThan},
 	{"GreaterThan(>)", OP_GreaterThan},
-	{"Comma(,)", OP_Comma},
+	{"Comma(,)", OP_Comma}, {"Subtract(-)", OP_Subtract},
+	{"Add(+)", OP_Add},{"Divide(/)", OP_Divide},
+	{"Multiply(*)", OP_Multiply},
 };
 OpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
@@ -1320,6 +1322,7 @@ char* GetCEqu(Op op) {
 	for (i = 0; i < sz; i++) {
 		if (op == cEquivelents[i].op) return cEquivelents[i].name;
 	}
+	assert(0);
 	return "?";
 }
 IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn, Op objType, IBStr* objName){
@@ -1366,6 +1369,7 @@ char* GetOpName(Op op) {
 	for (i = 0; i < sz; i++) {
 		if (op == opNamesAR[i].op) return opNamesAR[i].name;
 	}
+	assert(0);
 	return "?";
 }
 char* GetPfxName(Op op) {
@@ -1375,6 +1379,7 @@ char* GetPfxName(Op op) {
 	for (i = 0; i < sz; i++) {
 		if (op == pfxNames[i].op) return pfxNames[i].name;
 	}
+	assert(0);
 	return "?";
 }
 //Op GetOpFromName(char* name) {
