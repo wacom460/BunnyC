@@ -176,6 +176,7 @@ X(Use) \
 X(Build) \
 X(Call) \
 X(Case) \
+X(Output) \
 X(CallWantArgs) \
 X(Space) \
 X(Func) \
@@ -624,6 +625,13 @@ typedef struct IBTask {
 } IBTask;
 void TaskInit(IBTask* t, Op type);
 void TaskFree(IBTask* t);
+/*IBSharedState: shared state between 
+	multiple IBLayer3 instances*/
+//TODO: make race condition safe
+typedef struct IBSharedState {
+	//cant define output settings in more than one file...
+	bool outputSettingsDefined;
+} IBSharedState;
 typedef struct IBLayer3 {
 	int Line;
 	int Column;
@@ -819,7 +827,7 @@ OpNamePair PairNameOps[] = {
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
 	{"as", OP_As},{"pro", OP_ProtectedReadOnly},
-	{">", OP_GreaterThan},
+	{">", OP_GreaterThan},{"output", OP_Output},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
