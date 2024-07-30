@@ -3845,7 +3845,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ObjSetType(o, OP_EnumName);
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);
-			break;
+			bre
 		}
 		case OP_EnumNeedName: {
 			SetTaskType(t, OP_EnumWantContent);
