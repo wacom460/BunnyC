@@ -616,6 +616,7 @@ typedef struct TaskNeedExpression {
 	Op finalVartype;
 } TaskNeedExpression;
 typedef struct IBTask {
+	struct IBTask* parent;
 	Op type;
 	IBCodeBlock code;
 	IBVector expStack; /*IBExpects*/
@@ -939,8 +940,9 @@ size_t IBStrGetLen(IBStr* str) {
 }
 void IBStrAppendCh(IBStr* str, char ch, int count){
 	char astr[2];
+	if (!count) return;
 	assert(str);
-	assert(count > 0);
+	//assert(count > 0);
 	astr[0] = ch;
 	astr[1] = '\0';
 	while(count--) IBStrAppendCStr(str, astr);
@@ -1745,9 +1747,10 @@ void IBLayer3Free(IBLayer3* ibc) {
 		"Reached end of file not at root task");
 	if (ibc->CodeBlockStack.elemCount != 1)
 		Err(OP_Error, "dirty codeblock stack");
-	assert(!(IBStrGetLen(&cb->variables) +
+	if (IBStrGetLen(&cb->variables) +
 		IBStrGetLen(&cb->code) +
-		IBStrGetLen(&cb->footer)));
+		IBStrGetLen(&cb->footer))
+		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");
 	IBStrAppendCStr(&ibc->CHeaderFuncs, "\n#endif\n");
 #ifdef DEBUGPRINTS
 	IBPushColor(IBFgMAGENTA);
@@ -1820,14 +1823,17 @@ void _IBLayer3PopCodeBlock(IBLayer3* ibc, bool copyToParent, IBCodeBlock** cbDP)
 	if(cbDP) (*cbDP) = IBLayer3CodeBlocksTop(ibc);
 }
 void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** taskDP) {
-	IBTask* t = IBLayer3GetTask(ibc);
+	IBTask* t = IBLayer3GetTask(ibc), *bt=NULL;
 	DbgFmt(" Push task ", "");
-	if (t)
+	if (t) {
 		DbgFmt("%s(%d) -> ", GetOpName(t->type), (int)t->type);
+		bt = t;
+	}
 	DbgFmt(" %s(%d)\n", GetOpName(taskOP), (int)taskOP);
 	IBVectorPush(&ibc->TaskStack, &t);
 	if(taskDP) (*taskDP) = t;
 	TaskInit(t, taskOP);
+	t->parent=bt;
 	IBVectorPush(&t->expStack, exectsDP);
 	if (!exectsDP) {
 		IBExpects* exp=IBTaskGetExpTop(t);
@@ -3723,13 +3729,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_ThingWantContent: {
 			Obj* o;
 			IBExpects* exp;
+			IBTask* t;
+			IBLayer3PushTask(ibc, OP_VarNeedName, &exp, &t);
 			IBLayer3PushObj(ibc, &o);
 			o->var.type = ibc->NameOp;
 			o->var.mod = ibc->Pointer;
 			o->var.privacy = ibc->Privacy;
 			o->var.valSet = false;
 			SetObjType(o, OP_VarNeedName);
-			IBLayer3PushExpects(ibc, &exp);
+			//IBLayer3PushExpects(ibc, &exp);
 			ExpectsInit(exp, "1P", "expected variable name", OP_Name);
 			break;
 		}
