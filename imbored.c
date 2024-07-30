@@ -179,6 +179,7 @@ X(Case) \
 X(Output) \
 X(CallWantArgs) \
 X(Space) \
+X(Enum) \
 X(Func) \
 X(FuncHasName) \
 X(FuncNeedName) \
@@ -268,6 +269,8 @@ X(TableNeedExpr) \
 X(TableCaseNeedExpr) \
 X(TableWantCase) \
 X(CaseWantCode) \
+X(EnumNeedName) \
+X(EnumWantContent) \
 X(IfBlockWantCode) \
 X(BlockWantCode) \
 X(FuncWantCode) \
@@ -351,6 +354,7 @@ X(ActOnName) \
 X(ActOnNameEquals) \
 X(RootObj) \
 X(DBObj) \
+X(EnumName) \
 X(None) \
 \
 /*field can only be written by its internals/friends*/ \
@@ -688,6 +692,7 @@ Obj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, Op type);
 Obj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, Op type);
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type);
 int IBLayer3GetTabCount(IBLayer3* ibc);
+void IBLayer3Done(IBLayer3* ibc);
 Obj* IBLayer3FindWorkingObj(IBLayer3* ibc, Op type);
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc);
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP);
@@ -812,7 +817,7 @@ OpNamePair opNamesAR[] = {
 #undef OP*/
 OpNamePair PairNameOps[] = {
 	{"null", OP_Null},{IBFALSESTR, OP_False},{IB_TRUESTR, OP_True},
-	{"block", OP_Func},{"~", OP_Comment},{"%", OP_VarType},
+	{"blk", OP_Func},{"~", OP_Comment},{"%", OP_VarType},
 	{"@", OP_Done},{"ret", OP_Return},{"ext", OP_Imaginary},
 	{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
 	{"build", OP_Build},{"space", OP_Space},{"priv", OP_Private},
@@ -829,6 +834,7 @@ OpNamePair PairNameOps[] = {
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
 	{"as", OP_As},{"pro", OP_ProtectedReadOnly},
 	{">", OP_GreaterThan},{"output", OP_Output},
+	{"enum", OP_Enum},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -877,11 +883,11 @@ OpNamePair dbgAssertsNP[] = {
 char* SysLibCodeStr =
 "@space $sys\n"
 "@pub\n"
-"@ext @block $malloc %i32 $size -> %^?\n"
-"@ext @block $realloc %^? $ptr %i32 $newSize -> %^?\n"
-"@ext @block $free %^? $ptr\n"
-"@ext @block $strdup %^c8 $str -> %^c8\n"
-"@ext @block $strcat %^c8 $str1 %^c8 $str2 -> %^c8\n"
+"@ext @blk $malloc %i32 $size -> %^?\n"
+"@ext @blk $realloc %^? $ptr %i32 $newSize -> %^?\n"
+"@ext @blk $free %^? $ptr\n"
+"@ext @blk $strdup %^c8 $str -> %^c8\n"
+"@ext @blk $strcat %^c8 $str1 %^c8 $str2 -> %^c8\n"
 ;
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
@@ -1271,6 +1277,7 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char *fmt, ...) {
 			IBVectorCopyPushOp(&exp->pfxs, OP_String);
 			IBVectorCopyPushOp(&exp->pfxs, OP_Name);
 			IBVectorCopyPushOp(&exp->pfxs, OP_Exclaim);
+			IBVectorCopyPushOp(&exp->pfxs, OP_Underscore);
 			IBVectorCopyPushOp(&exp->nameOps, OP_If);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Done);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Return);
@@ -1695,8 +1702,8 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBLayer3Push(ibc, OP_ModePrefixPass, false);
 	IBLayer3PushObj(ibc, &o);
 	IBLayer3PushTask(ibc, OP_RootTask, &exp, NULL);
-	ExpectsInit(exp, "PNNNNNNN", 
-		OP_Op, OP_Use, OP_Imaginary, OP_Func, 
+	ExpectsInit(exp, "PNNNNNNNN", 
+		OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Enum,
 		OP_Thing, OP_Space, OP_Public, OP_Private);
 }
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type){
@@ -1788,6 +1795,68 @@ void IBLayer3Free(IBLayer3* ibc) {
 }
 int IBLayer3GetTabCount(IBLayer3* ibc){
 	return ibc->CodeBlockStack.elemCount - 1;
+}
+void IBLayer3Done(IBLayer3* ibc){
+	IBTask* t = IBLayer3GetTask(ibc);
+	assert(t);
+	if (ibc->TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
+	switch (t->type) {
+	case OP_CaseWantCode: {
+		IBLayer3FinishTask(ibc);
+		t = IBLayer3GetTask(ibc);
+		assert(t->type == OP_TableWantCase);
+		IBLayer3FinishTask(ibc);
+		break;
+	}
+	case OP_ThingWantContent: {
+		Obj* o;
+		o = IBLayer3GetObj(ibc);
+		assert(o->type == OP_Thing);
+		IBLayer3PopObj(ibc, true, &o);
+		assert(o->type == OP_NotSet);
+	}
+	case OP_BlockWantCode:
+	case OP_IfBlockWantCode: {
+		IBLayer3FinishTask(ibc);
+		break;
+	}
+	case OP_Func:
+	case OP_FuncHasName:
+	case OP_FuncWantCode: {
+		Obj* o;
+		IBVector* wo;
+		int idx;
+		assert(t);
+		PLINE;
+		DbgFmt(" Finishing function\n", "");
+		idx = 0;
+		/*t = NULL;*/
+		o = NULL;
+		wo = &t->working;
+		while (o = (Obj*)IBVectorIterNext(wo, &idx)) {
+			/*TODO: could cache func obj index later*/
+			if (o->type == OP_FuncSigComplete) {
+				if (o->func.retValType != OP_Void) {
+					IBExpects* exp;
+					IBLayer3PushExpects(ibc, &exp);
+					/*if (o->func.retType == OP_c8 && o->func.retTypeMod == OP_Pointer) {
+						ExpectsInit(exp, "PP", OP_Name, OP_String);
+					}
+					else {
+
+					}*/
+					ExpectsInit(exp, "PPP", OP_Value, OP_Name, OP_String);
+					SetTaskType(t, OP_FuncNeedRetVal);
+				}
+				else {
+					SetTaskType(t, OP_Func);
+					IBLayer3FinishTask(ibc);
+				}
+			}
+		}
+		break;
+	}
+	}
 }
 Obj* IBLayer3FindWorkingObj(IBLayer3* ibc, Op type){
 	Obj* o=NULL;
@@ -2216,7 +2285,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 				assert(t->subTasks.elemCount == 1);
 				SetTaskType(t, OP_TableWantCase);
 				IBLayer3ReplaceExpects(ibc, &exp);
-				ExpectsInit(exp, "PNN", OP_Op, OP_Case, OP_Done);
+				ExpectsInit(exp, "PPNN", OP_Op, OP_Underscore, OP_Case, OP_Done);
 				IBLayer3PushCodeBlock(ibc, NULL);
 				break;
 			}
@@ -2278,8 +2347,8 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			IBExpects* exp;
 			SetTaskType(t, OP_ThingWantContent);
 			IBLayer3ReplaceExpects(ibc, &exp);
-			ExpectsInit(exp, "PPNN", 
-				OP_Op, OP_VarType, OP_Func, OP_Done);
+			ExpectsInit(exp, "PPPNN", 
+				OP_Op, OP_Underscore, OP_VarType, OP_Func, OP_Done);
 			break;
 		}
 		case OP_CPrintfHaveFmtStr: {
@@ -3384,6 +3453,16 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	IBPopColor();
 	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
+	case OP_Underscore: {
+		switch (ibc->NameOp) {
+		case OP_EmptyStr: {
+			IBLayer3Done(ibc);
+			break;
+		}
+		CASE_UNIMP
+		}
+		break;
+	}
 	case OP_Multiply:
 	case OP_Divide:
 	case OP_Subtract: {
@@ -3760,6 +3839,18 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	/* $ PFXNAME */ case OP_Name: {
 		switch(t->type) {
+		case OP_EnumWantContent: {
+			Obj* o;
+			IBLayer3PushObj(ibc, &o);
+			ObjSetType(o, OP_EnumName);
+			ObjSetName(o, ibc->Str);
+			IBLayer3PopObj(ibc, true, &o);
+			break;
+		}
+		case OP_EnumNeedName: {
+			SetTaskType(t, OP_EnumWantContent);
+			break;
+		}
 		case OP_NeedExpression: {
 			Obj* o;
 			IBLayer3PushObj(ibc, &o);
@@ -4053,6 +4144,18 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
+		case OP_Enum: {
+			switch (t->type) {
+			case OP_RootTask: {
+				IBExpects* ap;
+				IBLayer3PushTask(ibc, OP_EnumNeedName, &ap, NULL);
+				ExpectsInit(ap, "1P", "expected enum name", OP_Name);
+				break;
+			}
+			CASE_UNIMP
+			}
+			break;
+		}
 		case OP_Space: {
 			switch (t->type) {
 			case OP_RootTask: {
@@ -4194,64 +4297,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			break;
 		}
 		case OP_Done: {
-			if (ibc->TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
-			switch (t->type) {
-			case OP_CaseWantCode: {
-				IBLayer3FinishTask(ibc);
-				t= IBLayer3GetTask(ibc);
-				assert(t->type == OP_TableWantCase);
-				IBLayer3FinishTask(ibc);
-				break;
-			}
-			case OP_ThingWantContent: {
-				Obj* o;
-				o = IBLayer3GetObj(ibc);
-				assert(o->type == OP_Thing);
-				IBLayer3PopObj(ibc, true, &o);
-				assert(o->type == OP_NotSet);
-			}
-			case OP_BlockWantCode:
-			case OP_IfBlockWantCode: {
-				IBLayer3FinishTask(ibc);
-				break;
-			}
-			case OP_Func:
-			case OP_FuncHasName:
-			case OP_FuncWantCode: {
-				Obj* o;
-				IBVector* wo;
-				int idx;
-				assert(t);
-				PLINE;
-				DbgFmt(" Finishing function\n", "");
-				idx = 0;
-				/*t = NULL;*/
-				o = NULL;
-				wo = &t->working;
-				while (o = (Obj*)IBVectorIterNext(wo, &idx)) {
-					/*TODO: could cache func obj index later*/
-					if (o->type == OP_FuncSigComplete) {
-						if (o->func.retValType != OP_Void) {
-							IBExpects* exp;
-							IBLayer3PushExpects(ibc, &exp);
-							/*if (o->func.retType == OP_c8 && o->func.retTypeMod == OP_Pointer) {
-								ExpectsInit(exp, "PP", OP_Name, OP_String);
-							}
-							else {
-
-							}*/
-							ExpectsInit(exp, "PPP", OP_Value, OP_Name, OP_String);
-							SetTaskType(t, OP_FuncNeedRetVal);
-						}
-						else {
-							SetTaskType(t, OP_Func);
-							IBLayer3FinishTask(ibc);
-						}
-					}
-				}
-				break;
-			}
-			}
+			IBLayer3Done(ibc);
 			break;
 		}
 		case OP_Return: {
