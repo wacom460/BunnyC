@@ -1,3 +1,7 @@
+@flags $ScreenFlags
+	$Fullscreen $Resizable $Visible
+_
+
 @thing $a
-%i32 $v
+%ScreenFlags $v
 _

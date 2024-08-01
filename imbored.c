@@ -411,6 +411,7 @@ typedef struct IBVector {
 	int elemCount;
 	int slotCount;
 	size_t dataSize;
+	//do not expect pointers to stay valid, realloc is called often
 	IBVecData* data;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize, Op type);
@@ -949,7 +950,7 @@ size_t IBStrGetLen(IBStr* str) {
 }
 void IBStrAppendCh(IBStr* str, char ch, int count){
 	char astr[2];
-	if (!count) return;
+	if (count < 1) return;
 	assert(str);
 	//assert(count > 0);
 	astr[0] = ch;
@@ -1337,13 +1338,13 @@ void TaskFree(IBTask* t) {
 char* GetCEqu(Op op) {
 	int sz;
 	int i;
+	assert(op != OP_Unknown);
 	if(op==OP_None)return "";
 	sz=sizeof(cEquivelents) / sizeof(cEquivelents[0]);
 	for (i = 0; i < sz; i++) {
 		if (op == cEquivelents[i].op) return cEquivelents[i].name;
 	}
-	assert(0);
-	return "?";
+	return "[GetCEqu UNKNOWN!!!!]";
 }
 IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn, Op objType, IBStr* objName){
 	IB_DBObj* ret=NULL;
@@ -2675,8 +2676,9 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			switch (o->type) {
 			case OP_VarComplete:
 			case OP_VarWantValue: {
-				IBStrAppendCh(vstr, '\t', tabCount);
-				IBStrAppendFmt(vstr, "%s%s %s", GetCEqu(o->var.type), GetCEqu(o->var.mod), o->name);
+				IBStrAppendCh(vstr, '\t', thing ? 1 : tabCount);
+				char* typeStr = o->var.type == OP_Unknown ? o->str : GetCEqu(o->var.type);
+				IBStrAppendFmt(vstr, "%s%s %s", typeStr, GetCEqu(o->var.mod), o->name);
 				if (!thing) {
 					IBStrAppendCStr(vstr, " = ");
 					switch (o->var.type) {
@@ -2901,23 +2903,24 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrInit(&footer);
 		IBStrInit(&hFile);
 		IBStrInit(&cFile);
-		idx = 0;
-		while (st = (IBTask*)IBVectorIterNext(&t->subTasks, &idx)) {
-			switch (st->type) {
-				case OP_VarWantValue: {
-					Obj* o = (Obj*)IBVectorFront(&st->working);
-					assert(o);
-					IBStrAppendFmt(&body,
-						"\t%s%s %s;\n",
-						GetCEqu(o->var.type),
-						GetCEqu(o->var.mod),
-						o->name);
-					//default values will be stored in db
-					break;
-				}
-				CASE_UNIMP
-			}
-		}
+		//idx = 0;
+		//while (st = (IBTask*)IBVectorIterNext(&t->subTasks, &idx)) {
+		//	switch (st->type) {
+		//		case OP_VarWantValue: {
+		//			Obj* o = (Obj*)IBVectorFront(&st->working);
+		//			assert(o);
+		//			IBStrAppendFmt(&body,
+		//				"\t%s%s %s;\n",
+		//				GetCEqu(o->var.type),
+		//				GetCEqu(o->var.mod),
+		//				o->name);
+		//			//default values will be stored in db
+		//			break;
+		//		}
+		//		CASE_UNIMP
+		//	}
+		//}
+		IBCodeBlockFinish(&t->code, &body);
 		idx = 0;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
@@ -3861,13 +3864,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			PopExpects();
 			break;
 		}
-		case OP_ThingWantContent: {
+		case OP_ThingWantContent: /* {
 			Obj* o;
 			IBExpects* exp;
 			IBTask* t;
 			IBLayer3PushTask(ibc, OP_VarNeedName, &exp, &t);
 			IBLayer3PushObj(ibc, &o);
 			o->var.type = ibc->NameOp;
+			ObjSetStr(o, ibc->Str);
 			o->var.mod = ibc->Pointer;
 			o->var.privacy = ibc->Privacy;
 			o->var.valSet = false;
@@ -3875,7 +3879,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			//IBLayer3PushExpects(ibc, &exp);
 			ExpectsInit(exp, "1P", "expected variable name", OP_Name);
 			break;
-		}
+		}*/
 		CASE_BLOCKWANTCODE
 		{
 			Obj* o;
@@ -3883,6 +3887,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBTask* t;
 			IBLayer3PushObj(ibc, &o);
 			o->var.type = ibc->NameOp;
+			ObjSetStr(o, ibc->Str);
 			o->var.mod = ibc->Pointer;
 			o->var.valSet = false;
 			SetObjType(o, OP_VarNeedName);
