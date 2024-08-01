@@ -2535,7 +2535,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			case OP_Enum: break;
 			case OP_EnumName: {
 				oneFound = true;
-				IBStrAppendFmt(&t->code.code, "\t%s", o->name);
+				IBStrAppendFmt(&t->code.code, "\t%s_%s", eo->name, o->name);
 				if (eo->enumO.flags) {
 					IBStrAppendFmt(&t->code.code, " = %d", flagsI);
 					flagsI *= 2;
@@ -3569,7 +3569,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				assert(o);
 				assert(o->name[0] != '\0');
 				type=NameInfoDBFindType(&ibc->NameTypeCtx, o->name);
-				assert(type != OP_NotFound);
+				//assert(type != OP_NotFound);
 				SetTaskType(t, OP_ExprToName);
 				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
 				t->exprData.finalVartype = type;

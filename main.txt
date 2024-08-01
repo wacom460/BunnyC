@@ -2,6 +2,17 @@
 	$Fullscreen $Resizable $Visible
 _
 
+@thing $vec2
+	%i32 $x
+	%i32 $y
+_
+
 @thing $a
-	%ScreenFlags $v
+	%ScreenFlags $sf
+	%vec2 $pos
+
+	@blk $init
+		$self.pos.x <- =640
+		$self.pos.y <- =480
+	_
 _
