@@ -2665,29 +2665,39 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	case OP_VarWantValue: {
 		int idx = 0;
 		Obj* o = NULL;
+		bool thing = false;
+		assert(t->parent);
+		if (t->parent->type == OP_ThingWantContent) {
+			thing = true;
+			pop2Parent = true;
+		}
+		IBStr* vstr = thing ? &t->parent->code.code : &IBLayer3CodeBlocksTop(ibc)->variables;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
 			case OP_VarComplete:
 			case OP_VarWantValue: {
-				IBStrAppendCh(&cb->variables, '\t', tabCount);
-				IBStrAppendFmt(&cb->variables, "%s%s %s = ", GetCEqu(o->var.type), GetCEqu(o->var.mod), o->name);
-				switch (o->var.type) {
-				case OP_i64:
-				case OP_i32: {
-					IBStrAppendFmt(&cb->variables, "%d", o->var.val.i32);
-					break;
+				IBStrAppendCh(vstr, '\t', tabCount);
+				IBStrAppendFmt(vstr, "%s%s %s", GetCEqu(o->var.type), GetCEqu(o->var.mod), o->name);
+				if (!thing) {
+					IBStrAppendCStr(vstr, " = ");
+					switch (o->var.type) {
+					case OP_i64:
+					case OP_i32: {
+						IBStrAppendFmt(vstr, "%d", o->var.val.i32);
+						break;
+					}
+					case OP_d64: {
+						IBStrAppendFmt(vstr, "%f", o->var.val.d64);
+						break;
+					}
+					case OP_f32: {
+						IBStrAppendFmt(vstr, "%f", o->var.val.f32);
+						break;
+					}
+							   CASE_UNIMP
+					}
 				}
-				case OP_d64: {
-					IBStrAppendFmt(&cb->variables, "%f", o->var.val.d64);
-					break;
-				}
-				case OP_f32: {
-					IBStrAppendFmt(&cb->variables, "%f", o->var.val.f32);
-					break;
-				}
-				CASE_UNIMP
-				}
-				IBStrAppendFmt(&cb->variables, "%s\n", ";");
+				IBStrAppendFmt(vstr, "%s\n", ";");
 				break;
 			}
 			}
@@ -2884,6 +2894,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStr hFile;
 		IBStr cFile;
 		Obj* o;
+		IBTask* st;
 		int idx;
 
 		IBStrInit(&header);
@@ -2891,6 +2902,23 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrInit(&footer);
 		IBStrInit(&hFile);
 		IBStrInit(&cFile);
+		idx = 0;
+		while (st = (IBTask*)IBVectorIterNext(&t->subTasks, &idx)) {
+			switch (st->type) {
+				case OP_VarWantValue: {
+					Obj* o = (Obj*)IBVectorFront(&st->working);
+					assert(o);
+					IBStrAppendFmt(&body,
+						"\t%s%s %s;\n",
+						GetCEqu(o->var.type),
+						GetCEqu(o->var.mod),
+						o->name);
+					//default values will be stored in db
+					break;
+				}
+				CASE_UNIMP
+			}
+		}
 		idx = 0;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
@@ -2907,15 +2935,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 
 				break;
 			}
-			case OP_VarWantValue: {
-				IBStrAppendFmt(&body, 
-					"\t%s%s %s;\n", 
-					GetCEqu(o->var.type), 
-					GetCEqu(o->var.mod), 
-					o->name);
-				//default values will be stored in db
-				break;
-			}
+			CASE_UNIMP
 			}
 		}
 		IBStrAppend(&ibc->CHeaderStructs, &header);
