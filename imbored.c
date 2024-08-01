@@ -1815,6 +1815,7 @@ void IBLayer3Done(IBLayer3* ibc){
 		IBLayer3PopObj(ibc, true, &o);
 		assert(o->type == OP_NotSet);
 	}
+	case OP_EnumWantContent:
 	case OP_BlockWantCode:
 	case OP_IfBlockWantCode: {
 		IBLayer3FinishTask(ibc);
@@ -3845,10 +3846,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ObjSetType(o, OP_EnumName);
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);
-			bre
+			break;
 		}
 		case OP_EnumNeedName: {
+			IBExpects* exp;
 			SetTaskType(t, OP_EnumWantContent);
+			IBLayer3ReplaceExpects(ibc, &exp);
+			ExpectsInit(exp, "PP", OP_Name, OP_Underscore);
 			break;
 		}
 		case OP_NeedExpression: {
