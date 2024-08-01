@@ -624,7 +624,6 @@ typedef struct TaskNeedExpression {
 	Op finalVartype;
 } TaskNeedExpression;
 typedef struct IBTask {
-	struct IBTask* parent;
 	Op type;
 	IBCodeBlock code;
 	IBVector expStack; /*IBExpects*/
@@ -694,7 +693,7 @@ void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type);
 void IBLayer3VecPrint(IBLayer3* ibc, IBVector* vec);
 Obj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, Op type);
 Obj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, Op type);
-IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type);
+IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type, int limit);
 int IBLayer3GetTabCount(IBLayer3* ibc);
 void IBLayer3Done(IBLayer3* ibc);
 Obj* IBLayer3FindWorkingObj(IBLayer3* ibc, Op type);
@@ -1710,14 +1709,14 @@ void IBLayer3Init(IBLayer3* ibc){
 		OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Enum, OP_Flags,
 		OP_Thing, OP_Space, OP_Public, OP_Private);
 }
-IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type){
+IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type, int limit){
 	int i;
 	if(ibc->TaskStack.elemCount < 2)
 		Err(OP_Error, "Not enough tasks on stack");
 	if(index == -1) index = ibc->TaskStack.elemCount - 1;
 	if(index >= ibc->TaskStack.elemCount)
 		Err(OP_Error, "Index out of bounds");
-	for (i = index - 1; i >= 0;) {
+	for (i = index - 1; i >= 0 && limit--;) {
 		IBTask* t;
 		t = (IBTask*)IBVectorGet(&ibc->TaskStack, i--);
 		if (t->type == type) return t;
@@ -1907,7 +1906,6 @@ void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** 
 	IBVectorPush(&ibc->TaskStack, &t);
 	if(taskDP) (*taskDP) = t;
 	TaskInit(t, taskOP);
-	t->parent=bt;
 	IBVectorPush(&t->expStack, exectsDP);
 	if (!exectsDP) {
 		IBExpects* exp=IBTaskGetExpTop(t);
@@ -2666,12 +2664,13 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		int idx = 0;
 		Obj* o = NULL;
 		bool thing = false;
-		assert(t->parent);
-		if (t->parent->type == OP_ThingWantContent) {
+		IBTask* parent = IBLayer3FindTaskUnderIndex(ibc, -1, OP_ThingWantContent, 1);
+		assert(parent);
+		if (parent->type == OP_ThingWantContent) {
 			thing = true;
 			pop2Parent = true;
 		}
-		IBStr* vstr = thing ? &t->parent->code.code : &IBLayer3CodeBlocksTop(ibc)->variables;
+		IBStr* vstr = thing ? &parent->code.code : &IBLayer3CodeBlocksTop(ibc)->variables;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
 			case OP_VarComplete:
