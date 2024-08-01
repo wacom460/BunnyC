@@ -1,1 +1,4 @@
-@enum $EntityType $Actor $Projectile $Wall _
+~@enum $EntityType $Actor $Projectile $Wall _
+@flags $options 
+	$opt1 $opt2 $opt3 $opt4 $a $b $c $d $e $f $g
+_
