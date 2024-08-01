@@ -2529,7 +2529,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		if(!eo || !eo->name || *eo->name == '\0')
 			Err(OP_Error, "enum needs a name");
 		IBStrAppendFmt(&t->code.header, "typedef enum %s {\n", eo->name);
-		IBStrAppendFmt(&t->code.footer, "} %s;\n", eo->name);
+		IBStrAppendFmt(&t->code.footer, "} %s;\n\n", eo->name);
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
 			case OP_Enum: break;

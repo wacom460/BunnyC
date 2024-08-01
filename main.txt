@@ -3,5 +3,5 @@
 _
 
 @thing $a
-%ScreenFlags $v
+	%ScreenFlags $v
 _
