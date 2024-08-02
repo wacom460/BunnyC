@@ -292,6 +292,7 @@ X(Block) \
 X(Fall) \
 X(Number) \
 X(c8) \
+X(CString) \
 X(u8) \
 X(u16) \
 X(u32) \
@@ -452,6 +453,12 @@ void IBVectorFreeSimple(IBVector* vec);
 	}\
 	IBVectorFreeSimple((vec));\
 }
+//Example:
+//IBDictFind("sssto", "key1", "key1ofkey1", "key1ofkey1ofkey1", "key1ofkey1ofkey1ofkey1", &outputType, &outputData);
+//IBDictSet("sssti", "key1", "key1ofkey1", "key1ofkey1ofkey1", "key1ofkey1ofkey1ofkey1", inputType, &data);
+typedef struct IBDictionary {
+	IBVector root;
+} IBDictionary;
 /* GLOBAL COLOR STACK */
 IBVector g_ColorStack; /*IBColor*/
 void IBPushColor(IBColor col) {
@@ -2473,14 +2480,16 @@ Val IBLayer3StrToVal(IBLayer3* ibc, char* str, Op expectedType) {
 }
 char* IBLayer3GetCPrintfFmtForType(IBLayer3* ibc, Op type) {
 	switch (type) {
-	case OP_String: return "s";
 	case OP_i32:    return "d";
 	case OP_i64:    return "lld";
 	case OP_u64:    return "llu";
 	case OP_d64:    return "f";
 	case OP_f32:    return "f";
 	case OP_u32:    return "u";
+	case OP_c8:
 	case OP_Char:   return "c";
+	case OP_String:
+	case OP_CString:
 	case OP_Bool:   return "s";
 	}
 	Err(OP_Error, "GetPrintfFmtForType: unknown type");
@@ -3512,7 +3521,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	IBPopColor();
 	DbgFmt("\n", "");
 	switch (ibc->Pfx) {
-	case OP_Underscore: {
+	/* _ PFXUNDERSCORE */ case OP_Underscore: {
 		switch (ibc->NameOp) {
 		case OP_EmptyStr: {
 			IBLayer3Done(ibc);
@@ -3522,9 +3531,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		break;
 	}
-	case OP_Multiply:
-	case OP_Divide:
-	case OP_Subtract: {
+	/* * PFXMULTIPLY */ case OP_Multiply:
+	/* / PFXDIVIDE */ case OP_Divide:
+	/* - PFXSUBTRACT */ case OP_Subtract: {
 		bool fall = true;
 		switch (ibc->NameOp) {
 		case OP_GreaterThan: {
@@ -3538,7 +3547,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		if (!fall) break;
 	}
-	case OP_Add: {
+	/* + PFXADD */ case OP_Add: {
 		switch (ibc->NameOp) {
 		case OP_EmptyStr: {
 			switch (t->type) {
@@ -3846,6 +3855,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				SetObjType(o, OP_FuncArgNameless);
 				o->arg.type = ibc->NameOp;
 				o->arg.mod = ibc->Pointer;
+				if (o->arg.type == OP_c8 && o->arg.mod == OP_Pointer) o->arg.type = OP_CString;
 				IBLayer3PushExpects(ibc, &exp);
 				ExpectsInit(exp, "1P", "expected func arg name", OP_Name);
 				break;
@@ -3942,7 +3952,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				PopExpects();
 				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
 				NameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
-					IBLayer3GetObj(ibc)->arg.type);
+					o->arg.type);
 				IBLayer3PopObj(ibc, true, NULL);
 				break;
 			}
