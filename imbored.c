@@ -530,9 +530,15 @@ typedef struct IBNameInfo {
 	Op type;
 	char* name;
 } IBNameInfo;
+void IBNameInfoInit(IBNameInfo* info);
+void IBNameInfoFree(IBNameInfo* info);
 typedef struct IBNameInfoDB {
 	IBVector pairs;
 } IBNameInfoDB;
+void IBNameInfoDBInit(IBNameInfoDB* db);
+void IBNameInfoDBFree(IBNameInfoDB* db);
+void IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type);
+Op IBNameInfoDBFindType(IBNameInfoDB* db, char* name);
 typedef struct FuncObj {
 	Op retTYPE;
 	char* retStr;
@@ -885,6 +891,7 @@ OpNamePair cEquivelents[] = {
 	{"+", OP_Add},{"-", OP_Subtract},{"*", OP_Multiply},
 	{"/", OP_Divide},{"%", OP_Modulo},{"*", OP_Deref},
 	{"&", OP_Ref},{"**", OP_DoubleDeref},{"***", OP_TrippleDeref},
+	{"char", OP_CString},
 };
 OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},
@@ -1172,23 +1179,27 @@ void IBCodeBlockFree(IBCodeBlock* block){
 	IBStrFree(&block->code);
 	IBStrFree(&block->footer);
 }
-void NameInfoInit(IBNameInfo* info){
+void IBNameInfoInit(IBNameInfo* info){
 	info->type=OP_NotSet;
 	info->name=NULL;
 }
-void NameInfoFree(IBNameInfo* info) {
+void IBNameInfoFree(IBNameInfo* info) {
 	free(info->name);
 }
-void NameInfoDBInit(IBNameInfoDB* db) {
+void IBNameInfoDBInit(IBNameInfoDB* db) {
 	IBVectorInit(&db->pairs, sizeof(IBNameInfo), OP_NameInfo);
 }
-void NameInfoDBAdd(IBNameInfoDB* db, char* name, Op type) {
+void IBNameInfoDBFree(IBNameInfoDB* db) {
+	assert(db);
+	IBVectorFree(&db->pairs, IBNameInfoFree);
+}
+void IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type) {
 	IBNameInfo info;
 	info.type = type;
 	info.name = strdup(name);
 	IBVectorCopyPush(&db->pairs, &info);
 }
-Op NameInfoDBFindType(IBNameInfoDB* db, char* name) {
+Op IBNameInfoDBFindType(IBNameInfoDB* db, char* name) {
 	IBNameInfo* pair;
 	int idx;
 	idx = 0;
@@ -1197,10 +1208,6 @@ Op NameInfoDBFindType(IBNameInfoDB* db, char* name) {
 			return pair->type;
 	}
 	return OP_NotFound;
-}
-void NameInfoDBFree(IBNameInfoDB* db) {
-	assert(db);
-	IBVectorFree(&db->pairs, NameInfoFree);
 }
 void ObjInit(Obj* o) {
 	o->type=OP_NotSet;
@@ -1700,7 +1707,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	/*ibc->SpaceNameStr = NULL;
 	OverwriteStr(&ibc->SpaceNameStr, "global");*/
 	IBStrInit(&ibc->CurSpace);
-	NameInfoDBInit(&ibc->NameTypeCtx);
+	IBNameInfoDBInit(&ibc->NameTypeCtx);
 	IBVectorInit(&ibc->ObjStack, sizeof(Obj), OP_Obj);
 	IBVectorInit(&ibc->ModeStack, sizeof(Op), OP_Op);
 	IBVectorInit(&ibc->StrReadPtrsStack, sizeof(bool), OP_Bool);
@@ -1799,7 +1806,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBVectorFreeSimple(&ibc->ModeStack);
 	IBVectorFreeSimple(&ibc->StrReadPtrsStack);
 	IBVectorFree(&ibc->TaskStack, TaskFree);
-	NameInfoDBFree(&ibc->NameTypeCtx);
+	IBNameInfoDBFree(&ibc->NameTypeCtx);
 	IBStrFree(&ibc->CHeaderStructs);
 	IBStrFree(&ibc->CHeaderFuncs);
 	IBStrFree(&ibc->CFile);
@@ -3180,7 +3187,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 						switch (voT) {
 						case OP_Name:{
 							Op type = 
-								NameInfoDBFindType(&ibc->NameTypeCtx, vo->name);
+								IBNameInfoDBFindType(&ibc->NameTypeCtx, vo->name);
 							IBStrAppendCStr(&cb->code,
 								IBLayer3GetCPrintfFmtForType(ibc, type));
 							break;
@@ -3226,7 +3233,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				switch (o->type) {
 				case OP_Name: {
 					Op type =
-						NameInfoDBFindType(&ibc->NameTypeCtx, o->name);
+						IBNameInfoDBFindType(&ibc->NameTypeCtx, o->name);
 					if(type == OP_Bool) IBStrAppendFmt(&cb->code, "%s ? \"yes\" : \"no\"", o->name);
 					else IBStrAppendCStr(&cb->code, o->name);
 					break;
@@ -3577,7 +3584,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				o = IBLayer3FindWorkingObj(ibc, OP_ActOnName);
 				assert(o);
 				assert(o->name[0] != '\0');
-				type=NameInfoDBFindType(&ibc->NameTypeCtx, o->name);
+				type=IBNameInfoDBFindType(&ibc->NameTypeCtx, o->name);
 				//assert(type != OP_NotFound);
 				SetTaskType(t, OP_ExprToName);
 				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
@@ -3951,7 +3958,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				SetObjType(o, OP_FuncArgComplete);
 				PopExpects();
 				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
-				NameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
+				IBNameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
 					o->arg.type);
 				IBLayer3PopObj(ibc, true, NULL);
 				break;
@@ -3994,7 +4001,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			idx = 0;
 			while (o = (Obj*)IBVectorIterNext(&t->working, &idx)) {
 				if (o->type == OP_FuncSigComplete) {
-					Op nameType = NameInfoDBFindType(&ibc->NameTypeCtx, ibc->Str);
+					Op nameType = IBNameInfoDBFindType(&ibc->NameTypeCtx, ibc->Str);
 					if(nameType==OP_NotFound)Err(OP_NotFound, "variable name not found");
 					if (o->func.retValType != nameType) Err(OP_Error, "variable doesn't match function return type");
 					DbgFmt("Finishing func got ret value as name\n", "");
@@ -4165,7 +4172,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			case OP_VarNeedName: {
 				IBExpects* exp;
 				ObjSetName(o, ibc->Str);
-				NameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str,
+				IBNameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str,
 					IBLayer3GetObj(ibc)->var.type);
 				SetObjType(o, OP_VarWantValue);
 				SetTaskType(t, OP_VarWantValue);
@@ -4184,7 +4191,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			case OP_VarNeedName: {
 				IBExpects* exp;
 				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
-				NameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
+				IBNameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
 					IBLayer3GetObj(ibc)->var.type);
 				SetObjType(o, OP_VarWantValue);
 				IBLayer3ReplaceExpects(ibc, &exp);
