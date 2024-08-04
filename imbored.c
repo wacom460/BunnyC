@@ -4164,6 +4164,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	}
 	/* $ PFXNAME */ case OP_Name: {
+		switch (ibc->Str[0]) {
+		CASE_0THRU9 { Err(OP_YouCantUseThatHere, "can't use number as first character of name!"); }
+		}
 		switch(t->type) {
 		case OP_EnumWantContent: {
 			Obj* o;

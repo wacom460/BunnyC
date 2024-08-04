@@ -1,4 +1,4 @@
-@blk $PrintHelloWorld
+@blk $0PrintHelloWorld
 	"Hello, %%" "world!"
 _
 
