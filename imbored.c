@@ -20,7 +20,7 @@
 #define false 0
 #define IB_TRUESTR "yes"
 #define IBFALSESTR "no"
-#define IB_FILEEXT "ibl"
+#define IB_FILEEXT "3"
 #define IB_IllegalDbObjNameChars " \t\n,.:~!@#$%^&*=/()[]{}<>?|\\`'\""
 #define BoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
 #ifdef _MSC_VER
