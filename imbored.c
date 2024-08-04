@@ -511,7 +511,6 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
 * x - in int
 * j - out char* (null terminated)
 * k - out int*
-* t - out IBDictDataType*
 * g - out IBDictKey*
 * 
 * EXAMPLES:
@@ -1330,7 +1329,6 @@ typedef enum {
 	IBDictManipAction_StrOut,
 	IBDictManipAction_IntIn,
 	IBDictManipAction_IntOut,
-	IBDictManipAction_DataTypeOut,
 	IBDictManipAction_KeyPtrOut,
 } IBDictManipAction;
 void IBDictManip(IBDictionary* dict, char* fmt, ...){
@@ -1343,8 +1341,7 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	char* inStr = NULL, **outStr=NULL;
 	int inInt=0;
 	int* outIntPtr=NULL;
-	IBDictDataType* outDDTPtr=NULL;
-	IBDictKey* outKeyPtr=NULL;
+	IBDictKey** outKeyPtr=NULL;
 	size_t count=0;
 	IBDictManipAction action = IBDictManipAction_Unknown;
 	memset(&scratchKeyDef, 0, sizeof(IBDictKeyDef));
@@ -1366,11 +1363,13 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 			break;
 		}
 		case 'i': {//in ptr
+			assert(action == IBDictManipAction_Unknown);
 			inPtr = va_arg(args, void*);
 			action = IBDictManipAction_DataOut;
 			break;
 		}
 		case 'o': {//out ptr
+			assert(action == IBDictManipAction_Unknown);
 			outPtr = va_arg(args, void**);
 			action = IBDictManipAction_DataIn;
 			break;
@@ -1380,32 +1379,32 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 			break;
 		}
 		case 'z': {//in char* (null terminated)
+			assert(action == IBDictManipAction_Unknown);
 			inStr = va_arg(args, char*);
 			action = IBDictManipAction_StrIn;
 			break;
 		}
 		case 'x': {//in int
+			assert(action == IBDictManipAction_Unknown);
 			inInt = va_arg(args, int);
 			action = IBDictManipAction_IntIn;
 			break;
 		}
 		case 'j': {//out new char* (null terminated)
+			assert(action == IBDictManipAction_Unknown);
 			outStr = va_arg(args, char*);
 			action = IBDictManipAction_StrOut;
 			break;
 		}
 		case 'k': {//out int*
+			assert(action == IBDictManipAction_Unknown);
 			outIntPtr = va_arg(args, int*);
 			action = IBDictManipAction_IntOut;
 			break;
 		}
-		case 't': {//out IBDictDataType*
-			outDDTPtr = va_arg(args, IBDictDataType*);
-			action = IBDictManipAction_DataTypeOut;
-			break;
-		}
 		case 'g': {//out IBDictKey*
-			outKeyPtr = va_arg(args, IBDictKey*);
+			assert(action == IBDictManipAction_Unknown);
+			outKeyPtr = va_arg(args, IBDictKey**);
 			action = IBDictManipAction_KeyPtrOut;
 			break;
 		}
@@ -1416,31 +1415,34 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	assert(dk);
 	IBLayer3VecPrint(&keyStack);
 	switch (action) {
-	case IBDictManipAction_DataIn: { 
-		assert(count > 0);
+	case IBDictManipAction_DataIn: {
+		assert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
+		memcpy_s(dk->data, IBDICTKEY_MAXDATASIZE, inPtr, count);
 		break;
 	}
 	case IBDictManipAction_DataOut: {
-		assert(count > 0);
+		assert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
+		memcpy(outPtr, dk->data, count);
 		break;
 	}
 	case IBDictManipAction_StrIn: {
+		strncpy(dk->data, inStr, IBDICTKEY_MAXDATASIZE);
 		break;
 	}
 	case IBDictManipAction_StrOut: {
-		//*outStr = strdup()
+		*outStr = strdup(dk->data);
 		break;
 	}
 	case IBDictManipAction_IntIn: {
+		memcpy(&dk->data, &inInt, sizeof(int));
 		break;
 	}
 	case IBDictManipAction_IntOut: {
-		break;
-	}
-	case IBDictManipAction_DataTypeOut: {
+		*outIntPtr = *(int*)dk->data;
 		break;
 	}
 	case IBDictManipAction_KeyPtrOut: {
+		*outKeyPtr = dk;
 		break;
 	}
 	CASE_UNIMP_A
