@@ -472,7 +472,10 @@ typedef enum {
 typedef struct IBDictKey {
 	IBDictDataType type;
 	IBVector children;
-	char data[IBDICTKEY_MAXDATASIZE];
+	union {
+		char data[IBDICTKEY_MAXDATASIZE];
+		int i;
+	};
 } IBDictKey;
 typedef struct {
 	IBDictDataType type;
@@ -520,6 +523,15 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
 * IBDictManip(dict, "ddsk", 0, 0, "id", &i); //read 1 from "0.0.id"
 */
 void IBDictManip(IBDictionary* dict, char* fmt, ...);
+void IBDictTest() {
+	IBDictionary dict;
+	IBDictKey* out=NULL;
+	IBDictionaryInit(&dict);
+	IBDictManip(&dict, "ddsx", 0, 0, "id", 1);
+	IBDictManip(&dict, "ddsk", 0, 0, "id", &out);
+	assert(out);
+	assert(out->i == 1);
+}
 /* GLOBAL COLOR STACK */
 IBVector g_ColorStack; /*IBColor*/
 void IBPushColor(IBColor col) {
@@ -1337,7 +1349,7 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	IBVector keyStack;//IBDictKeyDef
 	IBDictKeyDef scratchKeyDef;
 	void* inPtr=NULL;
-	void** outPtr;
+	void** outPtr=NULL;
 	char* inStr = NULL, **outStr=NULL;
 	int inInt=0;
 	int* outIntPtr=NULL;
@@ -4993,6 +5005,7 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 	rv = 1;
+	IBDictTest();
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
 	IBPushColor(IBFgWHITE);
 	g_DB = &db;
