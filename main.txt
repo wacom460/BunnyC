@@ -1,33 +1,3 @@
-~~@use $sys
-
-@thing $vec2i
-	%i32 $x
-	%i32 $y
-_
-
-@thing $entity
-	%vec2i $pos
-
-	@blk $init %i32 $x %i32 $y
-		$self.pos.x <- $x
-		$self.pos.x <- $y
-	_
-_
-~~
-@blk $print %^c8 $str
-	"%% %%" $str "dicks"
-_
-~~
 @blk $main %i32 $argc %^^c8 $argv -> %i32
-	@table $argc
-		@case =0
-			"not enough args!\n"
-			@ret =-1
-		@case =1
-			@fall
-		@case =2
-			@fall
-		@case =3
-	_
+	"Hello, %%" "world!"
 _ =0
-~~

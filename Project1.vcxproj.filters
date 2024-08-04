@@ -3,4 +3,7 @@
   <ItemGroup>
     <ClCompile Include="imbored.c" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="ReadMe.MD" />
+  </ItemGroup>
 </Project>

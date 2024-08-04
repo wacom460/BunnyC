@@ -1219,6 +1219,12 @@ IBDictKey* IBDictKeyNew(IBDictDataType type){
 	return ret;
 }
 void IBDictKeyFree(IBDictKey* key){
+	int idx;
+	IBDictKey* sk;
+	idx = 0;
+	while (sk = (IBDictKey*)IBVectorIterNext(&key->children, &idx)) {
+
+	}
 	free(key);
 }
 void IBDictionaryInit(IBDictionary* dict){
@@ -1242,8 +1248,9 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	int i=0;
 	IBVector keyStack;//IBDictKeyDef
 	IBDictKeyDef scratchKeyDef;
-	void* inOutPtr=NULL;
-	char* inStr = NULL, *outStr=NULL;
+	void* inPtr=NULL;
+	void** outPtr;
+	char* inStr = NULL, **outStr=NULL;
 	int inInt=0;
 	int* outIntPtr=NULL;
 	IBDictDataType* outDDTPtr;
@@ -1266,9 +1273,14 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 			IBVectorCopyPush(&keyStack, &scratchKeyDef);
 			break;
 		}
-		case 'i': //in ptr
+		case 'i': {//in ptr
+			inPtr = va_arg(args, void*);
+			action = IBDictManipAction_DataOut;
+			break;
+		}
 		case 'o': {//out ptr
-			inOutPtr = va_arg(args, void*);
+			outPtr = va_arg(args, void**);
+			action = IBDictManipAction_DataIn;
 			break;
 		}
 		case 'c': {//count
@@ -1277,22 +1289,27 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 		}
 		case 'z': {//in char* (null terminated)
 			inStr = va_arg(args, char*);
+			action = IBDictManipAction_StrIn;
 			break;
 		}
 		case 'x': {//in int
 			inInt = va_arg(args, int);
+			action = IBDictManipAction_IntIn;
 			break;
 		}
-		case 'j': {//out char* (null terminated)
+		case 'j': {//out new char* (null terminated)
 			outStr = va_arg(args, char*);
+			action = IBDictManipAction_StrOut;
 			break;
 		}
 		case 'k': {//out int*
 			outIntPtr = va_arg(args, int*);
+			action = IBDictManipAction_IntOut;
 			break;
 		}
 		case 't': {//out IBDictDataType *
 			outDDTPtr = va_arg(args, IBDictDataType*);
+			action = IBDictManipAction_DataTypeOut;
 			break;
 		}
 		case 'g': {//out IBDictKey*
@@ -1303,14 +1320,33 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 		}
 	}
 	switch (action) {
-		case IBDictManipAction_DataIn: { break; }
-		case IBDictManipAction_DataOut: { break; }
-		case IBDictManipAction_StrIn: { break; }
-		case IBDictManipAction_StrOut: { break; }
-		case IBDictManipAction_IntIn: { break; }
-		case IBDictManipAction_IntOut: { break; }
-		case IBDictManipAction_DataTypeOut: { break; }
-		case IBDictManipAction_KeyPtrOut: { break; }
+	case IBDictManipAction_DataIn: { 
+		assert(count > 0);
+		break;
+	}
+	case IBDictManipAction_DataOut: {
+		assert(count > 0);
+		break;
+	}
+	case IBDictManipAction_StrIn: {
+		break;
+	}
+	case IBDictManipAction_StrOut: {
+		//*outStr = strdup()
+		break;
+	}
+	case IBDictManipAction_IntIn: {
+		break;
+	}
+	case IBDictManipAction_IntOut: {
+		break;
+	}
+	case IBDictManipAction_DataTypeOut: {
+		break;
+	}
+	case IBDictManipAction_KeyPtrOut: {
+		break;
+	}
 	CASE_UNIMP_A
 	}
 	IBVectorFree(&keyStack);
