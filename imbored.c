@@ -164,7 +164,8 @@ case 'W': case 'X': case 'Y': case 'Z':
 #endif
 
 #define CASE_UNIMP_A default: { \
-	IBASSERT(0, "Unimplemented switch case"); \
+	DB; \
+	exit(-1); \
 	break; \
 }
 
@@ -527,8 +528,8 @@ void IBDictTest() {
 	IBDictionary dict;
 	IBDictKey* out=NULL;
 	IBDictionaryInit(&dict);
-	IBDictManip(&dict, "ddsx", 0, 0, "id", 1);
-	IBDictManip(&dict, "ddsk", 0, 0, "id", &out);
+	IBDictManip(&dict, "dx", 0, 1);
+	IBDictManip(&dict, "dk", 0, &out);
 	assert(out);
 	assert(out->i == 1);
 }
@@ -1251,7 +1252,6 @@ IBDictKey* IBDictKeyNew(IBDictKeyDef def){
 		strncpy(ret->data, def.str, IBDICTKEY_MAXDATASIZE);
 		break;
 	}
-	CASE_UNIMP_A
 	}
 	return ret;
 }
@@ -1319,15 +1319,17 @@ void IBDictionaryInit(IBDictionary* dict){
 void IBDictionaryFree(IBDictionary* dict){
 }
 IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
-	IBDictKeyDef* def = NULL;
+	IBDictKeyDef* dp = NULL;
 	IBDictKey* key = dict->rootKey;
 	int idx = 0;
 	assert(keyStack->elemCount);
-	while (def = IBVectorIterNext(&keyStack, &idx)) {
-		IBDictKey* ok = IBDictKeyFindChild(key, *def);
+	while (dp = IBVectorIterNext(&keyStack, &idx)) {
+		IBDictKeyDef def;
+		def = *dp;
+		IBDictKey* ok = IBDictKeyFindChild(key, def);
 		if (ok) key = ok;
 		else {
-			key = IBDictKeyNew(*def);
+			key = IBDictKeyNew(def);
 		}
 	}
 	if(key == dict->rootKey) key = NULL;
