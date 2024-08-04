@@ -41,7 +41,9 @@ functions that can access scope variables with type and name specified by the fu
 #ifdef _WIN32
 typedef enum IBColor {
 	//fg
-	IBFgWHITE =  FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE,
+	IBFgWHITE =  FOREGROUND_RED 
+		| FOREGROUND_GREEN 
+		| FOREGROUND_BLUE,
 	IBFgRED = FOREGROUND_RED,
 	IBFgGREEN = FOREGROUND_GREEN,
 	IBFgBLUE = FOREGROUND_BLUE,
@@ -52,7 +54,9 @@ typedef enum IBColor {
 	IBFgIntensity = FOREGROUND_INTENSITY,
 
 	//bg
-	IBBgWHITE = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE,
+	IBBgWHITE = BACKGROUND_RED 
+		| BACKGROUND_GREEN 
+		| BACKGROUND_BLUE,
 	IBBgRED = BACKGROUND_RED,
 	IBBgGREEN = BACKGROUND_GREEN,
 	IBBgBLUE = BACKGROUND_BLUE,
@@ -594,7 +598,8 @@ typedef struct IB_DBObj {
 	IBStr name;
 	IBVector children;/*IB_DBObj*/
 } IB_DBObj;
-IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn, Op objType, IBStr* objName);
+IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn, 
+	Op objType, IBStr* objName);
 void IB_DBObjFree(IB_DBObj* obj);
 typedef struct IBDatabase {
 	IB_DBObj* root;
@@ -1292,7 +1297,7 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth){
 	assert(childDepth);
 	tc = *childDepth;
 	while(tc--) printf("\t");
-	printf("[%d] ", *childDepth/*, IBDictDataTypeToString(key->type)*/);
+	printf("[%d] ", *childDepth);
 	switch (key->type) {
 	case IBDictDataType_VoidPtr: {
 		printf("Pointer: %p\n", (void*)key->data);
@@ -1314,9 +1319,15 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth){
 	--*childDepth;
 }
 void IBDictionaryInit(IBDictionary* dict){
-	dict->rootKey = IBDictKeyNew((IBDictKeyDef){ .type = IBDictDataType_RootKey, .key = NULL, .ptr = NULL });
+	dict->rootKey = IBDictKeyNew(
+		(IBDictKeyDef)
+		{ .type = IBDictDataType_RootKey, 
+			.key = NULL, 
+			.ptr = NULL 
+		});
 }
 void IBDictionaryFree(IBDictionary* dict){
+	IBDictKeyFree(dict->rootKey);
 }
 IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
 	IBDictKeyDef* dp = NULL;
@@ -1671,7 +1682,8 @@ char* GetCEqu(Op op) {
 	}
 	return "[GetCEqu UNKNOWN!!!!]";
 }
-IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn, Op objType, IBStr* objName){
+IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn, 
+	Op objType, IBStr* objName){
 	IB_DBObj* ret=NULL;
 	ret = malloc(sizeof * ret);
 	assert(ret);
@@ -2208,7 +2220,8 @@ void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP){
 	IBCodeBlockInit(cb);
 	if(cbDP) (*cbDP) = cb;
 }
-void _IBLayer3PopCodeBlock(IBLayer3* ibc, bool copyToParent, IBCodeBlock** cbDP){
+void _IBLayer3PopCodeBlock(IBLayer3* ibc, bool copyToParent, 
+		IBCodeBlock** cbDP){
 	assert(ibc->CodeBlockStack.elemCount > 1);
 	DbgFmt(" Pop code block. Copy to parent: %s\n", BoolStr(copyToParent));
 	if (copyToParent) {
@@ -2221,7 +2234,8 @@ void _IBLayer3PopCodeBlock(IBLayer3* ibc, bool copyToParent, IBCodeBlock** cbDP)
 	IBVectorPop(&ibc->CodeBlockStack, IBCodeBlockFree);
 	if(cbDP) (*cbDP) = IBLayer3CodeBlocksTop(ibc);
 }
-void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** taskDP) {
+void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, 
+		IBTask** taskDP) {
 	IBTask* t = IBLayer3GetTask(ibc), *bt=NULL;
 	DbgFmt(" Push task ", "");
 	if (t) {
@@ -2237,7 +2251,8 @@ void _IBLayer3PushTask(IBLayer3* ibc, Op taskOP, IBExpects** exectsDP, IBTask** 
 		IBExpects* exp=IBTaskGetExpTop(t);
 		switch (taskOP) {
 		case OP_NeedExpression: {
-			ExpectsInit(exp, "PPPPPP", OP_Value, OP_Name, OP_Add, OP_Subtract, OP_Divide, OP_Multiply);
+			ExpectsInit(exp, "PPPPPP", OP_Value, OP_Name, OP_Add, 
+				OP_Subtract, OP_Divide, OP_Multiply);
 			break;
 		}
 		default: {
@@ -2346,7 +2361,8 @@ void _IBLayer3Push(IBLayer3* ibc, Op mode, bool strAllowSpace){
 	cm=IBLayer3GetMode(ibc);
 	ibc->StrAllowSpace = strAllowSpace;
 	IBVectorCopyPushOp(&ibc->ModeStack, mode);
-	DbgFmt(" Push mode: %s(%d) -> %s(%d)\n", GetOpName(cm), (int)cm, GetOpName(mode), (int)mode);
+	DbgFmt(" Push mode: %s(%d) -> %s(%d)\n", GetOpName(cm), (int)cm, 
+		GetOpName(mode), (int)mode);
 }
 void _IBLayer3Pop(IBLayer3* ibc) {
 	Op type=OP_Null;
@@ -2361,7 +2377,8 @@ void _IBLayer3Pop(IBLayer3* ibc) {
 	IBVectorPop(&ibc->ModeStack, NULL);
 	mode2 = IBLayer3GetMode(ibc);
 	if(t)type=t->type;
-	DbgFmt(" Pop mode: %s(%d) -> %s(%d)\n", GetOpName(mode), (int)mode, GetOpName(mode2), (int)mode2);
+	DbgFmt(" Pop mode: %s(%d) -> %s(%d)\n", GetOpName(mode), (int)mode, 
+		GetOpName(mode2), (int)mode2);
 	assert(t->expStack.elemCount);
 #ifdef DEBUGPRINTS
 	exp=IBTaskGetExpTop(t);
@@ -2759,7 +2776,8 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	if (!ibc->InputStr) ibc->Column++;
 	else ibc->ColumnIS++;
 	if (nl) {
-		if (IBLayer3IsPfxExpected(ibc, OP_LineEnd) && t->expStack.elemCount>1) PopExpects();
+		if (IBLayer3IsPfxExpected(ibc, OP_LineEnd) && t->expStack.elemCount>1) 
+			PopExpects();
 		if (!ibc->InputStr) {
 			ibc->Column = 1;
 			ibc->Line++;
@@ -2992,13 +3010,15 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		int idx = 0;
 		Obj* o = NULL;
 		bool thing = false;
-		IBTask* parent = IBLayer3FindTaskUnderIndex(ibc, -1, OP_ThingWantContent, 1);
+		IBTask* parent = 
+			IBLayer3FindTaskUnderIndex(ibc, -1, OP_ThingWantContent, 1);
 		assert(parent);
 		if (parent->type == OP_ThingWantContent) {
 			thing = true;
 			pop2Parent = true;
 		}
-		IBStr* vstr = thing ? &parent->code.code : &IBLayer3CodeBlocksTop(ibc)->variables;
+		IBStr* vstr = thing ? &parent->code.code 
+			: &IBLayer3CodeBlocksTop(ibc)->variables;
 		while (o = (Obj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
 			case OP_VarComplete:
@@ -3419,7 +3439,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				switch (funcObj->func.retTYPE) {
 				case OP_Value: {
 					//assert(funcObj->func.retValType==OP_i32);
-					//IBStrAppendFmt(&cFuncCode, "%d", funcObj->func.retVal.i32);//for now
+					//IBStrAppendFmt(&cFuncCode, "%d", 
+					//	funcObj->func.retVal.i32);//for now
 					switch (funcObj->func.retValType) {
 					case OP_u8:
 					case OP_u16:
@@ -3545,7 +3566,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				case OP_Name: {
 					Op type =
 						IBNameInfoDBFindType(&ibc->NameTypeCtx, o->name);
-					if(type == OP_Bool) IBStrAppendFmt(&cb->code, "%s ? \"yes\" : \"no\"", o->name);
+					if(type == OP_Bool) 
+						IBStrAppendFmt(&cb->code, "%s ? \"yes\" : \"no\"", o->name);
 					else IBStrAppendCStr(&cb->code, o->name);
 					break;
 				}
@@ -3615,8 +3637,10 @@ void IBLayer3Prefix(IBLayer3* ibc){
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
 		break;
 	}
-	case OP_VarType:
-		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);//TODO: move this into func sig task
+	case OP_VarType: {
+		//TODO: move this into func sig task
+		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
+	}
 	case OP_LessThan:
 	case OP_GreaterThan:
 	case OP_Add:
@@ -4143,7 +4167,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 					case OP_i32:
 					case OP_i64: {
 						if (valType != OP_Number)
-							Err(OP_YouCantUseThatHere, "wrong return value type for this function");
+							Err(OP_YouCantUseThatHere, 
+								"wrong return value type for this function");
 						break;
 					}
 					CASE_UNIMP
@@ -4173,7 +4198,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				SetObjType(o, OP_FuncArgNameless);
 				o->arg.type = ibc->NameOp;
 				o->arg.mod = ibc->Pointer;
-				if (o->arg.type == OP_c8 && o->arg.mod == OP_Pointer) o->arg.type = OP_CString;
+				if (o->arg.type == OP_c8 && o->arg.mod == OP_Pointer) 
+					o->arg.type = OP_CString;
 				IBLayer3PushExpects(ibc, &exp);
 				ExpectsInit(exp, "1P", "expected func arg name", OP_Name);
 				break;
@@ -4228,7 +4254,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	/* $ PFXNAME */ case OP_Name: {
 		switch (ibc->Str[0]) {
-		CASE_0THRU9 { Err(OP_YouCantUseThatHere, "can't use number as first character of name!"); }
+		CASE_0THRU9 { Err(OP_YouCantUseThatHere, 
+			"can't use number as first character of name!"); }
 		}
 		switch(t->type) {
 		case OP_EnumWantContent: {
@@ -4316,8 +4343,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			while (o = (Obj*)IBVectorIterNext(&t->working, &idx)) {
 				if (o->type == OP_FuncSigComplete) {
 					Op nameType = IBNameInfoDBFindType(&ibc->NameTypeCtx, ibc->Str);
-					if(nameType==OP_NotFound)Err(OP_NotFound, "variable name not found");
-					if (o->func.retValType != nameType) Err(OP_Error, "variable doesn't match function return type");
+					if(nameType==OP_NotFound) 
+						Err(OP_NotFound, "variable name not found");
+					if (o->func.retValType != nameType) 
+						Err(OP_Error, "variable doesn't match function return type");
 					DbgFmt("Finishing func got ret value as name\n", "");
 					OverwriteStr(&o->func.retStr, ibc->Str);
 					o->func.retTYPE = OP_Name;
