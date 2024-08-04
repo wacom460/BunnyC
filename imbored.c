@@ -1316,7 +1316,7 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 		}
 		case 'd': {//int
 			scratchKeyDef.type = IBDictDataType_Int;
-			scratchKeyDef.str = va_arg(args, int);
+			scratchKeyDef.num = va_arg(args, int);
 			IBVectorCopyPush(&keyStack, &scratchKeyDef);
 			break;
 		}
