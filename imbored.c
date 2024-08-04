@@ -163,6 +163,11 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define DbgFmt(x, ...)
 #endif
 
+#define CASE_UNIMP_A default: { \
+	IBASSERT(0, "Unimplemented switch case"); \
+	break; \
+}
+
 struct IBDatabase* g_DB;
 
 #define _IB_OPS_ \
@@ -356,6 +361,7 @@ X(ActOnNameEquals) \
 X(RootObj) \
 X(DBObj) \
 X(EnumName) \
+X(IBDictKey) \
 X(None) \
 \
 /*field can only be written by its internals/friends*/ \
@@ -453,12 +459,52 @@ void IBVectorFreeSimple(IBVector* vec);
 	}\
 	IBVectorFreeSimple((vec));\
 }
-//Example:
-//IBDictFind("sssto", "key1", "key1ofkey1", "key1ofkey1ofkey1", "key1ofkey1ofkey1ofkey1", &outputType, &outputData);
-//IBDictSet("sssti", "key1", "key1ofkey1", "key1ofkey1ofkey1", "key1ofkey1ofkey1ofkey1", inputType, &data);
+typedef enum {
+	IBDictDataType_Unknown = 0,
+	IBDictDataType_RootKey,
+	IBDictDataType_VoidPtr,
+	IBDictDataType_Int,
+	IBDictDataType_String,
+} IBDictDataType;
+#define IBDICTKEY_MAXDATASIZE 256
+typedef struct IBDictKey {
+	IBDictDataType type;
+	IBVector children;
+	char data[IBDICTKEY_MAXDATASIZE];
+} IBDictKey;
+IBDictKey* IBDictKeyNew(IBDictDataType type);
+void IBDictKeyFree(IBDictKey* key);
 typedef struct IBDictionary {
-	IBVector root;
+	IBDictKey* rootKey;
 } IBDictionary;
+void IBDictionaryInit(IBDictionary* dict);
+void IBDictionaryFree(IBDictionary* dict);
+/*
+* IBDictManip fmt charOPs:
+* 
+* KEYS:
+* s - string
+* d - int
+* 
+* READ/WRITE:
+// i and o apply to previous charOPs
+* i - in read ptr (count required)
+* o - out write ptr (count required)
+* c - count
+* 
+* z - in char* (null terminated)
+* x - in int
+* j - out char* (null terminated)
+* k - out int*
+* t - out IBDictDataType*
+* 
+* EXAMPLES:
+* IBDictManip(dict, "ddsx", 0, 0, "id", 1); //write 1 to "0.0.id"
+* 
+* int i;
+* IBDictManip(dict, "ddsk", 0, 0, "id", &i); //read 1 from "0.0.id"
+*/
+void IBDictManip(IBDictionary* dict, char* fmt, ...);
 /* GLOBAL COLOR STACK */
 IBVector g_ColorStack; /*IBColor*/
 void IBPushColor(IBColor col) {
@@ -495,6 +541,8 @@ typedef struct IBCodeBlock {
 	IBStr varsInit;
 	IBStr code;
 	IBStr footer;
+
+	IBDictionary locals;
 } IBCodeBlock;
 void IBCodeBlockInit(IBCodeBlock* block);
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output);
@@ -1152,6 +1200,63 @@ void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 }
 void IBVectorFreeSimple(IBVector* vec) {
 	free(vec->data);
+}
+IBDictKey* IBDictKeyNew(IBDictDataType type){
+	IBDictKey* ret = malloc(sizeof(IBDictKey));
+	assert(ret);
+	memset(ret, 0, sizeof(IBDictKey));
+	ret->type = type;
+	return ret;
+}
+void IBDictKeyFree(IBDictKey* key){
+	free(key);
+}
+void IBDictionaryInit(IBDictionary* dict){
+	dict->rootKey = IBDictKeyNew(IBDictDataType_RootKey);
+}
+void IBDictionaryFree(IBDictionary* dict){
+}
+void IBDictManip(IBDictionary* dict, char* fmt, ...){
+	va_list args;
+	int i;
+	va_start(args, fmt);
+	for (i = 0; i < strlen(fmt); i++) {
+		char ch = fmt[i];
+		switch (ch) {
+		case 's': {
+			break;
+		}
+		case 'd': {
+			break;
+		}
+		case 'i': {
+			break;
+		}
+		case 'o': {
+			break;
+		}
+		case 'c': {
+			break;
+		}
+		case 'z': {
+			break;
+		}
+		case 'x': {
+			break;
+		}
+		case 'j': {
+			break;
+		}
+		case 'k': {
+			break;
+		}
+		case 't': {
+			break;
+		}
+		CASE_UNIMP_A
+		}
+	}
+	va_end(args);
 }
 char* StrConcat(char* dest, int count, char* src) {
 	return strcat(dest, src);
