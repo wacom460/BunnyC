@@ -467,6 +467,7 @@ typedef enum {
 	IBDictDataType_Int,
 	IBDictDataType_String,
 } IBDictDataType;
+//char* IBDictDataTypeToString(IBDictDataType type);
 typedef struct {
 	IBDictDataType type;
 	union {
@@ -483,11 +484,15 @@ typedef struct IBDictKey {
 } IBDictKey;
 IBDictKey* IBDictKeyNew(IBDictDataType type);
 void IBDictKeyFree(IBDictKey* key);
+void IBDictKeyFind(IBDictKey* key, IBDictKeyDef def);
+//childDepth must be ptr to an int set to 0
+void IBDictKeyPrint(IBDictKey* key, int* childDepth);
 typedef struct IBDictionary {
 	IBDictKey* rootKey;
 } IBDictionary;
 void IBDictionaryInit(IBDictionary* dict);
 void IBDictionaryFree(IBDictionary* dict);
+IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
 /*
 * IBDictManip fmt charOPs:
 * 
@@ -761,8 +766,8 @@ typedef struct IBLayer3 {
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
 Obj* IBLayer3GetObj(IBLayer3* ibc);
-void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type);
-void IBLayer3VecPrint(IBLayer3* ibc, IBVector* vec);
+void IBLayer3PrintVecData(IBVecData* data, Op type);
+void IBLayer3VecPrint(IBVector* vec);
 Obj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, Op type);
 Obj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, Op type);
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, Op type, int limit);
@@ -1211,6 +1216,15 @@ void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 void IBVectorFreeSimple(IBVector* vec) {
 	free(vec->data);
 }
+//char* IBDictDataTypeToString(IBDictDataType type){
+//	switch(type){
+//	case IBDictDataType_VoidPtr: return "VoidPtr";
+//	case IBDictDataType_Int: return "Int";
+//	case IBDictDataType_String: return "String";
+//	case IBDictDataType_RootKey: return "RootKey";
+//	default: return "Unknown";
+//	}
+//}
 IBDictKey* IBDictKeyNew(IBDictDataType type){
 	IBDictKey* ret = malloc(sizeof(IBDictKey));
 	assert(ret);
@@ -1219,18 +1233,50 @@ IBDictKey* IBDictKeyNew(IBDictDataType type){
 	return ret;
 }
 void IBDictKeyFree(IBDictKey* key){
-	int idx;
-	IBDictKey* sk;
-	idx = 0;
-	while (sk = (IBDictKey*)IBVectorIterNext(&key->children, &idx)) {
-
-	}
+	int idx = 0;
+	IBDictKey* sk = NULL;
+	assert(key);
+	while (sk = IBVectorIterNext(&key->children, &idx))
+		IBDictKeyFree(sk);
 	free(key);
+}
+void IBDictKeyPrint(IBDictKey* key, int* childDepth){
+	int idx = 0;
+	int tc=0;
+	IBDictKey* sk = NULL;
+	assert(key);
+	assert(childDepth);
+	tc = *childDepth;
+	while(tc--) printf("\t");
+	printf("[%d] ", *childDepth/*, IBDictDataTypeToString(key->type)*/);
+	switch (key->type) {
+	case IBDictDataType_VoidPtr: {
+		printf("Pointer: %p\n", (void*)key->data);
+		break;
+	}
+	case IBDictDataType_Int: {
+		printf("Int: %d\n", *(int*)key->data);
+		break;
+	}
+	case IBDictDataType_String: {
+		printf("Str: %s\n", key->data);
+		break;
+	}
+	}
+	++*childDepth;
+	while (sk = IBVectorIterNext(&key->children, &idx)) {
+		IBDictKeyPrint(sk, childDepth);
+	}
+	--*childDepth;
 }
 void IBDictionaryInit(IBDictionary* dict){
 	dict->rootKey = IBDictKeyNew(IBDictDataType_RootKey);
 }
 void IBDictionaryFree(IBDictionary* dict){
+}
+IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
+
+	return NULL;
 }
 typedef enum {
 	IBDictManipAction_Unknown = 0,
@@ -1253,8 +1299,9 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	char* inStr = NULL, **outStr=NULL;
 	int inInt=0;
 	int* outIntPtr=NULL;
-	IBDictDataType* outDDTPtr;
-	size_t count;
+	IBDictDataType* outDDTPtr=NULL;
+	IBDictKey* outKeyPtr=NULL;
+	size_t count=0;
 	IBDictManipAction action = IBDictManipAction_Unknown;
 	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef);
 	va_start(args, fmt);
@@ -1307,18 +1354,20 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 			action = IBDictManipAction_IntOut;
 			break;
 		}
-		case 't': {//out IBDictDataType *
+		case 't': {//out IBDictDataType*
 			outDDTPtr = va_arg(args, IBDictDataType*);
 			action = IBDictManipAction_DataTypeOut;
 			break;
 		}
 		case 'g': {//out IBDictKey*
-
+			outKeyPtr = va_arg(args, IBDictKey*);
+			action = IBDictManipAction_KeyPtrOut;
 			break;
 		}
 		CASE_UNIMP_A
 		}
 	}
+	IBLayer3VecPrint(&keyStack);
 	switch (action) {
 	case IBDictManipAction_DataIn: { 
 		assert(count > 0);
@@ -1349,7 +1398,7 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	}
 	CASE_UNIMP_A
 	}
-	IBVectorFree(&keyStack);
+	IBVectorFreeSimple(&keyStack);
 	va_end(args);
 }
 char* StrConcat(char* dest, int count, char* src) {
@@ -1688,7 +1737,7 @@ void OverwriteStr(char** str, char* with) {
 Obj* IBLayer3GetObj(IBLayer3* ibc) {
 	return (Obj*)IBVectorTop(&ibc->ObjStack);
 }
-void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type){
+void IBLayer3PrintVecData(IBVecData* data, Op type){
 	if (!data)return;
 	switch (type) {
 	case OP_Op: {
@@ -1719,7 +1768,7 @@ void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type){
 			GetOpName(obj->func.retValType), (int)obj->func.retValType,
 			GetOpName(obj->func.retTypeMod), (int)obj->func.retTypeMod
 		);
-		IBLayer3PrintVecData(ibc, obj->func.thingTask, OP_Task);
+		IBLayer3PrintVecData(obj->func.thingTask, OP_Task);
 		DbgFmt(
 			"\t\t]\n"
 			"\t\tVar -> [\n"
@@ -1777,9 +1826,9 @@ void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type){
 			"\t\tpfxs:\n",
 			exp->pfxErr, exp->nameOpErr, 
 			exp->life, exp->lineNumInited);
-		IBLayer3VecPrint(ibc, &exp->pfxs);
+		IBLayer3VecPrint(&exp->pfxs);
 		DbgFmt("\t\tnameOps:\n", "");
-		IBLayer3VecPrint(ibc, &exp->nameOps);
+		IBLayer3VecPrint(&exp->nameOps);
 		DbgFmt("]\n", "");
 		break;
 	}
@@ -1801,7 +1850,7 @@ void IBLayer3PrintVecData(IBLayer3* ibc, IBVecData* data, Op type){
 		break;
 	}
 }
-void IBLayer3VecPrint(IBLayer3* ibc, IBVector* vec) {
+void IBLayer3VecPrint(IBVector* vec) {
 	int idx;
 	IBVecData* data;
 
@@ -1838,7 +1887,7 @@ void IBLayer3VecPrint(IBLayer3* ibc, IBVector* vec) {
 	idx = 0;
 	while (data = IBVectorIterNext(vec, &idx)) {
 		DbgFmt("\t(%d)", idx);
-		IBLayer3PrintVecData(ibc, data, vec->type);		
+		IBLayer3PrintVecData(data, vec->type);		
 	}
 	switch (vec->type) {
 	case OP_Obj:
@@ -3399,7 +3448,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 							break;
 						}
 						case OP_Arg: {
-							IBLayer3VecPrint(ibc, wObjs);
+							IBLayer3VecPrint(wObjs);
 							assert(0);
 						}
 						case OP_CPrintfFmtStr: break;

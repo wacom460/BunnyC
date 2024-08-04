@@ -1,3 +1,7 @@
-@blk $main %i32 $argc %^^c8 $argv -> %i32
+@blk $PrintHelloWorld
 	"Hello, %%" "world!"
+_
+
+@blk $main %i32 $argc %^^c8 $argv -> %i32
+	!PrintHelloWorld
 _ =0
