@@ -360,6 +360,7 @@ X(ActOnName) \
 X(ActOnNameEquals) \
 X(RootObj) \
 X(DBObj) \
+X(IBDictKeyDef) \
 X(EnumName) \
 X(IBDictKey) \
 X(None) \
@@ -466,6 +467,14 @@ typedef enum {
 	IBDictDataType_Int,
 	IBDictDataType_String,
 } IBDictDataType;
+typedef struct {
+	IBDictDataType type;
+	union {
+		char* str;
+		int num;
+		void* ptr;
+	};
+} IBDictKeyDef;
 #define IBDICTKEY_MAXDATASIZE 256
 typedef struct IBDictKey {
 	IBDictDataType type;
@@ -497,6 +506,7 @@ void IBDictionaryFree(IBDictionary* dict);
 * j - out char* (null terminated)
 * k - out int*
 * t - out IBDictDataType*
+* g - out IBDictKey*
 * 
 * EXAMPLES:
 * IBDictManip(dict, "ddsx", 0, 0, "id", 1); //write 1 to "0.0.id"
@@ -1216,46 +1226,94 @@ void IBDictionaryInit(IBDictionary* dict){
 }
 void IBDictionaryFree(IBDictionary* dict){
 }
+typedef enum {
+	IBDictManipAction_Unknown = 0,
+	IBDictManipAction_DataIn,
+	IBDictManipAction_DataOut,
+	IBDictManipAction_StrIn,
+	IBDictManipAction_StrOut,
+	IBDictManipAction_IntIn,
+	IBDictManipAction_IntOut,
+	IBDictManipAction_DataTypeOut,
+	IBDictManipAction_KeyPtrOut,
+} IBDictManipAction;
 void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	va_list args;
-	int i;
+	int i=0;
+	IBVector keyStack;//IBDictKeyDef
+	IBDictKeyDef scratchKeyDef;
+	void* inOutPtr=NULL;
+	char* inStr = NULL, *outStr=NULL;
+	int inInt=0;
+	int* outIntPtr=NULL;
+	IBDictDataType* outDDTPtr;
+	size_t count;
+	IBDictManipAction action = IBDictManipAction_Unknown;
+	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef);
 	va_start(args, fmt);
 	for (i = 0; i < strlen(fmt); i++) {
 		char ch = fmt[i];
 		switch (ch) {
-		case 's': {
+		case 's': {//string
+			scratchKeyDef.type = IBDictDataType_String;
+			scratchKeyDef.str = va_arg(args, char*);
+			IBVectorCopyPush(&keyStack, &scratchKeyDef);
 			break;
 		}
-		case 'd': {
+		case 'd': {//int
+			scratchKeyDef.type = IBDictDataType_Int;
+			scratchKeyDef.str = va_arg(args, int);
+			IBVectorCopyPush(&keyStack, &scratchKeyDef);
 			break;
 		}
-		case 'i': {
+		case 'i': //in ptr
+		case 'o': {//out ptr
+			inOutPtr = va_arg(args, void*);
 			break;
 		}
-		case 'o': {
+		case 'c': {//count
+			count = va_arg(args, size_t);
 			break;
 		}
-		case 'c': {
+		case 'z': {//in char* (null terminated)
+			inStr = va_arg(args, char*);
 			break;
 		}
-		case 'z': {
+		case 'x': {//in int
+			inInt = va_arg(args, int);
 			break;
 		}
-		case 'x': {
+		case 'j': {//out char* (null terminated)
+			outStr = va_arg(args, char*);
 			break;
 		}
-		case 'j': {
+		case 'k': {//out int*
+			outIntPtr = va_arg(args, int*);
 			break;
 		}
-		case 'k': {
+		case 't': {//out IBDictDataType *
+			outDDTPtr = va_arg(args, IBDictDataType*);
 			break;
 		}
-		case 't': {
+		case 'g': {//out IBDictKey*
+
 			break;
 		}
 		CASE_UNIMP_A
 		}
 	}
+	switch (action) {
+		case IBDictManipAction_DataIn: { break; }
+		case IBDictManipAction_DataOut: { break; }
+		case IBDictManipAction_StrIn: { break; }
+		case IBDictManipAction_StrOut: { break; }
+		case IBDictManipAction_IntIn: { break; }
+		case IBDictManipAction_IntOut: { break; }
+		case IBDictManipAction_DataTypeOut: { break; }
+		case IBDictManipAction_KeyPtrOut: { break; }
+	CASE_UNIMP_A
+	}
+	IBVectorFree(&keyStack);
 	va_end(args);
 }
 char* StrConcat(char* dest, int count, char* src) {
