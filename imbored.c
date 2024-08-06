@@ -474,13 +474,20 @@ typedef enum {
 } IBDictDataType;
 //char* IBDictDataTypeToString(IBDictDataType type);
 #define IBDICTKEY_MAXDATASIZE 256
-typedef struct IBDictKey {
+#define IBDICTKEY_KEYSIZE 16
+typedef struct {
 	IBDictDataType type;
 	IBVector children;
 	union {
-		char data[IBDICTKEY_MAXDATASIZE];
-		int i;
-	};
+		char* str;
+		int num;
+		char data[IBDICTKEY_KEYSIZE];
+	} key;
+	union {
+		void* data;
+		char str[IBDICTKEY_MAXDATASIZE];
+		int num;
+	} val;
 } IBDictKey;
 typedef struct {
 	IBDictDataType type;
@@ -540,7 +547,7 @@ void IBDictTest() {
 	assert(oi == 1);
 	IBDictManip(&dict, "dg", 0, &out);
 	assert(out);
-	assert(out->i == 1);
+	assert(out->val.num == 1);
 }
 /* GLOBAL COLOR STACK */
 IBVector g_ColorStack; /*IBColor*/
@@ -1262,11 +1269,11 @@ IBDictKey* IBDictKeyNew(IBDictKeyDef def){
 	ret->type = def.type;
 	switch (def.type) {
 	case IBDictDataType_Int: {
-		memcpy(&ret->data, &def.num, sizeof(int));
+		ret->key.num = def.num;
 		break;
 	}
 	case IBDictDataType_String: {
-		strncpy(ret->data, def.str, IBDICTKEY_MAXDATASIZE);
+		strncpy(ret->key.str, def.str, IBDICTKEY_MAXDATASIZE);
 		break;
 	}
 	}
@@ -1289,11 +1296,11 @@ IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def){
 		if (sk->type == def.type) {
 			switch (def.type) {
 			case IBDictDataType_Int: {
-				if (sk->i == def.num) return sk;
+				if (sk->key.num == def.num) return sk;
 				break;
 			}
 			case IBDictDataType_String: {
-				if (strcmp(sk->data, def.str) == 0) return sk;
+				if (strcmp(sk->key.str, def.str) == 0) return sk;
 				break;
 			}
 			CASE_UNIMP_A
@@ -1313,15 +1320,15 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth){
 	printf("[%d] ", *childDepth);
 	switch (key->type) {
 	case IBDictDataType_VoidPtr: {
-		printf("Pointer: %p\n", (void*)key->data);
+		printf("Pointer: %p\n", key->val.data);
 		break;
 	}
 	case IBDictDataType_Int: {
-		printf("Int: %d\n", *(int*)key->data);
+		printf("Int: %d\n", key->val.num);
 		break;
 	}
 	case IBDictDataType_String: {
-		printf("Str: %s\n", key->data);
+		printf("Str: %s\n", key->val.str);
 		break;
 	}
 	}
@@ -1344,8 +1351,10 @@ void IBDictionaryFree(IBDictionary* dict){
 }
 IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
 	IBDictKeyDef* dp = NULL;
-	IBDictKey* key = dict->rootKey;
+	IBDictKey* key;
 	int idx = 0;
+	assert(dict);
+	key = dict->rootKey;
 	assert(keyStack->elemCount);
 	while (dp = IBVectorIterNext(keyStack, &idx)) {
 		IBDictKeyDef def;
@@ -1460,29 +1469,29 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 	switch (action) {
 	case IBDictManipAction_DataIn: {
 		assert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
-		memcpy_s(dk->data, IBDICTKEY_MAXDATASIZE, inPtr, count);
+		memcpy_s(dk->val.data, IBDICTKEY_MAXDATASIZE, inPtr, count);
 		break;
 	}
 	case IBDictManipAction_DataOut: {
 		assert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
-		memcpy(outPtr, dk->data, count);
+		memcpy(outPtr, dk->val.data, count);
 		break;
 	}
 	case IBDictManipAction_StrIn: {
-		strncpy(dk->data, inStr, IBDICTKEY_MAXDATASIZE);
+		strncpy(dk->val.str, inStr, IBDICTKEY_MAXDATASIZE);
 		break;
 	}
 	case IBDictManipAction_StrOut: {
-		*outStr = strdup(dk->data);
+		*outStr = strdup(dk->val.str);
 		break;
 	}
 	case IBDictManipAction_IntIn: {
 		//memcpy(&dk->data, &inInt, sizeof(int));
-		dk->i = inInt;
+		dk->val.num = inInt;
 		break;
 	}
 	case IBDictManipAction_IntOut: {
-		(*outIntPtr) = dk->i;
+		(*outIntPtr) = dk->val.num;
 		break;
 	}
 	case IBDictManipAction_KeyPtrOut: {
