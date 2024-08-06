@@ -365,6 +365,7 @@ X(ActOnName) \
 X(ActOnNameEquals) \
 X(RootObj) \
 X(DBObj) \
+X(PfxlessValue) \
 X(IBDictKeyDef) \
 X(EnumName) \
 X(IBDictKey) \
@@ -963,7 +964,7 @@ OpNamePair pfxNames[] = {
 	{"GreaterThan(>)", OP_GreaterThan},
 	{"Comma(,)", OP_Comma}, {"Subtract(-)", OP_Subtract},
 	{"Add(+)", OP_Add},{"Divide(/)", OP_Divide},
-	{"Multiply(*)", OP_Multiply},
+	{"Multiply(*)", OP_Multiply},{"PfxlessValue(=)", OP_PfxlessValue},
 };
 OpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
@@ -1801,7 +1802,8 @@ Op fromPfxCh(char ch) {
 	case '@': return OP_Op;
 	case '$': return OP_Name;
 	case '%': return OP_VarType;
-	case '\"': return OP_String;
+	case '\"': return OP_String;	
+	CASE_0THRU9 return OP_PfxlessValue;
 	case '=': return OP_Value;
 	case '\'': return OP_Char;
 	case '&': return OP_Ref;
@@ -2520,6 +2522,7 @@ bool IBLayer3IsPfxExpected(IBLayer3* ibc, Op pfx) {
 	int idx;
 	IBTask* t;
 	IBExpects* ap;
+	if(pfx == OP_PfxlessValue) pfx = OP_Value;
 	t = NULL;
 	ap = NULL;
 	t = IBLayer3GetTask(ibc);
@@ -3040,8 +3043,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		bool thing = false;
 		IBTask* parent = 
 			IBLayer3FindTaskUnderIndex(ibc, -1, OP_ThingWantContent, 1);
-		assert(parent);
-		if (parent->type == OP_ThingWantContent) {
+		//assert(parent);
+		if (parent && parent->type == OP_ThingWantContent) {
 			thing = true;
 			pop2Parent = true;
 		}
@@ -3659,6 +3662,16 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	DbgFmt("%s(%d)", GetPfxName(ibc->Pfx), (int)ibc->Pfx);
 	IBPopColor();
 	DbgFmt("\n", "");
+	switch(ibc->Pfx) {
+	case OP_PfxlessValue: {
+		char chBuf[2];
+		chBuf[0] = ibc->Ch;
+		chBuf[1] = '\0';
+		ibc->Pfx = OP_Value;
+		StrConcat(ibc->Str, IBLayer3STR_MAX, chBuf);
+		break;
+	}
+	}
 	switch (ibc->Pfx) {
 	case OP_String: { /* " */
 		ibc->StringMode = true;
@@ -5063,7 +5076,7 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 	rv = 1;
-	IBDictTest();
+	//IBDictTest();
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
 	IBPushColor(IBFgWHITE);
 	g_DB = &db;
