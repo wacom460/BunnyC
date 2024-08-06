@@ -495,7 +495,6 @@ typedef struct {
 	union {
 		char* str;
 		int num;
-		void* ptr;
 	};
 } IBDictKeyDef;
 IBDictKey* IBDictKeyNew(IBDictKeyDef def);
@@ -1342,8 +1341,8 @@ void IBDictionaryInit(IBDictionary* dict){
 	dict->rootKey = IBDictKeyNew(
 		(IBDictKeyDef)
 		{ .type = IBDictDataType_RootKey, 
-			.key = NULL, 
-			.ptr = NULL 
+			.key = NULL,
+			.num = 0
 		});
 }
 void IBDictionaryFree(IBDictionary* dict){
