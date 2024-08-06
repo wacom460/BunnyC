@@ -1279,7 +1279,7 @@ IBDictKey* IBDictKeyNew(IBDictKeyDef def){
 	IBVectorInit(&ret->children, sizeof(IBDictKey), OP_IBDictKey);
 	return ret;
 }
-void IBDictKeyFree(IBDictKey* key){
+void IBDictKeyFree(IBDictKey* key) {
 	int idx = 0;
 	IBDictKey* sk = NULL;
 	assert(key);
