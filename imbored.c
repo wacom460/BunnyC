@@ -1162,6 +1162,8 @@ void* IBVectorIterNext(IBVector* vec, int* idx) {
 }
 void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
 	IBVecData* topPtr;
+	assert(vec);
+	assert(vec->elemSize);
 	if (vec->elemCount + 1 > vec->slotCount) {
 		void* ra;
 		ra = NULL;
@@ -1268,6 +1270,7 @@ IBDictKey* IBDictKeyNew(IBDictKeyDef def){
 		break;
 	}
 	}
+	IBVectorInit(&ret->children, sizeof(IBDictKey), OP_IBDictKey);
 	return ret;
 }
 void IBDictKeyFree(IBDictKey* key){
@@ -1286,7 +1289,7 @@ IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def){
 		if (sk->type == def.type) {
 			switch (def.type) {
 			case IBDictDataType_Int: {
-				if (sk->data == def.num) return sk;
+				if (sk->i == def.num) return sk;
 				break;
 			}
 			case IBDictDataType_String: {
@@ -1350,7 +1353,9 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
 		IBDictKey* ok = IBDictKeyFindChild(key, def);
 		if (ok) key = ok;
 		else {
-			key = IBDictKeyNew(def);
+			IBDictKey* nk = IBDictKeyNew(def);
+			IBVectorCopyPush(&key->children, nk);
+			key = nk;
 		}
 	}
 	if(key == dict->rootKey) key = NULL;
