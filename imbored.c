@@ -109,15 +109,15 @@ case OP_FuncWantCode:
 
 #ifdef DEBUGPRINTS
 void _PrintLine(int l) {
-	IBPushColor(IBFgRED);
+	//IBPushColor(IBFgRED);
 	printf("[");
-	IBPushColor(IBBgGREEN);
+	//IBPushColor(IBBgGREEN);
 	printf("%d", l);
-	IBPushColor(IBFgRED);
+	//IBPushColor(IBFgRED);
 	printf("]");
-	IBPopColor();
-	IBPopColor();
-	IBPopColor();
+	//IBPopColor();
+	//IBPopColor();
+	//IBPopColor();
 }
 #define PLINE _PrintLine(__LINE__)
 #else
@@ -149,10 +149,10 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IBASSERT(x, errMsg){\
 	if(!(x)) {\
 		PLINE;\
-		IBPushColor(IBFgRED);\
+		/*IBPushColor(IBFgRED);*/\
 		printf("Assertion failed!!! -> %s\n%s", \
 			errMsg, #x);\
-		IBPopColor();\
+		/*IBPopColor();*/\
 		DB;\
 		exit(-1);\
 	}\
@@ -527,13 +527,18 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
 * int i;
 * IBDictManip(dict, "ddsk", 0, 0, "id", &i); //read 1 from "0.0.id"
 */
-void IBDictManip(IBDictionary* dict, char* fmt, ...);
+IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...);
 void IBDictTest() {
 	IBDictionary dict;
 	IBDictKey* out=NULL;
+	int oi = 0;
 	IBDictionaryInit(&dict);
-	IBDictManip(&dict, "dx", 0, 1);
-	IBDictManip(&dict, "dk", 0, &out);
+	IBDictKey* k1p1 = IBDictManip(&dict, "dx", 0, 1);
+	IBDictKey* k1p2 = IBDictManip(&dict, "dk", 0, &oi);
+	assert(k1p1 && k1p2);
+	assert(k1p1 == k1p2);
+	assert(oi == 1);
+	IBDictManip(&dict, "dg", 0, &out);
 	assert(out);
 	assert(out->i == 1);
 }
@@ -1149,9 +1154,11 @@ IBVecData* IBVectorGet(IBVector* vec, int idx) {
 void* IBVectorIterNext(IBVector* vec, int* idx) {
 	assert(idx);
 	assert(vec);
+	assert(vec->elemCount <= vec->slotCount);
+	assert(vec->elemCount + vec->slotCount + vec->dataSize >= 0);
 	if (!vec || !idx) return NULL;
 	if ((*idx) >= vec->elemCount) return NULL;
-	return (char*)vec->data + vec->elemSize * (*idx)++;
+	return (char*)vec->data + (vec->elemSize * ((*idx)++));
 }
 void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
 	IBVecData* topPtr;
@@ -1161,7 +1168,10 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
 		//DbgFmt("vec->dataSize: %d\n", vec->dataSize);
-		assert(vec->data);
+		if (!vec->data) {
+			DB;
+			exit(-1);
+		}
 		ra = realloc(vec->data, vec->dataSize);
 		//assert(ra);
 		if(ra) vec->data = ra;
@@ -1334,7 +1344,7 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
 	IBDictKey* key = dict->rootKey;
 	int idx = 0;
 	assert(keyStack->elemCount);
-	while (dp = IBVectorIterNext(&keyStack, &idx)) {
+	while (dp = IBVectorIterNext(keyStack, &idx)) {
 		IBDictKeyDef def;
 		def = *dp;
 		IBDictKey* ok = IBDictKeyFindChild(key, def);
@@ -1356,11 +1366,11 @@ typedef enum {
 	IBDictManipAction_IntOut,
 	IBDictManipAction_KeyPtrOut,
 } IBDictManipAction;
-void IBDictManip(IBDictionary* dict, char* fmt, ...){
+IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 	va_list args;
 	int i=0;
+	IBDictKey* dk = NULL;
 	IBVector keyStack;//IBDictKeyDef
-	IBDictKeyDef scratchKeyDef;
 	void* inPtr=NULL;
 	void** outPtr=NULL;
 	char* inStr = NULL, **outStr=NULL;
@@ -1369,22 +1379,25 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	IBDictKey** outKeyPtr=NULL;
 	size_t count=0;
 	IBDictManipAction action = IBDictManipAction_Unknown;
-	memset(&scratchKeyDef, 0, sizeof(IBDictKeyDef));
 	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef);
 	va_start(args, fmt);
 	for (i = 0; i < strlen(fmt); i++) {
 		char ch = fmt[i];
 		switch (ch) {
 		case 's': {//string
-			scratchKeyDef.type = IBDictDataType_String;
-			scratchKeyDef.str = va_arg(args, char*);
-			IBVectorCopyPush(&keyStack, &scratchKeyDef);
+			IBDictKeyDef* kd=NULL;
+			IBVectorPush(&keyStack, &kd);
+			kd->type = IBDictDataType_String;
+			kd->key = NULL;
+			kd->str = va_arg(args, char*);
 			break;
 		}
 		case 'd': {//int
-			scratchKeyDef.type = IBDictDataType_Int;
-			scratchKeyDef.num = va_arg(args, int);
-			IBVectorCopyPush(&keyStack, &scratchKeyDef);
+			IBDictKeyDef* kd = NULL;
+			IBVectorPush(&keyStack, &kd);
+			kd->type = IBDictDataType_Int;
+			kd->key = NULL;
+			kd->num = va_arg(args, int);
 			break;
 		}
 		case 'i': {//in ptr
@@ -1436,9 +1449,9 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 		CASE_UNIMP_A
 		}
 	}
-	IBDictKey* dk = IBDictFind(dict, &keyStack);
+	dk = IBDictFind(dict, &keyStack);
 	assert(dk);
-	IBLayer3VecPrint(&keyStack);
+	//IBLayer3VecPrint(&keyStack);
 	switch (action) {
 	case IBDictManipAction_DataIn: {
 		assert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
@@ -1459,11 +1472,12 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 		break;
 	}
 	case IBDictManipAction_IntIn: {
-		memcpy(&dk->data, &inInt, sizeof(int));
+		//memcpy(&dk->data, &inInt, sizeof(int));
+		dk->i = inInt;
 		break;
 	}
 	case IBDictManipAction_IntOut: {
-		*outIntPtr = *(int*)dk->data;
+		(*outIntPtr) = dk->i;
 		break;
 	}
 	case IBDictManipAction_KeyPtrOut: {
@@ -1474,6 +1488,7 @@ void IBDictManip(IBDictionary* dict, char* fmt, ...){
 	}
 	IBVectorFreeSimple(&keyStack);
 	va_end(args);
+	return dk;
 }
 char* StrConcat(char* dest, int count, char* src) {
 	return strcat(dest, src);
