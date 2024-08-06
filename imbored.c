@@ -1052,7 +1052,7 @@ void IBStrAppendCh(IBStr* str, char ch, int count){
 	astr[1] = '\0';
 	while(count--) IBStrAppendCStr(str, astr);
 }
-char *IBStrAppendCStr(IBStr* str, char *with) {
+char* IBStrAppendCStr(IBStr* str, char *with) {
 	void* ra;
 	size_t len;
 	size_t withLen;
@@ -1070,13 +1070,13 @@ char *IBStrAppendCStr(IBStr* str, char *with) {
 		*(str->start + len + withLen) = '\0';
 		str->end = str->start + len + withLen;
 		return str->start;
-	}else {
+	} else {
 		assert(0);
 		exit(-1);
 	}
 	return NULL;
 }
-void IBStrAppendFmt(IBStr* str, char* fmt, ...){
+void IBStrAppendFmt(IBStr* str, char* fmt, ...) {
 	char buf[1024];
 	va_list args;
 	va_start(args, fmt);
@@ -3660,13 +3660,12 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	case OP_Exclaim:
 	case OP_Value:
 	case OP_Op:
-	case OP_Name:
+	case OP_Name: {
 		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
 		/*getchar();*/
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
-		break;
+	}
 	case OP_SpaceChar:
-		break;
 	case OP_Comment:
 		break;
 	}
