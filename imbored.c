@@ -97,27 +97,28 @@ void IBPushColor(IBColor col);
 void IBPopColor();
 
 #define CASE_BLOCKWANTCODE \
-case OP_CaseWantCode: \
-case OP_BlockWantCode: \
-case OP_IfBlockWantCode:\
+case OP_CaseWantCode:      \
+case OP_BlockWantCode:     \
+case OP_IfBlockWantCode:   \
 case OP_FuncWantCode:
 
-#define CASE_UNIMP default: { \
+#define CASE_UNIMP                       \
+default: {                               \
 	Err(OP_Error, "Unimplemented case"); \
-	break; \
+	break;                               \
 }
 
 #ifdef DEBUGPRINTS
 void _PrintLine(int l) {
-	//IBPushColor(IBFgRED);
+	IBPushColor(IBFgRED);
 	printf("[");
-	//IBPushColor(IBBgGREEN);
+	IBPushColor(IBBgGREEN);
 	printf("%d", l);
-	//IBPushColor(IBFgRED);
+	IBPushColor(IBFgRED);
 	printf("]");
-	//IBPopColor();
-	//IBPopColor();
-	//IBPopColor();
+	IBPopColor();
+	IBPopColor();
+	IBPopColor();
 }
 #define PLINE _PrintLine(__LINE__)
 #else
@@ -146,13 +147,21 @@ case 'W': case 'X': case 'Y': case 'Z':
 #endif
 #define DB __debugbreak();
 
+#define assert0(x) { \
+	if(!(x)) { \
+		printf("[%d]Assertion failed!!! %s\n", __LINE__, #x); \
+		DB; \
+		exit(-1); \
+	} \
+}
+
 #define IBASSERT(x, errMsg){\
 	if(!(x)) {\
 		PLINE;\
-		/*IBPushColor(IBFgRED);*/\
+		IBPushColor(IBFgRED);\
 		printf("Assertion failed!!! -> %s\n%s", \
 			errMsg, #x);\
-		/*IBPopColor();*/\
+		IBPopColor();\
 		DB;\
 		exit(-1);\
 	}\
@@ -538,16 +547,17 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...);
 void IBDictTest() {
 	IBDictionary dict;
 	IBDictKey* out=NULL;
-	int oi = 0;
+	int oi = 100;
 	IBDictionaryInit(&dict);
-	IBDictKey* k1p1 = IBDictManip(&dict, "dx", 0, 1);
-	IBDictKey* k1p2 = IBDictManip(&dict, "dk", 0, &oi);
-	assert(k1p1 && k1p2);
-	assert(k1p1 == k1p2);
-	assert(oi == 1);
+	IBDictKey* k1p1 = IBDictManip(&dict, "dx", 5, 1);
+	IBDictKey* k1p2 = IBDictManip(&dict, "dk", 5, &oi);
+	assert0(k1p1 && k1p2);
+	//assert0(k1p1 == k1p2);
+	assert0(oi == 1);
 	IBDictManip(&dict, "dg", 0, &out);
-	assert(out);
-	assert(out->val.num == 1);
+	assert0(out);
+	assert0(out->val.num == 1);
+	return;
 }
 /* GLOBAL COLOR STACK */
 IBVector g_ColorStack; /*IBColor*/
@@ -1003,9 +1013,9 @@ char* SysLibCodeStr =
 CLAMP_FUNC(int, ClampInt) CLAMP_IMP
 CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
 void IBStrInit(IBStr* str) {
-	assert(str);
+	assert0(str);
 	str->start = (char*)malloc(1);
-	assert(str->start);
+	assert0(str->start);
 	str->end = str->start;
 	if(str->start) (*str->start) = '\0';
 }
@@ -1024,7 +1034,7 @@ void IBStrClear(IBStr* str){
 	free(str->start);
 	str->start = NULL;
 	str->start = malloc(1);
-	assert(str->start);
+	assert0(str->start);
 	if (str->start) {
 		*str->start = '\0';
 		str->end = str->start;
@@ -1035,8 +1045,8 @@ void IBStrReplaceWithCStr(IBStr* str, char* cstr){
 	IBStrAppendCStr(str, cstr);
 }
 void IBStrInitNTStr(IBStr* str, char* nullTerminated){
-	assert(nullTerminated);
-	assert(str);
+	assert0(nullTerminated);
+	assert0(str);
 	OverwriteStr(&str->start, nullTerminated);
 	str->end = str->start + strlen(nullTerminated);
 }
@@ -1048,18 +1058,18 @@ bool IBStrContainsAnyOfChars(IBStr* str, char* chars) {
 }
 size_t IBStrGetLen(IBStr* str) {
 	size_t len;
-	assert(str);
-	assert(str->end);
-	assert((*(str->end)) == '\0');
-	assert(str->end >= str->start);
+	assert0(str);
+	assert0(str->end);
+	assert0((*(str->end)) == '\0');
+	assert0(str->end >= str->start);
 	len=str->end - str->start;
 	return len;
 }
 void IBStrAppendCh(IBStr* str, char ch, int count){
 	char astr[2];
 	if (count < 1) return;
-	assert(str);
-	//assert(count > 0);
+	assert0(str);
+	//assert0(count > 0);
 	astr[0] = ch;
 	astr[1] = '\0';
 	while(count--) IBStrAppendCStr(str, astr);
@@ -1068,14 +1078,14 @@ char* IBStrAppendCStr(IBStr* str, char *with) {
 	void* ra;
 	size_t len;
 	size_t withLen;
-	assert(str);
+	assert0(str);
 	withLen = strlen(with);
 	if(!withLen) return str->start;
-	assert(withLen > 0);
-	assert(str->start);
+	assert0(withLen > 0);
+	assert0(str->start);
 	len = IBStrGetLen(str);
 	ra = realloc(str->start, len + withLen + 1);
-	assert(ra);
+	assert0(ra);
 	if (ra) {
 		str->start = (char*)ra;
 		memcpy(str->start + len, with, withLen);
@@ -1083,7 +1093,7 @@ char* IBStrAppendCStr(IBStr* str, char *with) {
 		str->end = str->start + len + withLen;
 		return str->start;
 	} else {
-		assert(0);
+		assert0(0);
 		exit(-1);
 	}
 	return NULL;
@@ -1100,14 +1110,14 @@ char* IBStrAppend(IBStr* str, IBStr* with){
 	void* ra;
 	size_t len;
 	size_t withLen;
-	assert(str);
+	assert0(str);
 	withLen = IBStrGetLen(with);
 	if (!withLen) return str->start;
-	assert(withLen > 0);
-	assert(str->start);
+	assert0(withLen > 0);
+	assert0(str->start);
 	len = IBStrGetLen(str);
 	ra = realloc(str->start, len + withLen + 1);
-	assert(ra);
+	assert0(ra);
 	if (ra) {
 		str->start = (char*)ra;
 		memcpy(str->start + len, with->start, withLen);
@@ -1116,7 +1126,7 @@ char* IBStrAppend(IBStr* str, IBStr* with){
 		return str->start;
 	}
 	else {
-		assert(0);
+		assert0(0);
 		exit(-1);
 	}
 	return NULL;
@@ -1136,8 +1146,8 @@ int IBStrStripFront(IBStr* str, char ch){
 	free(str->start);
 	str->start=rep;
 	str->end=str->start+(slen - in);
-	assert(str->end);
-	if(str->end) assert(*(str->end) == '\0');
+	assert0(str->end);
+	if(str->end) assert0(*(str->end) == '\0');
 	return in;
 }
 void IBVectorInit(IBVector* vec, size_t elemSize, Op type) {
@@ -1149,9 +1159,9 @@ void IBVectorInit(IBVector* vec, size_t elemSize, Op type) {
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	vec->data = NULL;
 	m=malloc(vec->dataSize);
-	assert(m);
+	assert0(m);
 	vec->data = m;
-	assert(vec->data);
+	assert0(vec->data);
 	memset(vec->data, 0, vec->dataSize);
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
@@ -1159,30 +1169,27 @@ IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
 void* IBVectorIterNext(IBVector* vec, int* idx) {
-	assert(idx);
-	assert(vec);
-	assert(vec->elemCount <= vec->slotCount);
-	assert(vec->elemCount + vec->slotCount + vec->dataSize >= 0);
+	assert0(idx);
+	assert0(vec);
+	assert0(vec->elemCount <= vec->slotCount);
+	assert0(vec->elemCount + vec->slotCount + vec->dataSize >= 0);
 	if (!vec || !idx) return NULL;
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (char*)vec->data + (vec->elemSize * ((*idx)++));
 }
 void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
 	IBVecData* topPtr;
-	assert(vec);
-	assert(vec->elemSize);
+	assert0(vec);
+	assert0(vec->elemSize);
 	if (vec->elemCount + 1 > vec->slotCount) {
 		void* ra;
 		ra = NULL;
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
 		//DbgFmt("vec->dataSize: %d\n", vec->dataSize);
-		if (!vec->data) {
-			DB;
-			exit(-1);
-		}
+		assert0(vec->data);
 		ra = realloc(vec->data, vec->dataSize);
-		//assert(ra);
+		assert0(ra);
 		if(ra) vec->data = ra;
 	}
 	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
@@ -1204,19 +1211,19 @@ void IBVectorCopyPushIBColor(IBVector* vec, IBColor col){
 	IBVectorCopyPush(vec, &col);
 }
 IBVecData* IBVectorTop(IBVector* vec) {
-	assert(vec);
+	assert0(vec);
 	if (vec->elemCount <= 0) return NULL;
 	return (IBVecData*)((char*)vec->data + ((vec->elemCount - 1) * vec->elemSize));
 }
 IBVecData* IBVectorFront(IBVector* vec) {
-	assert(vec);
+	assert0(vec);
 	if (vec->elemCount <= 0) return NULL;
-	assert(vec->data);
+	assert0(vec->data);
 	return vec->data;
 }
 void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	void* ra;
-	assert(vec);
+	assert0(vec);
 	if(vec->elemCount <= 0) return;
 	if(freeFunc) freeFunc((void*)IBVectorGet(vec, vec->elemCount - 1));
 	vec->elemCount--;
@@ -1224,11 +1231,11 @@ void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	if(vec->slotCount<1)vec->slotCount=1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	if(vec->elemCount){
-		assert(vec->data);
+		assert0(vec->data);
 		ra = realloc(vec->data, vec->dataSize);
-		assert(ra);
+		assert0(ra);
 		if (ra) vec->data = ra;
-		assert(vec->data);
+		assert0(vec->data);
 	}
 }
 void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
@@ -1240,9 +1247,9 @@ void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 	if (vec->slotCount < 1)vec->slotCount = 1;
 	if(vec->elemCount > 1){
 		newSize = (vec->dataSize * vec->elemCount) - vec->dataSize;
-		assert(newSize >= vec->dataSize);
+		assert0(newSize >= vec->dataSize);
 		ra = malloc(newSize);
-		assert(ra);
+		assert0(ra);
 		if (ra) {
 			memcpy(ra, IBVectorGet(vec, 1), newSize);
 			free(vec->data);
@@ -1360,11 +1367,14 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
 		IBDictKeyDef def;
 		def = *dp;
 		IBDictKey* ok = IBDictKeyFindChild(key, def);
-		if (ok) key = ok;
-		else {
+		if (ok) {
+			key = ok;
+			break;
+		} else {
 			IBDictKey* nk = IBDictKeyNew(def);
 			IBVectorCopyPush(&key->children, nk);
 			key = nk;
+			break;
 		}
 	}
 	if(key == dict->rootKey) key = NULL;
@@ -1465,7 +1475,6 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 	}
 	dk = IBDictFind(dict, &keyStack);
 	assert(dk);
-	//IBLayer3VecPrint(&keyStack);
 	switch (action) {
 	case IBDictManipAction_DataIn: {
 		assert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
@@ -3650,9 +3659,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	if (ibc->Pfx != OP_Unknown
 		&& (!t || expTop->pfxs.elemCount)
 		&& !IBLayer3IsPfxExpected(ibc, ibc->Pfx))
-	{
 			Err(OP_ErrUnexpectedNextPfx, "");
-	}
 	IBPushColor(IBBgMAGENTA);
 	//PFX: 
 	DbgFmt("PFX","");
@@ -5076,7 +5083,7 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 	rv = 1;
-	//IBDictTest();
+	IBDictTest();
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
 	IBPushColor(IBFgWHITE);
 	g_DB = &db;

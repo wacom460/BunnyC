@@ -1,4 +1,9 @@
 @blk $main %i32 $argc %^^c8 $argv -> %i32
-	%i32 $a
-	$a <- 99 * 42 / 42069
-_ 999
+	"Hello, %%" "world!"
+	"Argument count: %%" $argc
+	
+	@table $argc
+	@case 0
+		@ret =-1
+	_
+_ 0
