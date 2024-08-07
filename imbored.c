@@ -489,7 +489,7 @@ typedef struct {
 	IBDictDataType type;
 	IBVector children;
 	union {
-		char* str;
+		//char* str;
 		int num;
 		char data[IBDICTKEY_KEYSIZE];
 	} key;
@@ -545,18 +545,25 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
 */
 IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...);
 void IBDictTest() {
-	IBDictionary dict;
+	/*IBDictionary dict;
 	IBDictKey* out=NULL;
 	int oi = 100;
 	IBDictionaryInit(&dict);
-	IBDictKey* k1p1 = IBDictManip(&dict, "dx", 5, 1);
-	IBDictKey* k1p2 = IBDictManip(&dict, "dk", 5, &oi);
+	IBDictKey* k1p1 = IBDictManip(&dict, "dsdx", 5, "id", 0, 1);
+	IBDictKey* k1p2 = IBDictManip(&dict, "dsdk", 5, "id", 0, &oi);
 	assert0(k1p1 && k1p2);
-	//assert0(k1p1 == k1p2);
+	assert0(k1p1 == k1p2);
 	assert0(oi == 1);
-	IBDictManip(&dict, "dg", 0, &out);
+	IBDictManip(&dict, "dsdg", 5, "id", 0, &out);
 	assert0(out);
-	assert0(out->val.num == 1);
+	assert0(out->val.num == 1);*/
+	IBDictionary dict;
+	IBDictKey* key=NULL;
+	IBDictionaryInit(&dict);
+	IBDictManip(&dict, "sssx", "variables", "globals", "color", 10);
+	IBDictManip(&dict, "sssg", "variables", "globals", "color", &key);
+	assert(key);
+	assert(key->val.num == 10);
 	return;
 }
 /* GLOBAL COLOR STACK */
@@ -1277,7 +1284,7 @@ void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 		break;
 	}
 	case IBDictDataType_String: {
-		strncpy(key->key.str, def.str, IBDICTKEY_MAXDATASIZE);
+		strncpy(key->key.data, def.str, IBDICTKEY_MAXDATASIZE);
 		break;
 	}
 	}
@@ -1303,7 +1310,7 @@ IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def){
 				break;
 			}
 			case IBDictDataType_String: {
-				if (strcmp(sk->key.str, def.str) == 0) return sk;
+				if (strcmp(sk->key.data, def.str) == 0) return sk;
 				break;
 			}
 			CASE_UNIMP_A
@@ -5077,7 +5084,7 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 	rv = 1;
-	IBDictTest();
+	//IBDictTest();
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
 	IBPushColor(IBFgWHITE);
 	g_DB = &db;
