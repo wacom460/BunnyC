@@ -1,4 +1,3 @@
-/* THIS FILE IS STRICT ANSI C89 ONLY */
 /*define IB_HEADER to use in TCC and get definitions only*/
 /*
 #define IB_HEADER
@@ -29,7 +28,7 @@
 /*
 not actually a compiler
 ascii only, maybe utf8 later...
-transpile to ANSI C89
+transpile to C
 no order of operations, sequential ONLY
 compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
@@ -434,7 +433,7 @@ typedef struct IBVector {
 	int elemCount;
 	int slotCount;
 	size_t dataSize;
-	//do not expect pointers to stay valid, realloc is called often
+	//do not expect pointers to stay valid, realloc is called on change
 	IBVecData* data;/*DATA BLOCK*/
 } IBVector;
 void IBVectorInit(IBVector* vec, size_t elemSize, Op type);
@@ -544,42 +543,9 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
 * IBDictManip(dict, "ddsk", 0, 0, "id", &i); //read 1 from "0.0.id"
 */
 IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...);
-void IBDictTest() {
-	/*IBDictionary dict;
-	IBDictKey* out=NULL;
-	int oi = 100;
-	IBDictionaryInit(&dict);
-	IBDictKey* k1p1 = IBDictManip(&dict, "dsdx", 5, "id", 0, 1);
-	IBDictKey* k1p2 = IBDictManip(&dict, "dsdk", 5, "id", 0, &oi);
-	assert0(k1p1 && k1p2);
-	assert0(k1p1 == k1p2);
-	assert0(oi == 1);
-	IBDictManip(&dict, "dsdg", 5, "id", 0, &out);
-	assert0(out);
-	assert0(out->val.num == 1);*/
-	IBDictionary dict;
-	IBDictKey* key=NULL;
-	IBDictionaryInit(&dict);
-	IBDictManip(&dict, "sssx", "variables", "globals", "color", 10);
-	IBDictManip(&dict, "sssg", "variables", "globals", "color", &key);
-	assert(key);
-	assert(key->val.num == 10);
-	return;
-}
+void IBDictTest();
 /* GLOBAL COLOR STACK */
-IBVector g_ColorStack; /*IBColor*/
-void IBPushColor(IBColor col) {
-	IBVectorCopyPushIBColor(&g_ColorStack, col);
-	IBSetColor(col);
-}
-void IBPopColor() {
-	IBColor* col;
-	_IBVectorPop(&g_ColorStack, NULL);
-	//assert(g_ColorStack.elemCount);
-	col = (IBColor*)IBVectorTop(&g_ColorStack);
-	if(col) IBSetColor(*col);
-	else IBSetColor(IBFgWHITE);
-}
+extern IBVector g_ColorStack; /*IBColor*/
 
 char* StrConcat(char* dest, int count, char* src);
 typedef union {
@@ -1514,9 +1480,46 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 	va_end(args);
 	return dk;
 }
+void IBDictTest() {
+	/*IBDictionary dict;
+	IBDictKey* out=NULL;
+	int oi = 100;
+	IBDictionaryInit(&dict);
+	IBDictKey* k1p1 = IBDictManip(&dict, "dsdx", 5, "id", 0, 1);
+	IBDictKey* k1p2 = IBDictManip(&dict, "dsdk", 5, "id", 0, &oi);
+	assert0(k1p1 && k1p2);
+	assert0(k1p1 == k1p2);
+	assert0(oi == 1);
+	IBDictManip(&dict, "dsdg", 5, "id", 0, &out);
+	assert0(out);
+	assert0(out->val.num == 1);*/
+	IBDictionary dict;
+	IBDictKey* key = NULL;
+	IBDictionaryInit(&dict);
+	IBDictManip(&dict, "sssx", "variables", "globals", "color", 10);
+	IBDictManip(&dict, "sssg", "variables", "globals", "color", &key);
+	assert(key);
+	assert(key->val.num == 10);
+	return;
+}
+void IBPushColor(IBColor col) {
+	IBVectorCopyPushIBColor(&g_ColorStack, col);
+	IBSetColor(col);
+}
+void IBPopColor() {
+	IBColor* col;
+	_IBVectorPop(&g_ColorStack, NULL);
+	//assert(g_ColorStack.elemCount);
+	col = (IBColor*)IBVectorTop(&g_ColorStack);
+	if (col) IBSetColor(*col);
+	else IBSetColor(IBFgWHITE);
+}
 char* StrConcat(char* dest, int count, char* src) {
 	return strcat(dest, src);
 }
+
+IBVector g_ColorStack;
+
 void IBCodeBlockInit(IBCodeBlock* block){
 	IBStrInit(&block->header);
 	IBStrInit(&block->variables);
@@ -5098,14 +5101,12 @@ int main(int argc, char** argv) {
 		DbgFmt("Exiting\n","");
 		//assert(comp.InputStr == NULL);
 		IBLayer3Free(&comp);
-		//getchar();
 		fclose(f);
 		rv = 0;
 	}
 	else{
 		printf("Error opening file\n");
-	}
-	
+	}	
 	IBVectorFreeSimple(&g_ColorStack);
 	return rv;
 }
