@@ -28,7 +28,7 @@
 /*
 not actually a compiler
 ascii only, maybe utf8 later...
-transpile to C
+output C99 source code
 no order of operations, sequential ONLY
 compiler options inside source code, preferably using code
 in number order breakpoints, if hit in the wrong order or missing then failure
@@ -389,9 +389,8 @@ typedef enum Op { /* multiple uses */
 	_IB_OPS_
 } Op;
 #undef X
-#define CLAMP_IMP {\
-	return val < min ? min : val > max ? max : val;\
-}
+#define CLAMP_IMP\
+	return val < min ? min : val > max ? max : val;
 #define CLAMP_FUNC(type, name)\
 	type name(type val, type min, type max)
 CLAMP_FUNC(int, ClampInt);
@@ -983,8 +982,8 @@ char* SysLibCodeStr =
 "@ext @blk $strdup %^c8 $str -> %^c8\n"
 "@ext @blk $strcat %^c8 $str1 %^c8 $str2 -> %^c8\n"
 ;
-CLAMP_FUNC(int, ClampInt) CLAMP_IMP
-CLAMP_FUNC(size_t, ClampSizeT) CLAMP_IMP
+CLAMP_FUNC(int, ClampInt) { CLAMP_IMP }
+CLAMP_FUNC(size_t, ClampSizeT) { CLAMP_IMP }
 void IBStrInit(IBStr* str) {
 	assert0(str);
 	str->start = (char*)malloc(1);
