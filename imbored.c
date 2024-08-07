@@ -507,13 +507,13 @@ typedef struct {
 		int num;
 	};
 } IBDictKeyDef;
-IBDictKey* IBDictKeyNew(IBDictKeyDef def);
+void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def);
 void IBDictKeyFree(IBDictKey* key);
 IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def);
 //childDepth must be ptr to an int set to 0
 void IBDictKeyPrint(IBDictKey* key, int* childDepth);
 typedef struct IBDictionary {
-	IBDictKey* rootKey;
+	IBDictKey rootKey;
 } IBDictionary;
 void IBDictionaryInit(IBDictionary* dict);
 void IBDictionaryFree(IBDictionary* dict);
@@ -1269,23 +1269,19 @@ void IBVectorFreeSimple(IBVector* vec) {
 //	default: return "Unknown";
 //	}
 //}
-IBDictKey* IBDictKeyNew(IBDictKeyDef def){
-	IBDictKey* ret = malloc(sizeof(IBDictKey));
-	assert(ret);
-	memset(ret, 0, sizeof(IBDictKey));
-	ret->type = def.type;
+void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
+	key->type = def.type;
 	switch (def.type) {
 	case IBDictDataType_Int: {
-		ret->key.num = def.num;
+		key->key.num = def.num;
 		break;
 	}
 	case IBDictDataType_String: {
-		strncpy(ret->key.str, def.str, IBDICTKEY_MAXDATASIZE);
+		strncpy(key->key.str, def.str, IBDICTKEY_MAXDATASIZE);
 		break;
 	}
 	}
-	IBVectorInit(&ret->children, sizeof(IBDictKey), OP_IBDictKey);
-	return ret;
+	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey);
 }
 void IBDictKeyFree(IBDictKey* key) {
 	int idx = 0;
@@ -1293,7 +1289,7 @@ void IBDictKeyFree(IBDictKey* key) {
 	assert(key);
 	while (sk = IBVectorIterNext(&key->children, &idx))
 		IBDictKeyFree(sk);
-	free(key);
+	IBVectorFreeSimple(&key->children);
 }
 IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def){
 	int idx = 0;
@@ -1346,38 +1342,37 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth){
 	--*childDepth;
 }
 void IBDictionaryInit(IBDictionary* dict){
-	dict->rootKey = IBDictKeyNew(
-		(IBDictKeyDef)
-		{ .type = IBDictDataType_RootKey, 
+	IBDictKeyInit(&dict->rootKey, (IBDictKeyDef)
+	{
+		.type = IBDictDataType_RootKey,
 			.key = NULL,
 			.num = 0
-		});
+	});
 }
 void IBDictionaryFree(IBDictionary* dict){
-	IBDictKeyFree(dict->rootKey);
+	IBDictKeyFree(&dict->rootKey);
 }
 IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
 	IBDictKeyDef* dp = NULL;
 	IBDictKey* key;
 	int idx = 0;
 	assert(dict);
-	key = dict->rootKey;
+	key = &dict->rootKey;
 	assert(keyStack->elemCount);
 	while (dp = IBVectorIterNext(keyStack, &idx)) {
-		IBDictKeyDef def;
-		def = *dp;
-		IBDictKey* ok = IBDictKeyFindChild(key, def);
+		IBDictKey* ok = IBDictKeyFindChild(key, *dp);
 		if (ok) {
 			key = ok;
 			break;
 		} else {
-			IBDictKey* nk = IBDictKeyNew(def);
-			IBVectorCopyPush(&key->children, nk);
+			IBDictKey* nk=NULL;
+			IBVectorPush(&key->children, &nk);
+			IBDictKeyInit(nk, *dp);
 			key = nk;
 			break;
 		}
 	}
-	if(key == dict->rootKey) key = NULL;
+	if(key == &dict->rootKey) key = NULL;
 	return key;
 }
 typedef enum {
@@ -1495,7 +1490,6 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 		break;
 	}
 	case IBDictManipAction_IntIn: {
-		//memcpy(&dk->data, &inInt, sizeof(int));
 		dk->val.num = inInt;
 		break;
 	}
