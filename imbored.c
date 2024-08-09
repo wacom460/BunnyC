@@ -3,7 +3,7 @@
 #define IB_HEADER
 #include "imbored.c" //access the compiler and structures
 */
-#define DEBUGPRINTS
+//#define DEBUGPRINTS
 
 #define _CRT_SECURE_NO_WARNINGS 1
 #include <stdio.h>
@@ -181,7 +181,7 @@ case 'W': case 'X': case 'Y': case 'Z':
 	break; \
 }
 
-struct IBDatabase* g_DB;
+extern struct IBDatabase* g_DB;
 
 #define _IB_OPS_ \
 X(Null) \
@@ -425,6 +425,9 @@ typedef union IBVecData {
 	struct IBExpects* expects;
 	struct IBNameInfoDB* niDB;
 	struct IBNameInfo* ni;
+	struct IBDictionary* dict;
+	struct IBDictKey* dictKey;
+	struct IBDictKeyDef* dictKeyDef;
 } IBVecData;
 typedef struct IBVector {
 	size_t elemSize;
@@ -541,7 +544,21 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
 * int i;
 * IBDictManip(dict, "ddsk", 0, 0, "id", &i); //read 1 from "0.0.id"
 */
+#define IBDStr "s"
+#define IBDNum "d"
+#define IBDInPtr "i"
+#define IBDOutPtr "o"
+#define IBDCount "c"
+#define IBDInStr "z"
+#define IBDInNum "x"
+#define IBDOutStr "j"
+#define IBDOutNum "k"
+#define IBDOutKey "g"
+
 IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...);
+
+//key = IBDictGet(dict, "0.0.id");
+IBDictKey* IBDictGet(IBDictionary* dict, char* keyPath);
 void IBDictTest();
 /* GLOBAL COLOR STACK */
 extern IBVector g_ColorStack; /*IBColor*/
@@ -899,6 +916,7 @@ Op fromPfxCh(char ch);
 void OverwriteStr(char** str, char* with);
 
 #ifndef IB_HEADER
+struct IBDatabase* g_DB;
 char* IBLayer3StringModeIgnoreChars = "";
 #define X(a) {#a, OP_##a},
 OpNamePair opNamesAR[] = {
@@ -1294,19 +1312,24 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth){
 	while(tc--) printf("\t");
 	printf("[%d] ", *childDepth);
 	switch (key->type) {
+	case IBDictDataType_RootKey: {
+		printf("Root ");
+		break;
+	}
 	case IBDictDataType_VoidPtr: {
-		printf("Pointer: %p\n", key->val.data);
+		printf("Pointer: %p", key->val.data);
 		break;
 	}
 	case IBDictDataType_Int: {
-		printf("Int: %d\n", key->val.num);
+		printf("Int: %d", key->val.num);
 		break;
 	}
 	case IBDictDataType_String: {
-		printf("Str: %s\n", key->val.str);
+		printf("Str: %s", key->val.str);
 		break;
 	}
 	}
+	printf(" K:\n");
 	++*childDepth;
 	while (sk = IBVectorIterNext(&key->children, &idx)) {
 		IBDictKeyPrint(sk, childDepth);
@@ -1479,6 +1502,14 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 	va_end(args);
 	return dk;
 }
+IBDictKey* IBDictGet(IBDictionary* dict, char* keyPath){
+	IBVector keyStack;
+	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef);
+
+	IBVectorPush(&keyStack, keyPath);
+	IBDictKey* dk = IBDictFind(dict, &keyStack);
+	return NULL;
+}
 void IBDictTest() {
 	/*IBDictionary dict;
 	IBDictKey* out=NULL;
@@ -1492,14 +1523,24 @@ void IBDictTest() {
 	IBDictManip(&dict, "dsdg", 5, "id", 0, &out);
 	assert0(out);
 	assert0(out->val.num == 1);*/
-	IBDictionary dict;
+	
+	/*IBDictionary dict;
 	IBDictKey* key = NULL;
 	IBDictionaryInit(&dict);
 	IBDictManip(&dict, "sssx", "variables", "globals", "color", 10);
 	IBDictManip(&dict, "sssg", "variables", "globals", "color", &key);
 	assert(key);
-	assert(key->val.num == 10);
-	return;
+	assert(key->val.num == 10);*/
+
+	IBDictionary dict;
+	IBDictionaryInit(&dict);
+	//Does: folder.file.100.info.date = 19910420
+	IBDictKey* k = IBDictManip(&dict, 
+		IBDStr    IBDStr  IBDNum IBDStr  IBDStr  IBDInNum,
+		"folder", "file", 100,   "info", "date", 19910420
+	);
+	int cd = 0;
+	IBDictKeyPrint(&dict.rootKey, &cd);
 }
 void IBPushColor(IBColor col) {
 	IBVectorCopyPushIBColor(&g_ColorStack, col);
@@ -5086,7 +5127,7 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 	rv = 1;
-	//IBDictTest();
+	IBDictTest();
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
 	IBPushColor(IBFgWHITE);
 	g_DB = &db;
