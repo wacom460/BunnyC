@@ -3675,7 +3675,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 					Op type =
 						IBNameInfoDBFindType(&ibc->NameTypeCtx, o->name);
 					if(type == OP_Bool) 
-						IBStrAppendFmt(&cb->code, "%s ? \"yes\" : \"no\"", o->name);
+						IBStrAppendFmt(&cb->code, "%s ? \"true\" : \"false\"", o->name);
 					else IBStrAppendCStr(&cb->code, o->name);
 					break;
 				}
