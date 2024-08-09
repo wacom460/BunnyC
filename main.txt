@@ -6,4 +6,7 @@
 	@case 0
 		@ret =-1
 	_
+	%bool $b
+	%bool $b
 _ 0
+@ext @blk $test

@@ -17,11 +17,12 @@
 #define bool char
 #define true 1
 #define false 0
-#define IB_TRUESTR "yes"
-#define IBFALSESTR "no"
+#define IB_TRUESTR "true"
+#define IBFALSESTR "false"
 #define IB_FILEEXT "3"
 #define IB_IllegalDbObjNameChars " \t\n,.:~!@#$%^&*=/()[]{}<>?|\\`'\""
 #define BoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
+#define BoolStrChar(b) (b ? "1" : "0")
 #ifdef _MSC_VER
 #define strdup _strdup
 #endif
@@ -180,8 +181,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 	exit(-1); \
 	break; \
 }
-
-extern struct IBDatabase* g_DB;
 
 #define _IB_OPS_ \
 X(Null) \
@@ -615,6 +614,7 @@ void IB_DBObjFree(IB_DBObj* obj);
 typedef struct IBDatabase {
 	IB_DBObj* root;
 } IBDatabase;
+extern IBDatabase* g_DB;
 void IBDatabaseInit(IBDatabase* db);
 void IBDatabaseFree(IBDatabase* db);
 IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location);
@@ -916,7 +916,7 @@ Op fromPfxCh(char ch);
 void OverwriteStr(char** str, char* with);
 
 #ifndef IB_HEADER
-struct IBDatabase* g_DB;
+IBDatabase* g_DB;
 char* IBLayer3StringModeIgnoreChars = "";
 #define X(a) {#a, OP_##a},
 OpNamePair opNamesAR[] = {
@@ -1566,6 +1566,7 @@ void IBCodeBlockInit(IBCodeBlock* block){
 	IBStrInit(&block->varsInit);
 	IBStrInit(&block->code);
 	IBStrInit(&block->footer);
+	IBDictionaryInit(&block->locals);
 }
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
 	IBStrAppendFmt(output, 
@@ -2807,8 +2808,8 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 				ExpectsInit(exp, "c", OP_Null);
 				SetTaskType(t, OP_FuncWantCode);
 				IBLayer3PushCodeBlock(ibc, &cb);
-			}
-			else {
+				//IBDictManip(&cb->locals, IBDStr, )
+			} else {
 				IBLayer3FinishTask(ibc);
 			}
 			break;
@@ -3126,7 +3127,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 						IBStrAppendFmt(vstr, "%f", o->var.val.f32);
 						break;
 					}
-							   CASE_UNIMP
+					case OP_Bool: {
+						IBStrAppendFmt(vstr, "%s", BoolStrChar(o->var.val.boolean));
+						break;
+					}
+					CASE_UNIMP
 					}
 				}
 				IBStrAppendFmt(vstr, "%s\n", ";");
@@ -4401,14 +4406,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_FuncNeedName: { 
 			switch (o->type) {
 			case OP_Func: {
-
 				IBExpects* exp;
 				SetObjType(o, OP_FuncHasName);
 				SetTaskType(t, OP_FuncHasName);
 				IBLayer3PushExpects(ibc, &exp);
 				ExpectsInit(exp, "PPPPN",
 					OP_VarType, OP_Op, OP_LineEnd, OP_Subtract, OP_Return);
-				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
+				ObjSetName(o, ibc->Str);
 				break;
 			}
 			}
