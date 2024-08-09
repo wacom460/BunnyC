@@ -1,6 +1,2 @@
-@blk $main %i32 $argc %^^c8 $argv -> %i32	
-	%bool $b
-	%bool $b ~should err
-	%bool $argc ~should err
-	"%%%%" $b $b
+blk $f1 -> %nts
 _ 0

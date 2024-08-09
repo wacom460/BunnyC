@@ -3,7 +3,7 @@
 #define IB_HEADER
 #include "imbored.c" //access the compiler and structures
 */
-//#define DEBUGPRINTS
+#define DEBUGPRINTS
 
 #define _CRT_SECURE_NO_WARNINGS 1
 #include <stdio.h>
@@ -378,6 +378,7 @@ X(PfxlessValue) \
 X(IBDictKeyDef) \
 X(EnumName) \
 X(IBDictKey) \
+X(Letter_azAZ) \
 X(None) \
 \
 /*field can only be written by its internals/friends*/ \
@@ -477,6 +478,16 @@ void IBVectorFreeSimple(IBVector* vec);
 	}\
 	IBVectorFreeSimple((vec));\
 }
+#define IBDStr "s"
+#define IBDNum "d"
+#define IBDInPtr "i"
+#define IBDOutPtr "o"
+#define IBDCount "c"
+#define IBDInStr "z"
+#define IBDInNum "x"
+#define IBDOutStr "j"
+#define IBDOutNum "k"
+#define IBDOutKey "g"
 typedef enum {
 	IBDictDataType_Unknown = 0,
 	IBDictDataType_RootKey,
@@ -496,8 +507,7 @@ typedef struct {
 		char data[IBDICTKEY_KEYSIZE];
 	} key;
 	union {
-		void* data;
-		char str[IBDICTKEY_MAXDATASIZE];
+		char data[IBDICTKEY_MAXDATASIZE];
 		int num;
 	} val;
 } IBDictKey;
@@ -510,16 +520,21 @@ typedef struct {
 	};
 } IBDictKeyDef;
 void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def);
+void IBDictKeyInitRoot(IBDictKey* key);
 void IBDictKeyFree(IBDictKey* key);
+//recursive
+IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack);
 IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def);
 //childDepth must be ptr to an int set to 0
 void IBDictKeyPrint(IBDictKey* key, int* childDepth);
-typedef struct IBDictionary {
-	IBDictKey rootKey;
-} IBDictionary;
-void IBDictionaryInit(IBDictionary* dict);
-void IBDictionaryFree(IBDictionary* dict);
-IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
+
+//typedef struct IBDictionary {
+//	IBDictKey rootKey;
+//} IBDictionary;
+//void IBDictionaryInit(IBDictionary* dict);
+//void IBDictionaryFree(IBDictionary* dict);
+//IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
+
 /*
 * IBDictManip fmt charOPs:
 * 
@@ -544,22 +559,22 @@ IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
 * 
 * int i;
 * IBDictManip(dict, "ddsk", 0, 0, "id", &i); //read 1 from "0.0.id"
-*/
-#define IBDStr "s"
-#define IBDNum "d"
-#define IBDInPtr "i"
-#define IBDOutPtr "o"
-#define IBDCount "c"
-#define IBDInStr "z"
-#define IBDInNum "x"
-#define IBDOutStr "j"
-#define IBDOutNum "k"
-#define IBDOutKey "g"
+* 
+* 
+	IBDictionary dict;
+	IBDictionaryInit(&dict);
 
-IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...);
+	//folder.file.100.info.date = 19910420
+	IBDictKey* k = IBDictManip(&dict,
+		IBDStr    IBDStr  IBDNum IBDStr  IBDStr  IBDInNum,
+		"folder", "file", 100,   "info", "date", 19910420
+	);
+*/
+
+IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...);
 
 //key = IBDictGet(dict, "0.0.id");
-IBDictKey* IBDictGet(IBDictionary* dict, char* keyPath);
+IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath);
 void IBDictTest();
 /* GLOBAL COLOR STACK */
 extern IBVector g_ColorStack; /*IBColor*/
@@ -948,7 +963,7 @@ OpNamePair PairNameOps[] = {
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
 	{"as", OP_As},{"pro", OP_ProtectedReadOnly},
 	{">", OP_GreaterThan},{"output", OP_Output},
-	{"enum", OP_Enum},{"flags", OP_Flags},
+	{"enum", OP_Enum},{"flags", OP_Flags},{"nts", OP_String},
 };
 OpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -1278,6 +1293,11 @@ void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 	}
 	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey);
 }
+void IBDictKeyInitRoot(IBDictKey* key){
+	memset(key, 0, sizeof(IBDictKey));
+	key->type = IBDictDataType_RootKey;
+	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey);
+}
 void IBDictKeyFree(IBDictKey* key) {
 	int idx = 0;
 	IBDictKey* sk = NULL;
@@ -1285,6 +1305,30 @@ void IBDictKeyFree(IBDictKey* key) {
 	while (sk = IBVectorIterNext(&key->children, &idx))
 		IBDictKeyFree(sk);
 	IBVectorFreeSimple(&key->children);
+}
+IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack) {
+	IBDictKeyDef* dp = NULL;
+	IBDictKey* key;
+	int idx = 0;
+	assert(rootKey);
+	key = rootKey;
+	assert(keyDefStack->elemCount);
+	while (dp = IBVectorIterNext(keyDefStack, &idx)) {
+		IBDictKey* ok = IBDictKeyFindChild(key, *dp);
+		if (ok) {
+			key = ok;
+			break;
+		}
+		else {
+			IBDictKey* nk = NULL;
+			IBVectorPush(&key->children, &nk);
+			IBDictKeyInit(nk, *dp);
+			key = nk;
+			break;
+		}
+	}
+	if (key == rootKey) key = NULL;
+	return key;
 }
 IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def){
 	int idx = 0;
@@ -1330,7 +1374,7 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth){
 		break;
 	}
 	case IBDictDataType_String: {
-		printf("Str: %s", key->val.str);
+		printf("Str: %s", key->val.data);
 		break;
 	}
 	}
@@ -1341,40 +1385,20 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth){
 	}
 	--*childDepth;
 }
-void IBDictionaryInit(IBDictionary* dict){
-	IBDictKeyInit(&dict->rootKey, (IBDictKeyDef)
-	{
-		.type = IBDictDataType_RootKey,
-			.key = NULL,
-			.num = 0
-	});
-}
-void IBDictionaryFree(IBDictionary* dict){
-	IBDictKeyFree(&dict->rootKey);
-}
-IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
-	IBDictKeyDef* dp = NULL;
-	IBDictKey* key;
-	int idx = 0;
-	assert(dict);
-	key = &dict->rootKey;
-	assert(keyStack->elemCount);
-	while (dp = IBVectorIterNext(keyStack, &idx)) {
-		IBDictKey* ok = IBDictKeyFindChild(key, *dp);
-		if (ok) {
-			key = ok;
-			break;
-		} else {
-			IBDictKey* nk=NULL;
-			IBVectorPush(&key->children, &nk);
-			IBDictKeyInit(nk, *dp);
-			key = nk;
-			break;
-		}
-	}
-	if(key == &dict->rootKey) key = NULL;
-	return key;
-}
+//void IBDictionaryInit(IBDictionary* dict){
+//	IBDictKeyInit(&dict->rootKey, (IBDictKeyDef)
+//	{
+//		.type = IBDictDataType_RootKey,
+//			.key = NULL,
+//			.num = 0
+//	});
+//}
+//void IBDictionaryFree(IBDictionary* dict){
+//	IBDictKeyFree(&dict->rootKey);
+//}
+//IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
+//	return IBDictKeyFind(&dict->rootKey, keyStack);
+//}
 typedef enum {
 	IBDictManipAction_Unknown = 0,
 	IBDictManipAction_DataIn,
@@ -1385,7 +1409,7 @@ typedef enum {
 	IBDictManipAction_IntOut,
 	IBDictManipAction_KeyPtrOut,
 } IBDictManipAction;
-IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
+IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...){
 	va_list args;
 	int i=0;
 	IBDictKey* dk = NULL;
@@ -1468,7 +1492,7 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 		CASE_UNIMP_A
 		}
 	}
-	dk = IBDictFind(dict, &keyStack);
+	dk = IBDictKeyFind(rootKey, &keyStack);
 	assert(dk);
 	switch (action) {
 	case IBDictManipAction_DataIn: {
@@ -1482,11 +1506,11 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 		break;
 	}
 	case IBDictManipAction_StrIn: {
-		strncpy(dk->val.str, inStr, IBDICTKEY_MAXDATASIZE);
+		strncpy(dk->val.data, inStr, IBDICTKEY_MAXDATASIZE);
 		break;
 	}
 	case IBDictManipAction_StrOut: {
-		*outStr = strdup(dk->val.str);
+		*outStr = strdup(dk->val.data);
 		break;
 	}
 	case IBDictManipAction_IntIn: {
@@ -1507,45 +1531,51 @@ IBDictKey* IBDictManip(IBDictionary* dict, char* fmt, ...){
 	va_end(args);
 	return dk;
 }
-IBDictKey* IBDictGet(IBDictionary* dict, char* keyPath){
+IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath){
 	IBVector keyStack;
 	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef);
 
 	IBVectorPush(&keyStack, keyPath);
-	IBDictKey* dk = IBDictFind(dict, &keyStack);
+	IBDictKey* dk = IBDictKeyFind(rootKey, &keyStack);
 	return NULL;
 }
 void IBDictTest() {
-	/*IBDictionary dict;
-	IBDictKey* out=NULL;
-	int oi = 100;
-	IBDictionaryInit(&dict);
-	IBDictKey* k1p1 = IBDictManip(&dict, "dsdx", 5, "id", 0, 1);
-	IBDictKey* k1p2 = IBDictManip(&dict, "dsdk", 5, "id", 0, &oi);
-	assert0(k1p1 && k1p2);
-	assert0(k1p1 == k1p2);
-	assert0(oi == 1);
-	IBDictManip(&dict, "dsdg", 5, "id", 0, &out);
-	assert0(out);
-	assert0(out->val.num == 1);*/
+	{
+		IBDictKey rk;
+		IBDictKey* out = NULL;
+		int oi = 100;
+		IBDictKeyInitRoot(&rk);
+		IBDictKey* k1p1 = IBDictManip(&rk, "dsdx", 5, "id", 0, 1);
+		IBDictKey* k1p2 = IBDictManip(&rk, "dsdk", 5, "id", 0, &oi);
+		assert0(k1p1 && k1p2);
+		assert0(k1p1 == k1p2);
+		assert0(oi == 1);
+		IBDictManip(&rk, "dsdg", 5, "id", 0, &out);
+		assert0(out);
+		assert0(out->val.num == 1);
+	}
 	
-	/*IBDictionary dict;
-	IBDictKey* key = NULL;
-	IBDictionaryInit(&dict);
-	IBDictManip(&dict, "sssx", "variables", "globals", "color", 10);
-	IBDictManip(&dict, "sssg", "variables", "globals", "color", &key);
-	assert(key);
-	assert(key->val.num == 10);*/
+	{
+		IBDictKey rk;
+		IBDictKey* key = NULL;
+		IBDictKeyInitRoot(&rk);
+		IBDictManip(&rk, "sssx", "variables", "globals", "color", 10);
+		IBDictManip(&rk, "sssg", "variables", "globals", "color", &key);
+		assert(key);
+		assert(key->val.num == 10);
+	}
 
-	IBDictionary dict;
-	IBDictionaryInit(&dict);
-	//Does: folder.file.100.info.date = 19910420
-	IBDictKey* k = IBDictManip(&dict, 
-		IBDStr    IBDStr  IBDNum IBDStr  IBDStr  IBDInNum,
-		"folder", "file", 100,   "info", "date", 19910420
-	);
-	int cd = 0;
-	//IBDictKeyPrint(&dict.rootKey, &cd);
+	{
+		IBDictKey rk;
+		IBDictKeyInitRoot(&rk);
+		//Does: folder.file.100.info.date = 19910420
+		IBDictKey* k = IBDictManip(&rk,
+			IBDStr    IBDStr  IBDNum IBDStr  IBDStr  IBDInNum,
+			"folder", "file", 100, "info", "date", 19910420
+		);
+		int cd = 0;
+		//IBDictKeyPrint(&dict.rootKey, &cd);
+	}
 }
 void IBPushColor(IBColor col) {
 	IBVectorCopyPushIBColor(&g_ColorStack, col);
@@ -1607,9 +1637,15 @@ void IBNameInfoDBFree(IBNameInfoDB* db) {
 	IBVectorFree(&db->pairs, IBNameInfoFree);
 }
 Op IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type, IBNameInfo** niDP) {
-	IBNameInfo* info=NULL;
-	IBVectorPush(&db->pairs, &info);
+	IBNameInfo* info=NULL,*found=NULL;
+	assert0(db);
 	assert0(name);
+	found = IBNameInfoDBFind(db, name);
+	if (found) {
+		if(niDP) (*niDP) = found;
+		return OP_AlreadyExists;
+	}
+	IBVectorPush(&db->pairs, &info);
 	assert(info);
 	info->type = type;
 	info->name = strdup(name);
@@ -1839,7 +1875,7 @@ char* GetPfxName(Op op) {
 	for (i = 0; i < sz; i++) {
 		if (op == pfxNames[i].op) return pfxNames[i].name;
 	}
-	assert(0);
+	//assert(0);
 	return "?";
 }
 //Op GetOpFromName(char* name) {
@@ -1870,6 +1906,8 @@ Op GetOpFromNameList(char* name, Op list) {
 }
 Op fromPfxCh(char ch) {
 	switch (ch) {
+	CASE_aTHRUz
+	CASE_ATHRUZ return OP_Letter_azAZ;
 	case '\t': return OP_TabChar;
 	case ' ': return OP_SpaceChar;
 	case '@': return OP_Op;
@@ -2596,6 +2634,7 @@ bool IBLayer3IsPfxExpected(IBLayer3* ibc, Op pfx) {
 	IBTask* t;
 	IBExpects* ap;
 	if(pfx == OP_PfxlessValue) pfx = OP_Value;
+	if (pfx == OP_Letter_azAZ) return true;
 	t = NULL;
 	ap = NULL;
 	t = IBLayer3GetTask(ibc);
@@ -2757,18 +2796,6 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			IBLayer3FinishTask(ibc);
 			break;
 		}
-		/*case OP_SetCallWantArgs: {
-			if (o->type == OP_ArgNeedValue)
-				IBLayer3PopObj(ibc, false, &o);
-			IBLayer3FinishTask(ibc);
-			t= IBLayer3GetTask(ibc);
-			assert(t->type == OP_SetNeedVal);
-			assert(o->type == OP_Set);
-			o->valType = OP_Call;
-			IBLayer3PopObj(ibc, true, &o);
-			IBLayer3FinishTask(ibc);
-			break;
-		}*/
 		case OP_CallWantArgs: {
 			IBLayer3FinishTask(ibc);
 			t = IBLayer3GetTask(ibc);
@@ -3174,69 +3201,6 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrAppendFmt(&cb->code, "%s\n", ";");
 		break;
 	}
-	//case OP_SetCallWantArgs: {
-	//	Obj *scObj=IBVectorGet(wObjs, 0);
-	//	Obj* o = NULL;
-	//	int idx = 0;
-	//	assert(scObj);
-	//	assert(scObj->type == OP_SetCall);
-	//	pop2Parent=true;
-	//	assert(scObj->str);
-	//	IBStrAppendFmt(&t->code, "%s(", scObj->str);
-	//	while (o = IBVectorIterNext(wObjs, &idx)) {
-	//		switch (o->type) {
-	//		case OP_SetCall: break;
-	//		case OP_Arg: {
-	//			switch (o->valType) {
-	//			case OP_Value: {
-	//				IBStrAppendFmt(&t->code, "%d", o->val.i32);//for now
-	//				break;
-	//			}
-	//			case OP_String: {
-	//				IBStrAppendFmt(&t->code, "\"%s\"", o->str);
-	//				break;
-	//			}
-	//			case OP_Name: {
-	//				IBStrAppendFmt(&t->code, "%s", o->str);
-	//				break;
-	//			}
-	//			CASE_UNIMP
-	//			}
-	//			if (idx < wObjs->elemCount - 2) {
-	//				IBStrAppendCStr(&cb->code, ", ");
-	//			}
-	//			break;
-	//		}
-	//		CASE_UNIMP
-	//		}
-	//	}
-	//	IBStrAppendFmt(&t->code, "%s", ")");
-	//	break;
-	//}
-	//case OP_SetNeedVal:{
-	//	Obj* o = IBVectorGet(wObjs, 0);		
-	//	assert(o);
-	//	IBStrAppendCh(&cb->code, '\t', tabCount);
-	//	IBStrAppendFmt(&cb->code, "%s = ", o->str);
-	//	switch (o->valType) {
-	//	case OP_Value: {
-	//		IBStrAppendFmt(&cb->code, "%d", o->val.i32);
-	//		break;
-	//	}
-	//	case OP_Call: {
-	//		if (t->subTasks.elemCount > 0) {
-	//			IBTask* cst = IBVectorGet(&t->subTasks, 0);
-	//			assert(cst);
-	//			assert(cst->type == OP_SetCallWantArgs);
-	//			IBCodeBlockFinish(&cst->code, &cb->code);
-	//		}
-	//		break;
-	//	}
-	//	CASE_UNIMP
-	//	}
-	//	IBStrAppendFmt(&cb->code, "%s\n", ";");		
-	//	break;
-	//}
 	case OP_CallWantArgs: {
 		Obj* o = IBVectorGet(wObjs, 0);
 		int idx = 0;
@@ -3627,7 +3591,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 						switch (voT) {
 						case OP_Name:{
 							Op type = 
-								IBNameInfoDBFindType(&ibc->NameTypeCtx, vo->name);
+								IBNameInfoDBFindType(&cb->localVariables, vo->name);
 							IBStrAppendCStr(&cb->code,
 								IBLayer3GetCPrintfFmtForType(ibc, type));
 							break;
@@ -3711,13 +3675,13 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	t = IBLayer3GetTask(ibc);
 	assert(t);
 	expTop = IBTaskGetExpTop(t);
-	/*for assigning func call ret val to var*/
-	if (ibc->Pfx == OP_Value && ibc->Ch == '@' 
-			&& !ibc->Str[0]) {
-		IBExpects* exp;
-		IBLayer3PushExpects(ibc, &exp);
-		ExpectsInit(exp, "P0", OP_Op, 1);
-	}
+	///*for assigning func call ret val to var*/
+	//if (ibc->Pfx == OP_Value && ibc->Ch == '@' 
+	//		&& !ibc->Str[0]) {
+	//	IBExpects* exp;
+	//	IBLayer3PushExpects(ibc, &exp);
+	//	ExpectsInit(exp, "P0", OP_Op, 1);
+	//}
 	ibc->Pfx = fromPfxCh(ibc->Ch);
 	if(ibc->Pfx == OP_SpaceChar
 		|| ibc->Pfx == OP_TabChar) return;
@@ -3750,6 +3714,15 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	switch (ibc->Pfx) {
 	case OP_String: { /* " */
 		ibc->StringMode = true;
+		IBLayer3Push(ibc, OP_ModeStrPass, false);
+		break;
+	}
+	case OP_Letter_azAZ: {
+		char chBuf[2];
+		chBuf[0] = ibc->Ch;
+		chBuf[1] = '\0';
+		//ibc->Pfx = OP_Op;
+		StrConcat(ibc->Str, IBLayer3STR_MAX, chBuf);
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
 		break;
 	}
@@ -3977,7 +3950,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	IBPopColor();
 	IBPopColor();
 	DbgFmt("\n", "");
+	top:
 	switch (ibc->Pfx) {
+	case OP_Letter_azAZ: {
+		if(!strcmp(ibc->Str, IBFALSESTR) ||
+			!strcmp(ibc->Str, IB_TRUESTR)) ibc->Pfx = OP_Value;
+		else ibc->Pfx = OP_Op;
+		goto top;
+	}
 	/* _ PFXUNDERSCORE */ case OP_Underscore: {
 		switch (ibc->NameOp) {
 		case OP_EmptyStr: {
@@ -4273,6 +4253,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				if (o->type == OP_FuncSigComplete) {
 					Op valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
 					switch (o->func.retValType) {
+					case OP_c8: {
+
+					}
 					case OP_u8:
 					case OP_u16:
 					case OP_u32:
@@ -4320,8 +4303,14 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				break;
 			}
 			case OP_FuncNeedsRetValType: {
-				IBLayer3GetObj(ibc)->func.retValType = ibc->NameOp;
-				IBLayer3GetObj(ibc)->func.retTypeMod = ibc->Pointer;
+				o->func.retValType = ibc->NameOp;
+				o->func.retTypeMod = ibc->Pointer;
+				if (o->func.retValType == OP_Unknown)
+					Err(OP_Error, "unknown return type");
+				if (o->func.retValType == OP_String) {
+					o->func.retValType = OP_c8;
+					o->func.retTypeMod = OP_Pointer;
+				}
 				SetObjType(o, OP_FuncSigComplete);
 				break;
 			}
@@ -4436,20 +4425,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			}
 			break; }
-		/*case OP_SetCall: { 
-			IBExpects* exp=NULL;
-			Obj* o=NULL;
-			IBLayer3PushObj(ibc, &o);
-			ObjSetType(o, OP_SetCall);
-			ObjSetStr(o, ibc->Str);
-			IBLayer3ReplaceExpects(ibc, &exp);
-			SetTaskType(t, OP_SetCallWantArgs);
-			ExpectsInit(exp, "PPPP", 
-				OP_LineEnd, OP_Name, OP_String, OP_Value);
-			IBLayer3PopObj(ibc, true, &o);
-			IBLayer3PushObj(ibc, &o);
-			SetObjType(o, OP_ArgNeedValue);
-			break; }*/
 		case OP_FuncNeedRetVal: {
 			Obj* o;
 			int idx;
@@ -4472,44 +4447,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
-		/*case OP_CallNeedName: {
-			switch (o->type) {
-			case OP_CallNeedName: {
-				IBExpects* exp;
-				ObjSetStr(o, ibc->Str);
-				ObjSetType(o, OP_Call);
-				IBLayer3PopObj(ibc, true, &o);
-				IBLayer3PushObj(ibc, &o);
-				SetObjType(o, OP_ArgNeedValue);
-				SetTaskType(t, OP_CallWantArgs);
-				IBLayer3ReplaceExpects(ibc, &exp);
-				ExpectsInit(exp, "PPPP", 
-					OP_Name, OP_Value, OP_String, OP_LineEnd);
-				break;
-			}
-			default: {
-				Err(OP_Error, "wrong obj type");
-				break;
-			}
-			}
-		}*/
-		/*case OP_SetNeedName: {
-			switch (o->type) {
-			case OP_Set: {
-				IBExpects* exp;
-				assert(o->type == OP_Set);
-				ObjSetStr(o, ibc->Str);
-				SetTaskType(t, OP_SetNeedVal);
-				IBLayer3PushExpects(ibc, &exp);
-				ExpectsInit(exp, "PPPPN", 
-					OP_Value, OP_Name, OP_String, OP_Op, OP_Call);
-				break;
-			}
-			CASE_UNIMP
-			}
-			break;
-		}
-		case OP_SetCallWantArgs:*/
 		case OP_CallWantArgs: {
 			if (o->type == OP_ArgNeedValue) {
 				ObjSetStr(o, ibc->Str);
@@ -4628,9 +4565,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			switch (o->type) {
 			case OP_VarNeedName: {
 				IBExpects* exp;
+				IBNameInfo* ni = NULL;
 				ObjSetName(o, ibc->Str);
-				IBNameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str,
-					IBLayer3GetObj(ibc)->var.type, NULL);
+				Op rc = IBNameInfoDBAdd(&cb->localVariables, 
+					ibc->Str, o->var.type, &ni);
+				if(rc == OP_AlreadyExists) 
+					Err(OP_Error, "name already in use");
+				assert(rc == OP_OK);
 				SetObjType(o, OP_VarWantValue);
 				SetTaskType(t, OP_VarWantValue);
 				IBLayer3ReplaceExpects(ibc, &exp);
@@ -4640,23 +4581,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				break;
 			}
 			CASE_UNIMP
-			}
-			break;
-		}
-		case OP_ThingWantContent: {
-			switch (o->type) {
-			case OP_VarNeedName: {
-				IBExpects* exp;
-				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
-				IBNameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
-					IBLayer3GetObj(ibc)->var.type, NULL);
-				SetObjType(o, OP_VarWantValue);
-				IBLayer3ReplaceExpects(ibc, &exp);
-				ExpectsInit(exp, "1PP",
-					"expected value or line end after var name",
-					OP_Value, OP_LineEnd);
-				break;
-			}
 			}
 			break;
 		}
