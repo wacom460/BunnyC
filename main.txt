@@ -1,12 +1,5 @@
-@blk $main %i32 $argc %^^c8 $argv -> %i32
-	"Hello, %%" "world!"
-	"Argument count: %%" $argc
-	
-	@table $argc
-	@case 0
-		@ret =-1
-	_
+@blk $main %i32 $argc %^^c8 $argv -> %i32	
 	%bool $b
-	%bool $b
+	%bool $b ~should err
+	%bool $argc ~should err
 _ 0
-@ext @blk $test

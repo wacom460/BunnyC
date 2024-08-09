@@ -186,6 +186,8 @@ case 'W': case 'X': case 'Y': case 'Z':
 X(Null) \
 X(False) \
 X(True) \
+X(OK) \
+X(AlreadyExists) \
 X(Unknown) \
 X(NotSet) \
 X(Any) \
@@ -442,7 +444,7 @@ IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* IBVectorIterNext(IBVector* vec, int* idx);
 void _IBVectorPush(IBVector* vec, IBVecData** dataDP);
 #define IBVectorPush(vec, dataDP){\
-	int c=(vec)->elemCount - 1;\
+	/*int c=(vec)->elemCount - 1;*/\
 	_IBVectorPush((vec), dataDP);\
 	/*PLINE;\
 	DbgFmt(" VectorPush: %s ", #vec); \
@@ -577,6 +579,9 @@ typedef union {
 	float f32;
 	double d64;
 } Val;
+typedef struct IBNameInfoDB {
+	IBVector pairs;
+} IBNameInfoDB;
 typedef struct IBCodeBlock {
 	IBStr header;
 	IBStr variables;
@@ -584,7 +589,8 @@ typedef struct IBCodeBlock {
 	IBStr code;
 	IBStr footer;
 
-	IBDictionary locals;
+	//IBDictionary locals;
+	IBNameInfoDB localVariables;
 } IBCodeBlock;
 void IBCodeBlockInit(IBCodeBlock* block);
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output);
@@ -624,13 +630,11 @@ typedef struct IBNameInfo {
 } IBNameInfo;
 void IBNameInfoInit(IBNameInfo* info);
 void IBNameInfoFree(IBNameInfo* info);
-typedef struct IBNameInfoDB {
-	IBVector pairs;
-} IBNameInfoDB;
 void IBNameInfoDBInit(IBNameInfoDB* db);
 void IBNameInfoDBFree(IBNameInfoDB* db);
-void IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type);
+Op IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type, IBNameInfo** niDP);
 Op IBNameInfoDBFindType(IBNameInfoDB* db, char* name);
+IBNameInfoDB* IBNameInfoDBFind(IBNameInfoDB* db, char* name);
 typedef struct FuncObj {
 	Op retTYPE;
 	char* retStr;
@@ -1183,6 +1187,7 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
 		if(ra) vec->data = ra;
 	}
 	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
+	memset(topPtr, 0, vec->elemSize);
 	vec->elemCount++;
 	if(dataDP) *dataDP = topPtr;
 }
@@ -1540,7 +1545,7 @@ void IBDictTest() {
 		"folder", "file", 100,   "info", "date", 19910420
 	);
 	int cd = 0;
-	IBDictKeyPrint(&dict.rootKey, &cd);
+	//IBDictKeyPrint(&dict.rootKey, &cd);
 }
 void IBPushColor(IBColor col) {
 	IBVectorCopyPushIBColor(&g_ColorStack, col);
@@ -1566,7 +1571,8 @@ void IBCodeBlockInit(IBCodeBlock* block){
 	IBStrInit(&block->varsInit);
 	IBStrInit(&block->code);
 	IBStrInit(&block->footer);
-	IBDictionaryInit(&block->locals);
+	//IBDictionaryInit(&block->locals);
+	IBNameInfoDBInit(&block->localVariables);
 }
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
 	IBStrAppendFmt(output, 
@@ -1578,6 +1584,8 @@ void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
 		block->footer.start);
 }
 void IBCodeBlockFree(IBCodeBlock* block){
+	//IBDictionaryFree(&block->locals);
+	IBNameInfoDBFree(&block->localVariables);
 	IBStrFree(&block->header);
 	IBStrFree(&block->variables);
 	IBStrFree(&block->varsInit);
@@ -1595,14 +1603,18 @@ void IBNameInfoDBInit(IBNameInfoDB* db) {
 	IBVectorInit(&db->pairs, sizeof(IBNameInfo), OP_NameInfo);
 }
 void IBNameInfoDBFree(IBNameInfoDB* db) {
-	assert(db);
+	assert0(db);
 	IBVectorFree(&db->pairs, IBNameInfoFree);
 }
-void IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type) {
-	IBNameInfo info;
-	info.type = type;
-	info.name = strdup(name);
-	IBVectorCopyPush(&db->pairs, &info);
+Op IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type, IBNameInfo** niDP) {
+	IBNameInfo* info=NULL;
+	IBVectorPush(&db->pairs, &info);
+	assert0(name);
+	assert(info);
+	info->type = type;
+	info->name = strdup(name);
+	if (niDP) (*niDP) = info;
+	return OP_OK;
 }
 Op IBNameInfoDBFindType(IBNameInfoDB* db, char* name) {
 	IBNameInfo* pair;
@@ -1613,6 +1625,13 @@ Op IBNameInfoDBFindType(IBNameInfoDB* db, char* name) {
 			return pair->type;
 	}
 	return OP_NotFound;
+}
+IBNameInfoDB* IBNameInfoDBFind(IBNameInfoDB* db, char* name){
+	IBNameInfo* pair=NULL;
+	int idx=0;
+	while (pair = IBVectorIterNext(&db->pairs, &idx))
+		if (!strcmp(pair->name, name)) return pair;
+	return NULL;
 }
 void ObjInit(Obj* o) {
 	o->type=OP_NotSet;
@@ -4396,7 +4415,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				PopExpects();
 				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
 				IBNameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
-					o->arg.type);
+					o->arg.type, NULL);
 				IBLayer3PopObj(ibc, true, NULL);
 				break;
 			}
@@ -4611,7 +4630,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBExpects* exp;
 				ObjSetName(o, ibc->Str);
 				IBNameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str,
-					IBLayer3GetObj(ibc)->var.type);
+					IBLayer3GetObj(ibc)->var.type, NULL);
 				SetObjType(o, OP_VarWantValue);
 				SetTaskType(t, OP_VarWantValue);
 				IBLayer3ReplaceExpects(ibc, &exp);
@@ -4630,7 +4649,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBExpects* exp;
 				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
 				IBNameInfoDBAdd(&ibc->NameTypeCtx, ibc->Str, 
-					IBLayer3GetObj(ibc)->var.type);
+					IBLayer3GetObj(ibc)->var.type, NULL);
 				SetObjType(o, OP_VarWantValue);
 				IBLayer3ReplaceExpects(ibc, &exp);
 				ExpectsInit(exp, "1PP",
