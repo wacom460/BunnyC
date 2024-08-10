@@ -3981,11 +3981,24 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		Op dataType = GetOpFromNameList(ibc->Str, OP_DataTypes);
 		if (dataType != OP_Unknown) {
 			ibc->Pfx = OP_VarType;
+			DbgFmt("infered vartype\n", "");
+			goto top;
 		}
-		else if(!strcmp(ibc->Str, IBFALSESTR) ||
-			!strcmp(ibc->Str, IB_TRUESTR)) ibc->Pfx = OP_Value;
-		else ibc->Pfx = OP_Op;
-		goto top;
+		else if (!strcmp(ibc->Str, IBFALSESTR) ||
+				!strcmp(ibc->Str, IB_TRUESTR)) {
+			ibc->Pfx = OP_Value;
+			DbgFmt("infered bool Value\n", "");
+			goto top;
+		}
+		else {
+			Op nameOp = GetOpFromNameList(ibc->Str, OP_NameOps);
+			if (nameOp != OP_Unknown) {
+				ibc->Pfx = OP_Op;
+				DbgFmt("infered OP\n", "");
+				goto top;
+			}
+		}
+		Err(OP_Error, "Couldn't infer this input");
 	}
 	/* _ PFXUNDERSCORE */ case OP_Underscore: {
 		switch (ibc->NameOp) {

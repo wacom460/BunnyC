@@ -21,11 +21,27 @@ struct $entity
 _
 
 blk $returnStr -> nts
-	"this function doesn't actually do anything\n"
+	~~"this function doesn't actually do anything\n"
+
+
+
+	fuck
+
+
+
+	~~
 _ "test string"
+
+blk $testStuff u64 $time -> u64
+	u64 $ret
+	$ret <- $time * 20 / 400 * 2
+_ $ret
 
 blk $main i32 $argc %^^c8 $argv -> %i32
 	nts $str
+	if $argc gteq 20
+		"hi"
+	_
 	return =-1
 	~$str <- !returnStr
 	"%%" $str
