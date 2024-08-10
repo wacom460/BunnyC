@@ -1,6 +1,32 @@
-blk $f1 -> %nts
-_ "test"
+flags $testFlags
+	$tf1 $tf2 $tf3
+_
 
-blk $main %i32 $argc %^^c8 $argv -> %i32
-	~"f1: %%" !f1
+enum $testEnum
+	$e1 $e2 $e3
+_
+
+struct $pos2i
+	i32 $x
+	i32 $y
+_
+
+struct $entity
+	nts $name
+	%pos2i $pos
+
+	blk $init
+		$self.pos.x <- 10
+	_
+_
+
+blk $returnStr -> nts
+	"this function doesn't actually do anything\n"
+_ "test string"
+
+blk $main i32 $argc %^^c8 $argv -> %i32
+	nts $str
+	return =-1
+	~$str <- !returnStr
+	"%%" $str
 _ 0
