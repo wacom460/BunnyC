@@ -654,6 +654,7 @@ typedef struct FuncObj {
 	Op retTYPE;
 	char* retStr;
 	Val retVal;
+	char* retValStr;
 	Op retValType;
 	Op retTypeMod;
 	struct IBTask* thingTask;
@@ -1003,7 +1004,7 @@ OpNamePair cEquivelents[] = {
 	{"+", OP_Add},{"-", OP_Subtract},{"*", OP_Multiply},
 	{"/", OP_Divide},{"%", OP_Modulo},{"*", OP_Deref},
 	{"&", OP_Ref},{"**", OP_DoubleDeref},{"***", OP_TrippleDeref},
-	{"char", OP_CString},
+	{"char", OP_CString}, {"char", OP_String},
 };
 OpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},
@@ -1691,6 +1692,7 @@ void ObjInit(Obj* o) {
 }
 void ObjFree(Obj* o) {
 	assert(o);
+	if (o->func.retValStr) free(o->func.retValStr);
 	if(o->func.retStr) free(o->func.retStr);
 	if (o->name) free(o->name);
 	if (o->str) free(o->str);
@@ -3509,6 +3511,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			} else if (funcObj->func.retValType != OP_Void) {
 				IBStrAppendCStr(&cFuncCode, "\treturn ");
 				switch (funcObj->func.retTYPE) {
+				case OP_String: {
+					IBStrAppendFmt(&cFuncCode, "\"%s\"", funcObj->func.retValStr);
+					break;
+				}
 				case OP_Value: {
 					//assert(funcObj->func.retValType==OP_i32);
 					//IBStrAppendFmt(&cFuncCode, "%d", 
@@ -3536,6 +3542,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 					IBStrAppendFmt(&cFuncCode, "%s", funcObj->func.retStr);
 					break;
 				}
+				CASE_UNIMP
 				}
 				//IBStrAppendCStr(&cFuncCode, valBuf);
 				IBStrAppendCStr(&cFuncCode, ";\n");
@@ -4058,7 +4065,26 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	}
 	/* " PFXSTRING */ case OP_String: {
-		switch(t->type){
+		switch(t->type) {
+		case OP_FuncNeedRetVal: {
+			Obj* o;
+			int idx;
+			idx = 0;
+			while (o = (Obj*)IBVectorIterNext(&t->working, &idx)) {
+				if (o->type == OP_FuncSigComplete) {
+					DbgFmt("Finishing func got ret value\n", "");
+					OverwriteStr(&o->func.retValStr, ibc->Str);
+					o->func.retValType = OP_String;
+					o->func.retVal.i32 = 0;
+					o->func.retTYPE = OP_String;
+					PopExpects();
+					SetTaskType(t, OP_Func);
+					IBLayer3FinishTask(ibc);
+					break;
+				}
+			}
+			break;
+		}
 		case OP_BlockReturnNeedValue: {
 			switch (o->type) {
 			case OP_BlockReturnNeedValue: {
@@ -4092,8 +4118,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBExpects *ap;
 			Obj* o;
 			IBLayer3PushTask(ibc, OP_CPrintfHaveFmtStr, &ap, NULL);
-			ExpectsInit(ap, "1PPPP", "expected fmt args or line end", 
-				OP_Value, OP_Name, OP_String, OP_LineEnd);
+			ExpectsInit(ap, "1PPPPP", "expected fmt args or line end", 
+				OP_Exclaim, OP_Value, OP_Name, OP_String, OP_LineEnd);
 			IBLayer3PushObj(ibc, &o);
 			ObjSetStr(o, ibc->Str);
 			ObjSetType(o, OP_CPrintfFmtStr);
@@ -4127,13 +4153,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
-		/*case OP_SetNeedVal:{
-			o->val = strVal;
-			o->valType = OP_Value;
-			IBLayer3PopObj(ibc, true, &o);
-			IBLayer3FinishTask(ibc);
-			break;
-		}*/
 		case OP_VarWantValue: {
 			switch (o->type) {
 			case OP_VarWantValue: {
@@ -4195,7 +4214,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
-		//case OP_SetCallWantArgs:
 		case OP_CallWantArgs: {
 			switch (o->type) {
 			case OP_ArgNeedValue: {

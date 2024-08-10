@@ -1,2 +1,6 @@
 blk $f1 -> %nts
+_ "test"
+
+blk $main %i32 $argc %^^c8 $argv -> %i32
+	~"f1: %%" !f1
 _ 0
