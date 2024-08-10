@@ -1,48 +1,13 @@
-flags $testFlags
-	$tf1 $tf2 $tf3
-_
-
-enum $testEnum
-	$e1 $e2 $e3
-_
-
-struct $pos2i
-	i32 $x
-	i32 $y
-_
-
-struct $entity
-	nts $name
-	%pos2i $pos
-
-	blk $init
-		$self.pos.x <- 10
-	_
-_
-
-blk $returnStr -> nts
-	~~"this function doesn't actually do anything\n"
-
-
-
-	fuck
-
-
-
-	~~
-_ "test string"
-
-blk $testStuff u64 $time -> u64
-	u64 $ret
-	$ret <- $time * 20 / 400 * 2
-_ $ret
-
-blk $main i32 $argc %^^c8 $argv -> %i32
-	nts $str
-	if $argc gteq 20
-		"hi"
-	_
-	return =-1
-	~$str <- !returnStr
-	"%%" $str
+blk $main i32 $argc nts^ $argv -> i32
+    if $argc gteq 0
+        "Hello, %% %%" $argc "world!"
+        if $argc eq 1
+            nts $argc
+            "%%" $argc
+        _
+    _
 _ 0
+
+blk $b2
+    "%%" $argc
+_
