@@ -600,13 +600,13 @@ typedef struct IBNameInfo {
 	char* name;
 } IBNameInfo;
 typedef struct IBNameInfoDB {
-	IBVector pairs;
+	IBVector pairs;//IBNameInfo
 } IBNameInfoDB;
 void IBNameInfoInit(IBNameInfo* info);
 void IBNameInfoFree(IBNameInfo* info);
 void IBNameInfoDBInit(IBNameInfoDB* db);
 void IBNameInfoDBFree(IBNameInfoDB* db);
-Op IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type, IBNameInfo** niDP);
+Op IBNameInfoDBAdd(struct IBLayer3* ibc, IBNameInfoDB* db, char* name, Op type, IBNameInfo** niDP);
 Op IBNameInfoDBFindType(IBNameInfoDB* db, char* name);
 IBNameInfoDB* IBNameInfoDBFind(IBNameInfoDB* db, char* name);
 typedef struct IBCodeBlock {
@@ -1637,10 +1637,12 @@ void IBNameInfoDBFree(IBNameInfoDB* db) {
 	assert0(db);
 	IBVectorFree(&db->pairs, IBNameInfoFree);
 }
-Op IBNameInfoDBAdd(IBNameInfoDB* db, char* name, Op type, IBNameInfo** niDP) {
+Op IBNameInfoDBAdd(struct IBLayer3* ibc, IBNameInfoDB* db, char* name, Op type, IBNameInfo** niDP) {
 	IBNameInfo* info=NULL,*found=NULL;
+	assert(ibc);
 	assert0(db);
 	assert0(name);
+	assert(db != &((IBCodeBlock*)IBVectorFront(&ibc->CodeBlockStack))->localVariables);
 	found = IBNameInfoDBFind(db, name);
 	if (found) {
 		if(niDP) (*niDP) = found;
@@ -1962,7 +1964,7 @@ IBNameInfo* IBLayer3SearchNameInfo(IBLayer3* ibc, char* name){
 	assert(ibc->CodeBlockStack.elemCount);
 	assert(name);
 	assert(name[0]);
-	idx=ibc->CodeBlockStack.elemCount - 1;
+	idx=ibc->CodeBlockStack.elemCount;
 	while(idx-->=0){
 		IBCodeBlock* cb = IBVectorGet(&ibc->CodeBlockStack, idx);
 		assert(cb);
@@ -2229,11 +2231,13 @@ void IBLayer3Free(IBLayer3* ibc) {
 		IBLayer3InputStr(ibc, ibc->InputStr);
 		ibc->InputStr = NULL;
 	}
-	cb=(IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
+	cb=IBVectorTop(&ibc->CodeBlockStack);
 	o=IBLayer3GetObj(ibc);
 	if (ibc->StringMode)
 		Err(OP_Error, "Reached end of file without closing string");
 	if(ibc->Str[0]) IBLayer3StrPayload(ibc);
+	if (cb->localVariables.pairs.elemCount)
+		Err(OP_Error, "root codeblock can't have variables in it!!!");
 	t=IBLayer3GetTask(ibc);
 	if (ibc->TaskStack.elemCount) {
 		switch (t->type) {
@@ -2867,11 +2871,10 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 			IBLayer3PopObj(ibc, true, &o);
 			if(!ibc->Imaginary){
 				IBExpects *exp;
-				IBCodeBlock *cb;
+				//IBCodeBlock *cb;
 				IBLayer3PushExpects(ibc, &exp);
 				ExpectsInit(exp, "c", OP_Null);
 				SetTaskType(t, OP_FuncWantCode);
-				IBLayer3PushCodeBlock(ibc, &cb);
 				//IBDictManip(&cb->locals, IBDStr, )
 			} else {
 				IBLayer3FinishTask(ibc);
@@ -3618,6 +3621,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 						switch (voT) {
 						case OP_Name:{
 							IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, vo->name);
+							if (!ni)
+								Err(OP_Error, "Name not found");
 							assert(ni);
 							IBStrAppendCStr(&cb->code,
 								IBLayer3GetCPrintfFmtForType(ibc, ni->type));
@@ -3822,7 +3827,7 @@ void IBLayer3Str(IBLayer3* ibc){
 		case ' ': {
 			if (ibc->StrAllowSpace) break;
 			else {
-					IBLayer3StrPayload(ibc);
+				IBLayer3StrPayload(ibc);
 				return;
 			}
 		}
@@ -4459,7 +4464,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				SetObjType(o, OP_FuncArgComplete);
 				PopExpects();
 				ObjSetName(IBLayer3GetObj(ibc), ibc->Str);
-				IBNameInfoDBAdd(&cb->localVariables, ibc->Str, 
+				IBNameInfoDBAdd(ibc, &cb->localVariables, ibc->Str, 
 					o->arg.type, NULL);
 				IBLayer3PopObj(ibc, true, NULL);
 				break;
@@ -4633,7 +4638,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBExpects* exp;
 				IBNameInfo* ni = NULL;
 				ObjSetName(o, ibc->Str);
-				Op rc = IBNameInfoDBAdd(&cb->localVariables,
+				Op rc = IBNameInfoDBAdd(ibc, &cb->localVariables,
 					ibc->Str, o->var.type, &ni);
 				ni->type = o->var.type;
 				/*if(rc == OP_AlreadyExists) 
@@ -4892,6 +4897,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			o->func.retTYPE = OP_NotSet;
 			o->func.retValType = OP_Void;
 			o->func.retTypeMod = OP_NotSet;
+			IBLayer3PushCodeBlock(ibc, &cb);
 			break;
 		}
 		case OP_Public:
@@ -5050,6 +5056,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 #endif
 }
+//this is a total joke
 void IBLayer3ExplainErr(IBLayer3* ibc, Op code) {
 	switch (code) {
 	case OP_YouCantUseThatHere: {
@@ -5137,7 +5144,7 @@ int main(int argc, char** argv) {
 	FILE* f;
 	if (argc < 2) {
 		printf("Please specify a file\n");
-		getchar();
+		//getchar();
 		return -1;
 	}
 	rv = 1;
