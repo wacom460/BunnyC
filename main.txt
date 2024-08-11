@@ -1,14 +1,3 @@
-blk $main i32 $argc nts^ $argv -> i32
-    if $argc gteq 0
-        "Hello, %% %%" $argc~~should be %d~~ "world!"
-        if $argc eq 1
-            nts $argc
-            "%%" $argc ~should be %s
-        _        
-        "%%" $argc ~should be %d
-    _
-_ 0
-
-blk $b2
-    ~"%%" $argc
+blk $test
+	for
 _

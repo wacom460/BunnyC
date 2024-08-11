@@ -1762,6 +1762,7 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char *fmt, ...) {
 			IBVectorCopyPushOp(&exp->pfxs, OP_Exclaim);
 			IBVectorCopyPushOp(&exp->pfxs, OP_Underscore);
 			IBVectorCopyPushOp(&exp->nameOps, OP_If);
+			IBVectorCopyPushOp(&exp->nameOps, OP_For);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Return);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Table);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Loop);
@@ -5012,6 +5013,16 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				break;
 			}
 			}
+			break;
+		}
+		case OP_For: {
+			//@for =startVal =endVal =step(OPTIONAL, 1 as default)
+			//@for 0 (len - 1)
+			//		do things...
+			// _
+			// 
+			//@for $container
+
 			break;
 		}
 		default:
