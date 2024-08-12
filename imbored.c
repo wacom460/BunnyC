@@ -2268,8 +2268,8 @@ void IBLayer3Free(IBLayer3* ibc) {
 	if (ibc->CodeBlockStack.elemCount != 1)
 		Err(OP_Error, "dirty codeblock stack");
 	if (IBStrGetLen(&cb->variables) +
-		IBStrGetLen(&cb->code) +
-		IBStrGetLen(&cb->footer))
+			IBStrGetLen(&cb->code) +
+			IBStrGetLen(&cb->footer))
 		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");
 	IBStrAppendCStr(&ibc->CHeaderFuncs, "\n#endif\n");
 #ifdef DEBUGPRINTS
