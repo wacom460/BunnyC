@@ -379,12 +379,8 @@ X(EnumName) \
 X(IBDictKey) \
 X(Letter_azAZ) \
 X(DataTypes) \
-X(None) \
-\
-/*field can only be written by its internals/friends*/ \
-X(ProtectedReadOnly) \
-\
-
+X(IBExpression) \
+X(None)
 
 #define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
@@ -754,6 +750,9 @@ typedef struct IBSharedState {
 	//cant define output settings in more than one file...
 	bool outputSettingsDefined;
 } IBSharedState;
+typedef struct IBExpression {
+	IBCodeBlock cb;
+} IBExpression;
 typedef struct IBLayer3 {
 	int Line;
 	int Column;
@@ -771,6 +770,7 @@ typedef struct IBLayer3 {
 	IBVector TaskStack; /*IBTask*/
 	IBVector StrReadPtrsStack; /*bool*/
 	IBVector CodeBlockStack; /*IBCodeBlock*/
+	IBVector ExpressionStack; /*IBExpression*/
 
 	char* InputStr;
 	IBStr CurSpace;
@@ -951,8 +951,7 @@ OpNamePair PairNameOps[] = {
 	{"struct", OP_Struct},{"repr", OP_Repr},{"elif", OP_ElseIf},
 	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
-	{"as", OP_As},{"pro", OP_ProtectedReadOnly},
-	{">", OP_GreaterThan},{"output", OP_Output},
+	{"as", OP_As},{">", OP_GreaterThan},{"output", OP_Output},
 	{"enum", OP_Enum},{"flags", OP_Flags},{"nts", OP_String},
 };
 OpNamePair PairDataTypeOPs[] = {
@@ -2199,6 +2198,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBVectorInit(&ibc->TaskStack, sizeof(IBTask), OP_Task);
 	IBVectorInit(&ibc->CodeBlockStack, 
 		sizeof(IBCodeBlock), OP_IBCodeBlock);
+	IBVectorInit(&ibc->ExpressionStack, sizeof(IBExpression), OP_IBExpression);
 	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
 	IBVectorCopyPushBool(&ibc->StrReadPtrsStack, false);
@@ -2752,6 +2752,12 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		ibc->CommentMode=OP_NotSet;
 	}
 	switch (ibc->Ch) {
+	case OP_ParenthesisOpen: {//expression wrapper
+		break;
+	}
+	case OP_ParenthesisClose: {
+		break;
+	}
 	case '\0': return;
 	case '\n': { /* \n PFXLINEEND */
 		t=IBLayer3GetTask(ibc);
@@ -3776,8 +3782,6 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	//case OP_BracketClose:
 	case OP_CurlyBraceOpen:
 	//case OP_CurlyBraceClose:
-	case OP_ParenthesisOpen:
-	//case OP_ParenthesisClose:
 	case OP_Comma:
 	case OP_Exclaim:
 	case OP_Value:
