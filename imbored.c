@@ -380,7 +380,7 @@ X(IBDictKey) \
 X(Letter_azAZ) \
 X(DataTypes) \
 X(IBExpression) \
-X(ForNeedStartVal) \
+X(ForNeedStartValName) \
 X(None)\
 
 #define X(x) OP_##x,
@@ -5045,12 +5045,12 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBExpects* exp;
 			IBLayer3PushObj(ibc, &o);
 			ObjSetType(o, OP_For);
-			IBLayer3PushTask(ibc, OP_ForNeedStartVal, &exp, &t);
-			//onion
-			ExpectsInit(exp, "PP", OP_Name, OP_Value);
-			IBLayer3PushExpects(ibc, &exp);
-			ExpectsInit(exp, "PP", OP_LessThan, OP_Name);
-			IBLayer3PushExpects(ibc, &exp);
+			IBLayer3PushTask(ibc, OP_ForNeedStartValName, &exp, &t);
+			////onion
+			//ExpectsInit(exp, "PPP", OP_Name, OP_Value, OP_LineEnd);
+			//IBLayer3PushExpects(ibc, &exp);
+			//ExpectsInit(exp, "P", OP_LessThan, OP_Name);
+			//IBLayer3PushExpects(ibc, &exp);
 			ExpectsInit(exp, "P", OP_Name);
 			break;
 		}
