@@ -380,7 +380,8 @@ X(IBDictKey) \
 X(Letter_azAZ) \
 X(DataTypes) \
 X(IBExpression) \
-X(None)
+X(ForNeedStartVal) \
+X(None)\
 
 #define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
@@ -673,6 +674,10 @@ typedef struct TableObj {
 typedef struct EnumObj {
 	bool flags;
 } EnumObj;
+typedef struct ForObj {
+	Val start, end;
+	Val step;
+} ForObj;
 char* GetOpName(Op op);
 typedef struct Obj {
 	Op type;
@@ -680,12 +685,15 @@ typedef struct Obj {
 	Op privacy;
 	char* name;
 	char* str;
-	FuncObj func;
-	VarObj var;
-	ArgObj arg;
-	IfObj ifO;
-	TableObj table;
-	EnumObj enumO;
+	union {
+		FuncObj func;
+		VarObj var;
+		ArgObj arg;
+		IfObj ifO;
+		TableObj table;
+		EnumObj enumO;
+		ForObj forO;
+	};
 	Val val;
 	Op valType;
 } Obj;
@@ -5026,7 +5034,24 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			// _
 			// 
 			//@for $container
-
+			//for $i < len
+			//
+			//_
+			//for $i < len
+			//
+			//_
+			Obj* o;
+			IBTask* t;
+			IBExpects* exp;
+			IBLayer3PushObj(ibc, &o);
+			ObjSetType(o, OP_For);
+			IBLayer3PushTask(ibc, OP_ForNeedStartVal, &exp, &t);
+			//onion
+			ExpectsInit(exp, "PP", OP_Name, OP_Value);
+			IBLayer3PushExpects(ibc, &exp);
+			ExpectsInit(exp, "PP", OP_LessThan, OP_Name);
+			IBLayer3PushExpects(ibc, &exp);
+			ExpectsInit(exp, "P", OP_Name);
 			break;
 		}
 		default:
