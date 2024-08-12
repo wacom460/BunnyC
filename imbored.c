@@ -381,7 +381,10 @@ X(Letter_azAZ) \
 X(DataTypes) \
 X(IBExpression) \
 X(ForNeedStartValName) \
-X(None)\
+X(ForNeedStartInitVal) \
+X(ForNeedMiddleExpr) \
+X(ForNeedEndExpr) \
+X(None) \
 
 #define X(x) OP_##x,
 typedef enum Op { /* multiple uses */
