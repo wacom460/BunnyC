@@ -5,7 +5,6 @@
 */
 #define DEBUGPRINTS
 
-#define _CRT_SECURE_NO_WARNINGS 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -97,6 +96,7 @@ void IBPushColor(IBColor col);
 void IBPopColor();
 
 #define CASE_BLOCKWANTCODE \
+case OP_LoopBlockWantCode: \
 case OP_CaseWantCode:      \
 case OP_BlockWantCode:     \
 case OP_IfBlockWantCode:   \
@@ -291,6 +291,7 @@ X(EnumNeedName) \
 X(EnumWantContent) \
 X(IfBlockWantCode) \
 X(BlockWantCode) \
+X(LoopBlockWantCode) \
 X(FuncWantCode) \
 X(SpaceChar) \
 X(Comma) \
@@ -678,6 +679,7 @@ typedef struct EnumObj {
 	bool flags;
 } EnumObj;
 typedef struct ForObj {
+	char* startName;
 	Val start, end;
 	Val step;
 } ForObj;
@@ -810,6 +812,11 @@ typedef struct IBLayer3 {
 	IBPopColor(); \
 	DB \
 	exit(-1); \
+}
+#define ErrF(code, fmt, ...) { \
+	char str[512]; \
+	sprintf_s(str, sizeof(str), fmt, __VA_ARGS__); \
+	Err(code, str); \
 }
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
@@ -1704,8 +1711,31 @@ void ObjInit(Obj* o) {
 }
 void ObjFree(Obj* o) {
 	assert(o);
-	if (o->func.retValStr) free(o->func.retValStr);
-	if(o->func.retStr) free(o->func.retStr);
+	switch (o->type) {
+	case OP_IfNeedLVal:
+	case OP_IfNeedMidOP:
+	case OP_IfNeedRVal:
+	case OP_If: {
+		if (o->ifO.lvName) free(o->ifO.lvName);
+		if (o->ifO.rvName) free(o->ifO.rvName);
+		break;
+	}
+	case OP_For: {
+		if (o->forO.startName) free(o->forO.startName);
+		break;
+	}
+	case OP_FuncHasName:
+	case OP_FuncNeedName:
+	case OP_FuncNeedRetVal:
+	case OP_FuncNeedsRetValType:
+	case OP_FuncSigComplete:
+	case OP_FuncWantCode:
+	case OP_Func: {
+		if (o->func.retValStr) free(o->func.retValStr);
+		if (o->func.retStr) free(o->func.retStr);
+		break;
+	}
+	}
 	if (o->name) free(o->name);
 	if (o->str) free(o->str);
 }
@@ -4434,11 +4464,28 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	}
 	/* $ PFXNAME */ case OP_Name: {
-		switch (ibc->Str[0]) {
-		CASE_0THRU9 { Err(OP_YouCantUseThatHere, 
-			"can't use number as first character of name!"); }
+		switch (ibc->Str[0]){
+		CASE_0THRU9 {
+			Err(OP_YouCantUseThatHere, 
+				"can't use number as first character of name!");
+		}
 		}
 		switch(t->type) {
+		case OP_ForNeedStartValName: {
+			IBNameInfo* ni=NULL;
+			IBExpects* exp = NULL;
+			Op ar = IBNameInfoDBAdd(ibc, &cb->localVariables, ibc->Str, OP_Name, &ni);
+			//should never happen
+			if(ar==OP_AlreadyExists)
+				ErrF(OP_AlreadyExists, "name %s already in use", ibc->Str);
+			assert(ni);
+			assert(o->type == OP_For);
+			OverwriteStr(&o->forO.startName, ibc->Str);
+			SetTaskType(t, OP_ForNeedStartInitVal);
+			IBLayer3ReplaceExpects(ibc, &exp);
+			ExpectsInit(exp, "P", OP_Value);
+			break;
+		}
 		case OP_EnumWantContent: {
 			Obj* o;
 			IBLayer3PushObj(ibc, &o);
@@ -5030,31 +5077,46 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
+		case OP_Loop: {
+			switch (t->type) {
+				CASE_BLOCKWANTCODE
+				{
+					IBExpects* exp;
+					IBTask* t;
+					IBLayer3PushTask(ibc, OP_LoopBlockWantCode, &exp, &t);
+					ExpectsInit(exp, "Nc", OP_Break);
+					IBLayer3PushCodeBlock(ibc, &cb);
+					break;
+				}
+				CASE_UNIMP
+			}
+			break;
+		}
 		case OP_For: {
-			//@for =startVal =endVal =step(OPTIONAL, 1 as default)
-			//@for 0 (len - 1)
-			//		do things...
-			// _
-			// 
-			//@for $container
-			//for $i < len
-			//
-			//_
-			//for $i < len
-			//
-			//_
-			Obj* o;
-			IBTask* t;
-			IBExpects* exp;
-			IBLayer3PushObj(ibc, &o);
-			ObjSetType(o, OP_For);
-			IBLayer3PushTask(ibc, OP_ForNeedStartValName, &exp, &t);
-			////onion
-			//ExpectsInit(exp, "PPP", OP_Name, OP_Value, OP_LineEnd);
-			//IBLayer3PushExpects(ibc, &exp);
-			//ExpectsInit(exp, "P", OP_LessThan, OP_Name);
-			//IBLayer3PushExpects(ibc, &exp);
-			ExpectsInit(exp, "P", OP_Name);
+			/*
+			switch (t->type) {
+				CASE_BLOCKWANTCODE
+				{
+					break;
+				}
+				CASE_UNIMP
+			}
+			*/
+			switch (t->type) {
+				CASE_BLOCKWANTCODE
+				{
+					Obj* o;
+					IBTask* t;
+					IBExpects* exp;
+					IBLayer3PushObj(ibc, &o);
+					ObjSetType(o, OP_For);
+					IBLayer3PushTask(ibc, OP_ForNeedStartValName, &exp, &t);
+					ExpectsInit(exp, "P", OP_Name);
+					IBLayer3PushCodeBlock(ibc, &cb);
+					break;
+				}
+				CASE_UNIMP
+			}	
 			break;
 		}
 		default:
