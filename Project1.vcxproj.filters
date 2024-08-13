@@ -6,4 +6,7 @@
   <ItemGroup>
     <None Include="ReadMe.MD" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="imbored.h" />
+  </ItemGroup>
 </Project>

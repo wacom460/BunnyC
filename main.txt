@@ -1,5 +1,16 @@
+struct $SVec2I
+	i32 $x
+	i32 $y
+_
 blk $test
+	i32 $i
+	%SVec2I $v
+	$v.x <- 0
+	$v.y <- 0
 	loop
-		break
+		if $i gteq 9
+			break
+		_
+		$i <- $i + 1
 	_
 _
