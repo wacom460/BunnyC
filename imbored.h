@@ -353,6 +353,7 @@ X(ActOnName) \
 X(ActOnNameEquals) \
 X(RootObj) \
 X(DBObj) \
+X(None) \
 X(PfxlessValue) \
 X(IBDictKeyDef) \
 X(EnumName) \
@@ -364,7 +365,7 @@ X(ForNeedStartValName) \
 X(ForNeedStartInitVal) \
 X(ForNeedMiddleExpr) \
 X(ForNeedEndExpr) \
-X(None) \
+X(NotAllowed) \
 
 #define X(x) OP_##x,
 typedef enum IBOp { /* multiple uses */

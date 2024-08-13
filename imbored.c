@@ -37,7 +37,7 @@ IBOpNamePair PairNameOps[] = {
 	{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
 	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},
 	{"for", OP_For},{"loop", OP_Loop},{"i64", OP_i64},{"f32", OP_f32},
-	{"d64", OP_d64},{"pub", OP_Public},{"?", OP_Void},{"c8", OP_c8},
+	{"d64", OP_d64},{"pub", OP_Public},{"void", OP_Void},{"c8", OP_c8},
 	{"u8", OP_u8},{"u16", OP_u16},{"u32", OP_u32},{"u64", OP_u64},
 	{"i8", OP_i8},{"i16", OP_i16},{"bool", OP_Bool},
 	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
@@ -51,7 +51,7 @@ IBOpNamePair PairDataTypeOPs[] = {
 	{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},{"i64", OP_i64},
 	{"u8", OP_u8},{"u16", OP_u16},{"u32", OP_u32},{"u64", OP_u64},
 	{"f32", OP_f32},{"d64", OP_d64},{"bool", OP_Bool},{"c8", OP_c8},
-	{"nts", OP_String},
+	{"nts", OP_String},{"void", OP_Void},
 };
 IBOpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
@@ -89,9 +89,10 @@ IBOpNamePair cEquivelents[] = {
 	{">", OP_GreaterThan},{"<=", OP_LessThanOrEquals},
 	{">=", OP_GreaterThanOrEquals},{"!=", OP_NotEquals},
 	{"+", OP_Add},{"-", OP_Subtract},{"*", OP_Multiply},
-	{"/", OP_Divide},{"%", OP_Modulo},{"*", OP_Deref},
-	{"&", OP_Ref},{"**", OP_DoubleDeref},{"***", OP_TrippleDeref},
-	{"char", OP_CString}, {"char", OP_String},
+	{"+=", OP_AddEq},{"-=", OP_SubEq},{"*=", OP_MultEq},
+	{"/=", OP_DivEq},{"/", OP_Divide},{"%", OP_Modulo},
+	{"*", OP_Deref},{"&", OP_Ref},{"**", OP_DoubleDeref},
+	{"***", OP_TrippleDeref},{"char", OP_String},
 };
 IBOpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},
@@ -99,13 +100,13 @@ IBOpNamePair dbgAssertsNP[] = {
 	{"notEmpty", OP_NotEmpty}
 };
 char* SysLibCodeStr =
-"@space $sys\n"
-"@pub\n"
-"@ext @blk $malloc %i32 $size -> %^?\n"
-"@ext @blk $realloc %^? $ptr %i32 $newSize -> %^?\n"
-"@ext @blk $free %^? $ptr\n"
-"@ext @blk $strdup %^c8 $str -> %^c8\n"
-"@ext @blk $strcat %^c8 $str1 %^c8 $str2 -> %^c8\n"
+"space $sys\n"
+"pub\n"
+"ext blk $malloc i32 $size -> void^\n"
+"ext blk $realloc void^ $ptr i32 $newSize -> void^\n"
+"ext blk $free void^ $ptr\n"
+"ext blk $strdup c8^ $str -> c8^\n"
+"ext blk $strcat c8^ $str1 c8^ $str2 -> c8^\n"
 ;
 CLAMP_FUNC(int, ClampInt) { CLAMP_IMP }
 CLAMP_FUNC(size_t, ClampSizeT) { CLAMP_IMP }
@@ -1028,6 +1029,7 @@ IBOp IBGetOpFromNameList(char* name, IBOp list) {
 }
 IBOp IBOPFromPfxCh(char ch) {
 	switch (ch) {
+	case '?':
 	IBCASE_aTHRUz
 	IBCASE_ATHRUZ return OP_Letter_azAZ;
 	case '\t': return OP_TabChar;
@@ -2102,7 +2104,6 @@ char* IBLayer3GetCPrintfFmtForType(IBLayer3* ibc, IBOp type) {
 	case OP_c8:
 	case OP_Char:   return "c";
 	case OP_String:
-	case OP_CString:
 	case OP_Bool:   return "s";
 	}
 	Err(OP_Error, "GetPrintfFmtForType: unknown type");
@@ -2321,7 +2322,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				}
 				char* typeStr = o->var.type == OP_Unknown ? o->str : IBGetCEqu(o->var.type);
 				IBStrAppendFmt(vstr, "%s%s %s", typeStr, IBGetCEqu(o->var.mod), o->name);
-				if (/*o->var.valSet && */!thing) {
+				if (o->var.valSet && !thing) {
 					IBStrAppendCStr(vstr, " = ");
 					switch (o->var.type) {
 					case OP_i64:
@@ -2341,7 +2342,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 						IBStrAppendFmt(vstr, "%s", IBBoolStrChar(o->var.val.boolean));
 						break;
 					}
-					IBCASE_UNIMP
+					
+IBCASE_UNIMP
 					}
 				}
 				IBStrAppendFmt(vstr, "%s\n", ";");
@@ -2511,7 +2513,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		//}
 		IBCodeBlockFinish(&t->code, &body);
 		idx = 0;
-		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
+		while (o = IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
 			case OP_Struct: {
 				assert(o->name);
@@ -2536,6 +2538,9 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrFree(&header);
 		IBStrFree(&body);
 		IBStrFree(&footer);
+
+		//TODO: harvest var info
+		IBLayer3PopCodeBlock(ibc, false, &cb);
 		break;
 	}
 	case OP_SpaceHasName: {
@@ -2661,6 +2666,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		if (ibc->Imaginary) {
 			//DbgFmt("[@ext @func]","");
 			IBStrAppendCStr(&cFuncArgsEnd, ");\n\n");
+			IBLayer3PopCodeBlock(ibc, false, &cb);
 		}
 		else {
 			//DbgFmt("[@func]", "");
@@ -2954,7 +2960,20 @@ void IBLayer3Str(IBLayer3* ibc){
 	}
 	else {
 		switch (ibc->Pfx) {
-		case OP_Value: {
+		case OP_Name: {
+			switch (ibc->Ch) {
+			case ' ':
+			case '.':
+			IBCASE_0THRU9
+			IBCASE_aTHRUz
+			IBCASE_ATHRUZ
+				break;
+			default:
+				ErrF(OP_NotAllowed, "character \'%c\' not allowed in name", ibc->Ch);
+			}
+			break;
+		}
+		/*case OP_Value: {
 			switch (ibc->Ch) {
 			case '@': {
 				IBLayer3Pop(ibc);
@@ -2963,7 +2982,7 @@ void IBLayer3Str(IBLayer3* ibc){
 			}
 			}
 			break;
-		}
+		}*/
 		}
 		switch (ibc->Ch) {
 		case '\t': return;
@@ -3142,10 +3161,15 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		else {
 			IBOp nameOp = IBGetOpFromNameList(ibc->Str, OP_NameOps);
-			if (nameOp != OP_Unknown) {
+			switch (nameOp) {
+			case OP_Unknown:
+			case OP_Void:
+				break;
+			default: {
 				ibc->Pfx = OP_Op;
 				DbgFmt("infered OP\n", "");
 				goto top;
+			}
 			}
 		}
 		Err(OP_Error, "Couldn't infer this input");
@@ -3504,7 +3528,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				o->arg.type = ibc->NameOp;
 				o->arg.mod = ibc->Pointer;
 				if (o->arg.type == OP_c8 && o->arg.mod == OP_Pointer) 
-					o->arg.type = OP_CString;
+					o->arg.type = OP_String;
 				IBLayer3PushExpects(ibc, &exp);
 				ExpectsInit(exp, "1P", "expected func arg name", OP_Name);
 				break;
@@ -3764,6 +3788,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			}
 			IBLayer3PopTask(ibc,NULL,false);
+			IBLayer3PopCodeBlock(ibc, false, &cb);//?????
 			break;
 		}
 		case OP_SpaceNeedName: {
@@ -3906,6 +3931,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				ExpectsInit(ap, "PPN", OP_Op, OP_LineEnd, OP_Repr);
 				IBLayer3PushExpects(ibc, &ap);
 				ExpectsInit(ap, "1P", "expected name", OP_Name);
+				IBLayer3PushCodeBlock(ibc, &cb);
 				break;
 			}
 			IBCASE_BLOCKWANTCODE
@@ -4082,6 +4108,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBExpects* ap;
 			IBLayer3PushTask(ibc, OP_UseNeedStr, &ap, NULL);
 			ExpectsInit(ap, "1P", "expected @use $name", OP_Name);
+			IBLayer3PushCodeBlock(ibc, &cb);
 			break;
 		}
 		/*case OP_Set: {
