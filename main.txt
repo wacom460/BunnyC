@@ -1,5 +1,5 @@
 blk $test
 	loop
-	
+		break
 	_
 _
