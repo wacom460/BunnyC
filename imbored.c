@@ -1029,7 +1029,6 @@ IBOp IBGetOpFromNameList(char* name, IBOp list) {
 }
 IBOp IBOPFromPfxCh(char ch) {
 	switch (ch) {
-	case '?':
 	IBCASE_aTHRUz
 	IBCASE_ATHRUZ return OP_Letter_azAZ;
 	case '\t': return OP_TabChar;
