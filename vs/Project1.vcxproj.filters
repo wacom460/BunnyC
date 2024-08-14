@@ -57,4 +57,9 @@
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\run.bat">
+      <Filter>src</Filter>
+    </None>
+  </ItemGroup>
 </Project>

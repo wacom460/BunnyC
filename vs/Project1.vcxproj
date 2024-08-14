@@ -37,6 +37,9 @@
     <ClInclude Include="..\src\ib_ide.h" />
     <ClInclude Include="..\src\imbored.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\run.bat" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

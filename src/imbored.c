@@ -4395,7 +4395,7 @@ void IBSetColor(IBColor col) {
 //} wtf;
 //struct wtf g_Wtf;
 int main(int argc, char** argv) {
-	IBIdeStart();
+	//IBIdeStart();
 	IBDatabase db;
 	int rv;
 	FILE* f;
