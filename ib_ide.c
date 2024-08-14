@@ -1,6 +1,6 @@
 #include "ib_ide.h"
 #include <raylib.h>
-
+#include <assert.h>
 
 void IBIdeFileInit(IBIdeFile* ideF, char* name)
 {
@@ -16,11 +16,12 @@ void IBIdeFileFree(IBIdeFile* ideF)
 	IBStrFree(&ideF->data);
 }
 
-void IBIdeProjectInit(IBIdeProject* proj) {
+void IBIdeProjectInit(IBIdeProject* proj, char* name) {
 	IBIdeFile* newFile = NULL;
-	IBStrInitWithCStr(&proj->name, "New project");
-	IBVectorInit(&proj->files, sizeof(IBIdeFile), OP_Null);
+	IBStrInitWithCStr(&proj->name, name);
+	IBVectorInit(&proj->files, sizeof(IBIdeFile), OP_IBIdeFile);
 	IBVectorPush(&proj->files, &newFile);
+	assert(newFile);
 	IBIdeFileInit(newFile, "new."IB_FILE_EXT);
 }
 
@@ -28,9 +29,8 @@ void IBIdeProjectFree(IBIdeProject* proj)
 {
 	IBIdeFile* file = NULL;
 	int idx = 0;
-	while (file = IBVectorIterNext(&proj->files, &idx)) {
+	while (file = IBVectorIterNext(&proj->files, &idx))
 		IBIdeFileFree(file);
-	}
 	IBVectorFreeSimple(&proj->files);
 	IBStrFree(&proj->name);
 }

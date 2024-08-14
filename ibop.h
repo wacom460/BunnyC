@@ -204,6 +204,7 @@ X(ForNeedStartInitVal) \
 X(ForNeedMiddleExpr) \
 X(ForNeedEndExpr) \
 X(NotAllowed) \
+X(IBIdeFile) \
 
 #define X(x) OP_##x,
 typedef enum IBOp { /* multiple uses */

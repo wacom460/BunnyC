@@ -9,11 +9,43 @@
 "_ 0\n" \
 ;
 
+typedef struct IBIdeCursorPos {
+	int row;
+	int column;
+}IBIdeCursorPos;
+
+typedef struct IBIdeLineInfo {
+	int startIdx; //idx of line start character
+	int endIdx; // idx of '\n'
+}IBIdeLineInfo;
+
+typedef struct IBIdeFileInfo {
+	
+	
+	//index into file data of where each rendered line is
+	IBVector lineInfo; //IBIdeLineInfo
+
+
+}IBIdeFileInfo;
+
+typedef struct IBIdeFileRegion {
+	int startIdx;
+	int length;
+	char* caption;
+}IBIdeFileRegion;
+
+#define IBIDE_FILE_CHUNK_SIZE 1024
+typedef struct IBIdeFileChunk {
+	int startPos;//means: 1*IBIDE_FILE_CHUNK_SIZE
+	char data[IBIDE_FILE_CHUNK_SIZE];
+}IBIdeFileChunk;
+
 typedef struct IBIdeFile {
 	IBStr name;
 	IBStr path;
-	IBStr data;
+	//IBStr data;
 	bool modified;
+	IBIdeFileInfo info;
 } IBIdeFile;
 
 void IBIdeFileInit(IBIdeFile* ideF, char* name);
@@ -24,7 +56,7 @@ typedef struct IBIdeProject {
 	IBVector files; //IBIdeFile
 } IBIdeProject;
 
-void IBIdeProjectInit(IBIdeProject* proj);
+void IBIdeProjectInit(IBIdeProject* proj, char* name);
 void IBIdeProjectFree(IBIdeProject* proj);
 
 void IBIdeStart();
