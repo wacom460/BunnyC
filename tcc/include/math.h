@@ -161,31 +161,61 @@ extern "C" {
   float __cdecl _hypotf(float _X,float _Y);
 #endif
 
-  float frexpf(float _X,int *_Y);
-  float __cdecl ldexpf(float _X,int _Y);
-  long double __cdecl ldexpl(long double _X,int _Y);
-  float __cdecl acosf(float _X);
-  float __cdecl asinf(float _X);
-   float __cdecl atanf(float _X);
-   float __cdecl atan2f(float _X,float _Y);
-   float __cdecl cosf(float _X);
-   float __cdecl sinf(float _X);
-   float __cdecl tanf(float _X);
-   float __cdecl coshf(float _X);
-   float __cdecl sinhf(float _X);
-   float __cdecl tanhf(float _X);
-   float __cdecl expf(float _X);
-   float __cdecl expm1f(float _X);
-   float __cdecl logf(float _X);
-   float __cdecl log10f(float _X);
-   float __cdecl modff(float _X,float *_Y);
-   float __cdecl powf(float _X,float _Y);
-   float __cdecl sqrtf(float _X);
-   float __cdecl ceilf(float _X);
-   float __cdecl floorf(float _X);
-  float __cdecl fmodf(float _X,float _Y);
-   float __cdecl _hypotf(float _X,float _Y);
-  float __cdecl fabsf(float _X);
+    float frexpf(float _X,int *_Y);
+    float __cdecl ldexpf(float _X,int _Y);
+    long double __cdecl ldexpl(long double _X,int _Y);
+    float __cdecl _hypotf(float _X,float _Y);
+    //float __cdecl fabsf(float _X);            // @raysan5: Moved below
+
+// @raysan5: TCC does not support inline functions, default behaviour on Windows 32bit
+#if defined(__TINYC__) && defined(__i386__)
+    static float fabsf(float _X) { return ((float)fabs((double)_X)); }     // @raysan5: added
+    static float acosf(float _X) { return ((float)acos((double)_X)); }
+    static float asinf(float _X) { return ((float)asin((double)_X)); }
+    static float atanf(float _X) { return ((float)atan((double)_X)); }
+    static float atan2f(float _X,float _Y) { return ((float)atan2((double)_X,(double)_Y)); }
+    static float ceilf(float _X) { return ((float)ceil((double)_X)); }
+    static float cosf(float _X) { return ((float)cos((double)_X)); }
+    static float coshf(float _X) { return ((float)cosh((double)_X)); }
+    static float expf(float _X) { return ((float)exp((double)_X)); }
+    static float floorf(float _X) { return ((float)floor((double)_X)); }
+    static float fmodf(float _X,float _Y) { return ((float)fmod((double)_X,(double)_Y)); }
+    static float logf(float _X) { return ((float)log((double)_X)); }
+    static float log10f(float _X) { return ((float)log10((double)_X)); }
+    static float modff(float _X,float *_Y) {
+    double _Di,_Df = modf((double)_X,&_Di);
+    *_Y = (float)_Di;
+    return ((float)_Df);
+    }
+    static float powf(float _X,float _Y) { return ((float)pow((double)_X,(double)_Y)); }
+    static float sinf(float _X) { return ((float)sin((double)_X)); }
+    static float sinhf(float _X) { return ((float)sinh((double)_X)); }
+    static float sqrtf(float _X) { return ((float)sqrt((double)_X)); }
+    static float tanf(float _X) { return ((float)tan((double)_X)); }
+    static float tanhf(float _X) { return ((float)tanh((double)_X)); }
+#else
+    float __cdecl acosf(float _X);
+    float __cdecl asinf(float _X);
+    float __cdecl atanf(float _X);
+    float __cdecl atan2f(float _X,float _Y);
+    float __cdecl cosf(float _X);
+    float __cdecl sinf(float _X);
+    float __cdecl tanf(float _X);
+    float __cdecl coshf(float _X);
+    float __cdecl sinhf(float _X);
+    float __cdecl tanhf(float _X);
+    float __cdecl expf(float _X);
+    float __cdecl expm1f(float _X);
+    float __cdecl logf(float _X);
+    float __cdecl log10f(float _X);
+    float __cdecl modff(float _X,float *_Y);
+    float __cdecl powf(float _X,float _Y);
+    float __cdecl sqrtf(float _X);
+    float __cdecl ceilf(float _X);
+    float __cdecl floorf(float _X);
+    float __cdecl fmodf(float _X,float _Y);
+#endif
+
 #if !defined(__ia64__)
    /* from libmingwex */
    float __cdecl _copysignf (float _Number,float _Sign);
@@ -211,13 +241,15 @@ extern "C" {
   __CRT_INLINE float frexpf(float _X,int *_Y) { return ((float)frexp((double)_X,_Y)); }
 
 #if !defined (__ia64__)
+// @raysan5: Commented
+/*
   __CRT_INLINE float __cdecl fabsf (float x)
   {
     float res;
-    __asm__ ("fabs;" : "=t" (res) : "0" (x));
+    //__asm__ ("fabs;" : "=t" (res) : "0" (x));
     return res;
   }
-
+*/
   __CRT_INLINE float __cdecl ldexpf (float x, int expn) { return (float) ldexp (x, expn); }
 #endif
 #else

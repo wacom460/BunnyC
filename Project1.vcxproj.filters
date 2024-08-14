@@ -2,11 +2,81 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="imbored.c" />
+    <ClCompile Include="raylib\src\core.c">
+      <Filter>raylib</Filter>
+    </ClCompile>
+    <ClCompile Include="raylib\src\models.c">
+      <Filter>raylib</Filter>
+    </ClCompile>
+    <ClCompile Include="raylib\src\raudio.c">
+      <Filter>raylib</Filter>
+    </ClCompile>
+    <ClCompile Include="raylib\src\rglfw.c">
+      <Filter>raylib</Filter>
+    </ClCompile>
+    <ClCompile Include="raylib\src\shapes.c">
+      <Filter>raylib</Filter>
+    </ClCompile>
+    <ClCompile Include="raylib\src\text.c">
+      <Filter>raylib</Filter>
+    </ClCompile>
+    <ClCompile Include="raylib\src\textures.c">
+      <Filter>raylib</Filter>
+    </ClCompile>
+    <ClCompile Include="raylib\src\utils.c">
+      <Filter>raylib</Filter>
+    </ClCompile>
+    <ClCompile Include="ib_ide.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.MD" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="imbored.h" />
+    <ClInclude Include="raylib\src\camera.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\config.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\easings.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\gestures.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\physac.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\raudio.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\raylib.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\raymath.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\rlgl.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\rmem.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\rnet.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\utils.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="raylib\src\uwp_events.h">
+      <Filter>raylib</Filter>
+    </ClInclude>
+    <ClInclude Include="ib_ide.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="raylib">
+      <UniqueIdentifier>{ec12171e-d9eb-40c1-9172-57ac8f142c16}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

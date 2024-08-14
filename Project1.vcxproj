@@ -73,54 +73,60 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);GRAPHICS_API_OPENGL_11;PLATFORM_DESKTOP</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>Default</LanguageStandard>
       <LanguageStandard_C>Default</LanguageStandard_C>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
+      <AdditionalIncludeDirectories>$(SolutionDir)\raylib-3.5.0\src\external\glfw\include;$(SolutionDir)\raylib-3.5.0\src</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;winmm.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);GRAPHICS_API_OPENGL_11;PLATFORM_DESKTOP</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>Default</LanguageStandard>
       <LanguageStandard_C>Default</LanguageStandard_C>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
+      <AdditionalIncludeDirectories>$(SolutionDir)\raylib-3.5.0\src\external\glfw\include;$(SolutionDir)\raylib-3.5.0\src</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;winmm.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);GRAPHICS_API_OPENGL_11;PLATFORM_DESKTOP</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>Default</LanguageStandard>
       <LanguageStandard_C>Default</LanguageStandard_C>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
+      <AdditionalIncludeDirectories>$(SolutionDir)raylib\src\external\glfw\include;$(SolutionDir)raylib\src</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;winmm.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -129,7 +135,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);GRAPHICS_API_OPENGL_11;PLATFORM_DESKTOP</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>Default</LanguageStandard>
       <LanguageStandard_C>Default</LanguageStandard_C>
@@ -138,6 +144,7 @@
       <DebugInformationFormat>None</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>$(SolutionDir)\raylib-3.5.0\src\external\glfw\include;$(SolutionDir)\raylib-3.5.0\src</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -145,16 +152,40 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;winmm.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ib_ide.c" />
     <ClCompile Include="imbored.c" />
+    <ClCompile Include="raylib\src\core.c" />
+    <ClCompile Include="raylib\src\models.c" />
+    <ClCompile Include="raylib\src\raudio.c" />
+    <ClCompile Include="raylib\src\rglfw.c" />
+    <ClCompile Include="raylib\src\shapes.c" />
+    <ClCompile Include="raylib\src\text.c" />
+    <ClCompile Include="raylib\src\textures.c" />
+    <ClCompile Include="raylib\src\utils.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.MD" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ib_ide.h" />
     <ClInclude Include="imbored.h" />
+    <ClInclude Include="raylib\src\camera.h" />
+    <ClInclude Include="raylib\src\config.h" />
+    <ClInclude Include="raylib\src\easings.h" />
+    <ClInclude Include="raylib\src\gestures.h" />
+    <ClInclude Include="raylib\src\physac.h" />
+    <ClInclude Include="raylib\src\raudio.h" />
+    <ClInclude Include="raylib\src\raylib.h" />
+    <ClInclude Include="raylib\src\raymath.h" />
+    <ClInclude Include="raylib\src\rlgl.h" />
+    <ClInclude Include="raylib\src\rmem.h" />
+    <ClInclude Include="raylib\src\rnet.h" />
+    <ClInclude Include="raylib\src\utils.h" />
+    <ClInclude Include="raylib\src\uwp_events.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

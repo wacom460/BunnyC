@@ -13,3 +13,6 @@
 /*.ncb
 /*.suo
 /*.user
+/raylib/*.o
+/raylib/*.a
+/*.exe

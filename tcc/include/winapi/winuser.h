@@ -18,6 +18,17 @@ extern "C" {
 
 #include <stdarg.h>
 
+#define MAPVK_VK_TO_VSC (0)
+#define MAPVK_VSC_TO_VK (1)
+#define MAPVK_VK_TO_CHAR (2)
+#define MAPVK_VSC_TO_VK_EX (3)
+#if WINVER >= 0x0600
+#define MAPVK_VK_TO_VSC_EX (4)
+#endif
+
+#define _WIN32_WINNT_VISTA 0x0600
+#define _WIN32_WINNT_WIN7 0x0600
+
 #ifndef NOUSER
   typedef HANDLE HDWP;
   typedef VOID MENUTEMPLATEA;
@@ -5111,6 +5122,10 @@ extern "C" {
     DWORD dwFlags;
   } MONITORINFO,*LPMONITORINFO;
 
+#ifndef CCHDEVICENAME
+#define CCHDEVICENAME 32
+#endif
+
 #ifdef __cplusplus
   typedef struct tagMONITORINFOEXA : public tagMONITORINFO {
     CHAR szDevice[CCHDEVICENAME];
@@ -5119,32 +5134,69 @@ extern "C" {
   typedef struct tagMONITORINFOEXW : public tagMONITORINFO {
     WCHAR szDevice[CCHDEVICENAME];
   } MONITORINFOEXW,*LPMONITORINFOEXW;
-
-#ifdef UNICODE
-  typedef MONITORINFOEXW MONITORINFOEX;
-  typedef LPMONITORINFOEXW LPMONITORINFOEX;
-#else
-  typedef MONITORINFOEXA MONITORINFOEX;
-  typedef LPMONITORINFOEXA LPMONITORINFOEX;
-#endif
 #else
   typedef struct tagMONITORINFOEXA {
-    MONITORINFO mi;
+    __C89_NAMELESS struct {
+      DWORD cbSize;
+      RECT rcMonitor;
+      RECT rcWork;
+      DWORD dwFlags;
+    }; /* MONITORINFO */;
     CHAR szDevice[CCHDEVICENAME];
   } MONITORINFOEXA,*LPMONITORINFOEXA;
 
   typedef struct tagMONITORINFOEXW {
-    MONITORINFO mi;
+    __C89_NAMELESS struct {
+      DWORD cbSize;
+      RECT rcMonitor;
+      RECT rcWork;
+      DWORD dwFlags;
+    }; /* MONITORINFO */;
     WCHAR szDevice[CCHDEVICENAME];
   } MONITORINFOEXW,*LPMONITORINFOEXW;
-#ifdef UNICODE
-  typedef MONITORINFOEXW MONITORINFOEX;
-  typedef LPMONITORINFOEXW LPMONITORINFOEX;
-#else
-  typedef MONITORINFOEXA MONITORINFOEX;
-  typedef LPMONITORINFOEXA LPMONITORINFOEX;
 #endif
-#endif
+
+  // typedef struct tagMONITORINFO {
+    // DWORD cbSize;
+    // RECT rcMonitor;
+    // RECT rcWork;
+    // DWORD dwFlags;
+  // } MONITORINFO,*LPMONITORINFO;
+
+// #ifdef __cplusplus
+  // typedef struct tagMONITORINFOEXA : public tagMONITORINFO {
+    // CHAR szDevice[CCHDEVICENAME];
+  // } MONITORINFOEXA,*LPMONITORINFOEXA;
+
+  // typedef struct tagMONITORINFOEXW : public tagMONITORINFO {
+    // WCHAR szDevice[CCHDEVICENAME];
+  // } MONITORINFOEXW,*LPMONITORINFOEXW;
+
+// #ifdef UNICODE
+  // typedef MONITORINFOEXW MONITORINFOEX;
+  // typedef LPMONITORINFOEXW LPMONITORINFOEX;
+// #else
+  // typedef MONITORINFOEXA MONITORINFOEX;
+  // typedef LPMONITORINFOEXA LPMONITORINFOEX;
+// #endif
+// #else
+  // typedef struct tagMONITORINFOEXA {
+    // MONITORINFO mi;
+    // CHAR szDevice[CCHDEVICENAME];
+  // } MONITORINFOEXA,*LPMONITORINFOEXA;
+
+  // typedef struct tagMONITORINFOEXW {
+    // MONITORINFO mi;
+    // WCHAR szDevice[CCHDEVICENAME];
+  // } MONITORINFOEXW,*LPMONITORINFOEXW;
+// #ifdef UNICODE
+  // typedef MONITORINFOEXW MONITORINFOEX;
+  // typedef LPMONITORINFOEXW LPMONITORINFOEX;
+// #else
+  // typedef MONITORINFOEXA MONITORINFOEX;
+  // typedef LPMONITORINFOEXA LPMONITORINFOEX;
+// #endif
+// #endif
 
 #ifdef UNICODE 
 #define GetMonitorInfo GetMonitorInfoW

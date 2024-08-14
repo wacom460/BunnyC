@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include "ib_ide.h"
 
 #ifdef IBDEBUGPRINTS
 void _PrintLine(int l) {
@@ -4394,6 +4395,7 @@ void IBSetColor(IBColor col) {
 //} wtf;
 //struct wtf g_Wtf;
 int main(int argc, char** argv) {
+	IBIdeStart();
 	IBDatabase db;
 	int rv;
 	FILE* f;
