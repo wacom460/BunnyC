@@ -2,17 +2,15 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/Project1/x64/Debug
-/x64/Debug
-/.vs
-/Build/x64/Debug
-/Compiler/x64/Debug
-/Build/
-/Debug
-/enc_temp_folder
-/*.ncb
-/*.suo
-/*.user
-/raylib/*.o
-/raylib/*.a
+/vs/x64/Debug
+/vs/.vs
+/vs/Build/x64/Debug
+/vs/Build/
+/vs/Debug
+/vs/enc_temp_folder
+/vs/*.ncb
+/vs/*.suo
+/vs/*.user
+/ext/raylib/*.o
+/ext/raylib/*.a
 /*.exe
