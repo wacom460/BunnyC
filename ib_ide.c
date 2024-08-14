@@ -2,6 +2,28 @@
 #include <raylib.h>
 
 
+void IBIdeFileInit(IBIdeFile* ideF)
+{
+	IBStrInit(&ideF->name);
+	IBStrInit(&ideF->path);
+	IBStrInit(&ideF->data);
+}
+
+void IBIdeFileFree(IBIdeFile* ideF)
+{	
+	IBStrFree(&ideF->name);
+	IBStrFree(&ideF->path);
+	IBStrFree(&ideF->data);
+}
+
+void IBIdeProjectInit(IBIdeProject* proj)
+{
+}
+
+void IBIdeProjectFree(IBIdeProject* proj)
+{
+}
+
 void IBIdeStart() {
 	InitWindow(800, 600, "imboredIDE");
 	/*Camera3D cam;
