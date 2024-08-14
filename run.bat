@@ -3,7 +3,7 @@
 cls
 del ibtcc.exe
 cd raylib
-"../tcc/tcc.exe" -w -Isrc -c -Isrc/external/glfw/include src/core.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD -DGRAPHICS_API_OPENGL_33
+"../tcc/tcc.exe" -w -Isrc -c -Isrc/external/glfw/include src/core.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD -DGRAPHICS_API_OPENGL_11
 "../tcc/tcc.exe" -w -Isrc -c src/rglfw.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD
 "../tcc/tcc.exe" -w -Isrc -c src/shapes.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD
 "../tcc/tcc.exe" -w -Isrc -c src/textures.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD

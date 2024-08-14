@@ -110,7 +110,7 @@ char* SysLibCodeStr =
 "ext blk $strcat c8^ $str1 c8^ $str2 -> c8^\n"
 ;
 CLAMP_FUNC(int, ClampInt) { CLAMP_IMP }
-CLAMP_FUNC(size_t, ClampSizeT) { CLAMP_IMP }
+CLAMP_FUNC(long long int, ClampSizeT) { CLAMP_IMP }
 void IBStrInit(IBStr* str) {
 	IBASSERT0(str);
 	str->start = (char*)malloc(1);
@@ -155,7 +155,7 @@ bool IBStrContainsAnyOfChars(IBStr* str, char* chars) {
 		if(strchr(chars, *p)) return true;
 	return false;	
 }
-size_t IBStrGetLen(IBStr* str) {
+long long int IBStrGetLen(IBStr* str) {
 	size_t len;
 	IBASSERT0(str);
 	IBASSERT0(str->end);
@@ -249,7 +249,7 @@ int IBStrStripFront(IBStr* str, char ch){
 	if(str->end) IBASSERT0(*(str->end) == '\0');
 	return in;
 }
-void IBVectorInit(IBVector* vec, size_t elemSize, IBOp type) {
+void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type) {
 	void* m;
 	vec->elemSize = elemSize;
 	vec->type = type;

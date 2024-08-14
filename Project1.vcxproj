@@ -171,6 +171,9 @@
     <None Include="ReadMe.MD" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ibcommon.h" />
+    <ClInclude Include="ibmisc.h" />
+    <ClInclude Include="ibop.h" />
     <ClInclude Include="ib_ide.h" />
     <ClInclude Include="imbored.h" />
     <ClInclude Include="raylib\src\camera.h" />
