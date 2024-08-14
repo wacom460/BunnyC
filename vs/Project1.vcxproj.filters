@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{e893bdf7-ab45-4bb8-a959-dc24bfce6030}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ext">
+      <UniqueIdentifier>{eea4f484-6076-4076-bdd2-99589689b3cc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\ib_ide.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\imbored.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\raylib\src\core.c">
+      <Filter>ext</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\raylib\src\models.c">
+      <Filter>ext</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\raylib\src\raudio.c">
+      <Filter>ext</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\raylib\src\rglfw.c">
+      <Filter>ext</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\raylib\src\shapes.c">
+      <Filter>ext</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\raylib\src\text.c">
+      <Filter>ext</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\raylib\src\textures.c">
+      <Filter>ext</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\raylib\src\utils.c">
+      <Filter>ext</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\ib_ide.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ibcommon.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ibmisc.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ibop.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\imbored.h">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
