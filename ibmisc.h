@@ -1,6 +1,7 @@
 #ifndef IBMISC_H_
 #define IBMISC_H_
 
+#define IB_FILE_EXT "ibl3"
 #ifndef bool
 #define bool char
 #endif

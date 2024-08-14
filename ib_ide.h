@@ -16,7 +16,7 @@ typedef struct IBIdeFile {
 	bool modified;
 } IBIdeFile;
 
-void IBIdeFileInit(IBIdeFile* ideF);
+void IBIdeFileInit(IBIdeFile* ideF, char* name);
 void IBIdeFileFree(IBIdeFile* ideF);
 
 typedef struct IBIdeProject {

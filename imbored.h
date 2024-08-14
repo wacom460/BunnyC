@@ -8,7 +8,6 @@
 #include <Windows.h>
 #define atoll _atoi64
 #endif
-#define IB_FILEEXT "3"
 #define IB_IllegalDbObjNameChars " \t\n,.:~!@#$%^&*=/()[]{}<>?|\\`'\""
 #define IBBoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
 #define IBBoolStrChar(b) (b ? "1" : "0")

@@ -2,9 +2,9 @@
 #include <raylib.h>
 
 
-void IBIdeFileInit(IBIdeFile* ideF)
+void IBIdeFileInit(IBIdeFile* ideF, char* name)
 {
-	IBStrInit(&ideF->name);
+	IBStrInitWithCStr(&ideF->name, name);
 	IBStrInit(&ideF->path);
 	IBStrInit(&ideF->data);
 }
@@ -16,12 +16,23 @@ void IBIdeFileFree(IBIdeFile* ideF)
 	IBStrFree(&ideF->data);
 }
 
-void IBIdeProjectInit(IBIdeProject* proj)
-{
+void IBIdeProjectInit(IBIdeProject* proj) {
+	IBIdeFile* newFile = NULL;
+	IBStrInitWithCStr(&proj->name, "New project");
+	IBVectorInit(&proj->files, sizeof(IBIdeFile), OP_Null);
+	IBVectorPush(&proj->files, &newFile);
+	IBIdeFileInit(newFile, "new."IB_FILE_EXT);
 }
 
 void IBIdeProjectFree(IBIdeProject* proj)
 {
+	IBIdeFile* file = NULL;
+	int idx = 0;
+	while (file = IBVectorIterNext(&proj->files, &idx)) {
+		IBIdeFileFree(file);
+	}
+	IBVectorFreeSimple(&proj->files);
+	IBStrFree(&proj->name);
 }
 
 void IBIdeStart() {
