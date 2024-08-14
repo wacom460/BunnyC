@@ -19,14 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\ext\raylib\src\core.c" />
-    <ClCompile Include="..\ext\raylib\src\models.c" />
-    <ClCompile Include="..\ext\raylib\src\raudio.c" />
-    <ClCompile Include="..\ext\raylib\src\rglfw.c" />
-    <ClCompile Include="..\ext\raylib\src\shapes.c" />
-    <ClCompile Include="..\ext\raylib\src\text.c" />
-    <ClCompile Include="..\ext\raylib\src\textures.c" />
-    <ClCompile Include="..\ext\raylib\src\utils.c" />
+    <ClCompile Include="..\ext\raylib\core.c" />
+    <ClCompile Include="..\ext\raylib\models.c" />
+    <ClCompile Include="..\ext\raylib\raudio.c" />
+    <ClCompile Include="..\ext\raylib\rglfw.c" />
+    <ClCompile Include="..\ext\raylib\shapes.c" />
+    <ClCompile Include="..\ext\raylib\text.c" />
+    <ClCompile Include="..\ext\raylib\textures.c" />
+    <ClCompile Include="..\ext\raylib\utils.c" />
     <ClCompile Include="..\src\ib_ide.c" />
     <ClCompile Include="..\src\imbored.c" />
   </ItemGroup>
@@ -143,7 +143,7 @@
       <LanguageStandard_C>Default</LanguageStandard_C>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\ext\raylib\src\external\glfw\include;$(SolutionDir)..\ext\raylib\src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\ext\raylib\external\glfw\include;$(SolutionDir)..\ext\raylib</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

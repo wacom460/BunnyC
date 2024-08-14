@@ -15,28 +15,28 @@
     <ClCompile Include="..\src\imbored.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\ext\raylib\src\core.c">
+    <ClCompile Include="..\ext\raylib\core.c">
       <Filter>ext</Filter>
     </ClCompile>
-    <ClCompile Include="..\ext\raylib\src\models.c">
+    <ClCompile Include="..\ext\raylib\models.c">
       <Filter>ext</Filter>
     </ClCompile>
-    <ClCompile Include="..\ext\raylib\src\raudio.c">
+    <ClCompile Include="..\ext\raylib\raudio.c">
       <Filter>ext</Filter>
     </ClCompile>
-    <ClCompile Include="..\ext\raylib\src\rglfw.c">
+    <ClCompile Include="..\ext\raylib\rglfw.c">
       <Filter>ext</Filter>
     </ClCompile>
-    <ClCompile Include="..\ext\raylib\src\shapes.c">
+    <ClCompile Include="..\ext\raylib\shapes.c">
       <Filter>ext</Filter>
     </ClCompile>
-    <ClCompile Include="..\ext\raylib\src\text.c">
+    <ClCompile Include="..\ext\raylib\text.c">
       <Filter>ext</Filter>
     </ClCompile>
-    <ClCompile Include="..\ext\raylib\src\textures.c">
+    <ClCompile Include="..\ext\raylib\textures.c">
       <Filter>ext</Filter>
     </ClCompile>
-    <ClCompile Include="..\ext\raylib\src\utils.c">
+    <ClCompile Include="..\ext\raylib\utils.c">
       <Filter>ext</Filter>
     </ClCompile>
   </ItemGroup>

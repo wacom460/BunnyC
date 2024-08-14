@@ -10,7 +10,7 @@ void IBIdeFileInit(IBIdeFile* ideF, char* name)
 }
 
 void IBIdeFileFree(IBIdeFile* ideF)
-{	
+{
 	IBStrFree(&ideF->name);
 	IBStrFree(&ideF->path);
 	IBStrFree(&ideF->data);
