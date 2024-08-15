@@ -339,7 +339,7 @@ Font LoadFont(const char *fileName)
 Font LoadFontEx(const char *fileName, int fontSize, int *fontChars, int charsCount)
 {
     Font font = { 0 };
-
+    
     // Loading file to memory
     unsigned int fileSize = 0;
     unsigned char *fileData = LoadFileData(fileName, &fileSize);

@@ -74,6 +74,7 @@ void IBIdeProjectInit(IBIdeProject* proj, char* name);
 void IBIdeProjectFree(IBIdeProject* proj);
 
 typedef struct IBIde {
+	bool open;
 	IBIdeProject proj;
 } IBIde;
 

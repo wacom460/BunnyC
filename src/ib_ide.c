@@ -4,6 +4,9 @@
 #include <string.h>
 #include <raylib-nuklear.h>
 
+static struct nk_context* ctx;
+IBIde g_Ide;
+
 void IBIdeFileInfoInit(IBIdeFileInfo* info)
 {
 	IBVectorInit(&info->lineInfo, sizeof(IBIdeLineInfo), OP_IBIdeLineInfo);
@@ -71,36 +74,34 @@ void IBIdeProjectFree(IBIdeProject* proj)
 }
 
 void IBIdeFrame() {
-	
+	if (nk_begin(ctx, "Start", nk_rect(100, 100, 220, 220),
+		NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_CLOSABLE | NK_WINDOW_SCALABLE)) {
+		nk_layout_row_static(ctx, 50, 150, 1);
+		if (nk_button_label(ctx, "New project")) {
+		}
+	}
 }
 
-IBIde g_Ide;
-
 void IBIdeStart() {
-	struct nk_context* ctx = InitNuklear(16);
+	Font font = LoadFont("font.ttf");
+	ctx = InitNuklearEx(font, 16);
 	memset(&g_Ide, 0, sizeof(IBIde));
+	g_Ide.open = true;
 	IBIdeProjectInit(&g_Ide.proj, "new project");
 	IBIdeFile* file = IBVectorGet(&g_Ide.proj.files, 0);
 	assert(file);
-	//GenImageFontAtlas
 	InitWindow(800, 600, "imboredIDE");
-	SetWindowState(FLAG_WINDOW_RESIZABLE);
+	SetWindowState(FLAG_WINDOW_RESIZABLE/* | FLAG_VSYNC_HINT*/);
+	SetTargetFPS(60);
 	SetExitKey(0);
-	SetTargetFPS(20);
-	while (!WindowShouldClose()) {
+	while (g_Ide.open) {
 		UpdateNuklear(ctx);
-		if (nk_begin(ctx, "Nuklear", nk_rect(100, 100, 220, 220),
-			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_CLOSABLE)) {
-			nk_layout_row_static(ctx, 50, 150, 1);
-			if (nk_button_label(ctx, "Button")) {
-				// Button was clicked!
-			}
-		}
+		IBIdeFrame();
 		nk_end(ctx);
 		BeginDrawing();
 		ClearBackground((Color) { 35, 20, 130, 80 });
-		IBIdeFrame();
 		DrawNuklear(ctx);
 		EndDrawing();
+		if(WindowShouldClose()) g_Ide.open = false;
 	}
 }
