@@ -38,11 +38,8 @@ int main(int argc, char** argv) {
 	g_DB = &db;
 	IBDatabaseInit(g_DB);
 
-	{
-		//IBcompFrontend(argc, argv, &rv);
-
-		IBideFrontend(argc, argv, &rv);
-	}
+	//IBcompFrontend(argc, argv, &rv);
+	IBideFrontend(argc, argv, &rv);
 
 	IBVectorFreeSimple(&g_ColorStack);
 	return rv;
