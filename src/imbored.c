@@ -4,6 +4,12 @@
 #include <string.h>
 #include <stdarg.h>
 #include "ib_ide.h"
+#include "ibcolor.h"
+
+#ifdef _WIN32
+//#include <Windows.h>//included in ibcolor.h
+#define atoll _atoi64
+#endif
 
 #ifdef IBDEBUGPRINTS
 void _PrintLine(int l) {
@@ -275,6 +281,7 @@ IBVecData* IBVectorGet(IBVector* vec, int idx) {
 void* IBVectorIterNext(IBVector* vec, int* idx) {
 	IBASSERT0(idx);
 	IBASSERT0(vec);
+	IBASSERT0((*idx) >= 0);
 	IBASSERT0(vec->elemCount <= vec->slotCount);
 	IBASSERT0(vec->elemCount + vec->slotCount + vec->dataSize >= 0);
 	if (!vec || !idx) return NULL;

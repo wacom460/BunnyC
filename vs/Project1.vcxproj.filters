@@ -62,6 +62,9 @@
     <ClInclude Include="..\src\ibmain.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ibcolor.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\run.bat">

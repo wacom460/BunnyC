@@ -2,6 +2,7 @@
 #include "imbored.h"
 #include <stdio.h>
 #include "ib_ide.h"
+#include "ibcolor.h"
 
 void IBcompFrontend(int argc, char** argv, int* rv) {
 	if (argc < 2) {

@@ -23,11 +23,14 @@ void IBIdeFileInit(IBIdeFile* ideF, char* name)
 	IBStrInit(&ideF->path);
 	IBStrInit(&ideF->data);
 	ideF->modified = false;
+	ideF->savedToDisk = false;
 	IBIdeFileInfoInit(&ideF->info);
+	IBLayer3Init(&ideF->ibc);
 }
 
 void IBIdeFileFree(IBIdeFile* ideF)
 {
+	IBLayer3Free(&ideF->ibc);
 	IBStrFree(&ideF->name);
 	IBStrFree(&ideF->path);
 	IBStrFree(&ideF->data);
@@ -38,8 +41,8 @@ void IBIdeProjectInit(IBIdeProject* proj, char* name) {
 	IBStrInitWithCStr(&proj->name, name);
 	IBVectorInit(&proj->files, sizeof(IBIdeFile), OP_IBIdeFile);
 	IBVectorPush(&proj->files, &newFile);
-	assert(newFile);
 	IBIdeFileInit(newFile, "new."IB_FILE_EXT);
+	IBStrAppendCStr(&newFile->data, IBHELLO_WORLD_SAMPLE_CODE);
 }
 
 void IBIdeProjectFree(IBIdeProject* proj)
@@ -54,6 +57,7 @@ void IBIdeProjectFree(IBIdeProject* proj)
 
 void IBIdeStart() {
 	InitWindow(800, 600, "imboredIDE");
+	SetTargetFPS(20);
 	/*Camera3D cam;
 	cam.fovy = 90;
 	cam.position = (Vector3){ 10,10,0 };

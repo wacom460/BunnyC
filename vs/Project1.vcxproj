@@ -32,6 +32,7 @@
     <ClCompile Include="..\src\imbored.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\ibcolor.h" />
     <ClInclude Include="..\src\ibcommon.h" />
     <ClInclude Include="..\src\ibmain.h" />
     <ClInclude Include="..\src\ibmisc.h" />

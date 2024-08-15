@@ -2,12 +2,12 @@
 #define IB_IDE_H_
 #include "ibcommon.h"
 #include "ibmisc.h"
+#include "imbored.h"
 
 #define IBHELLO_WORLD_SAMPLE_CODE \
-"blk $main i32 $argc c8^ $argv -> i32\n" \
+"blk $main i32 $argc nts^ $argv -> i32\n" \
 "    \"Hello, %%\" \"world\"\n" \
-"_ 0\n" \
-;
+"_ 0\n"
 
 typedef struct IBIdeCursorPos {
 	int row;
@@ -55,7 +55,10 @@ typedef struct IBIdeFile {
 	//IBVector chunks; //IBIdeFileChunk
 
 	bool modified;
+	bool savedToDisk;
 	IBIdeFileInfo info;
+
+	IBLayer3 ibc;
 } IBIdeFile;
 
 void IBIdeFileInit(IBIdeFile* ideF, char* name);
@@ -68,6 +71,11 @@ typedef struct IBIdeProject {
 
 void IBIdeProjectInit(IBIdeProject* proj, char* name);
 void IBIdeProjectFree(IBIdeProject* proj);
+
+typedef struct IBIde {
+	IBIdeProject proj;
+
+} IBIde;
 
 void IBIdeStart();
 #endif

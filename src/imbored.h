@@ -4,74 +4,13 @@
 #include "ibmisc.h"
 //#define IBDEBUGPRINTS
 
-#ifdef _WIN32
-#include <Windows.h>
-#define atoll _atoi64
-#endif
-#define IB_IllegalDbObjNameChars " \t\n,.:~!@#$%^&*=/()[]{}<>?|\\`'\""
-#define IBBoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
-#define IBBoolStrChar(b) (b ? "1" : "0")
 #ifdef _MSC_VER
 #define strdup _strdup
 #endif
 
-#ifdef _WIN32
-typedef enum IBColor {
-	//fg
-	IBFgWHITE = FOREGROUND_RED
-	| FOREGROUND_GREEN
-	| FOREGROUND_BLUE,
-	IBFgRED = FOREGROUND_RED,
-	IBFgGREEN = FOREGROUND_GREEN,
-	IBFgBLUE = FOREGROUND_BLUE,
-	IBFgYELLOW = FOREGROUND_RED | FOREGROUND_GREEN,
-	IBFgCYAN = FOREGROUND_BLUE | FOREGROUND_GREEN,
-	IBFgMAGENTA = FOREGROUND_RED | FOREGROUND_BLUE,
-	IBFgBROWN = FOREGROUND_RED | FOREGROUND_GREEN,
-	IBFgIntensity = FOREGROUND_INTENSITY,
-
-	//bg
-	IBBgWHITE = BACKGROUND_RED
-	| BACKGROUND_GREEN
-	| BACKGROUND_BLUE,
-	IBBgRED = BACKGROUND_RED,
-	IBBgGREEN = BACKGROUND_GREEN,
-	IBBgBLUE = BACKGROUND_BLUE,
-	IBBgYELLOW = BACKGROUND_RED | BACKGROUND_GREEN,
-	IBBgCYAN = BACKGROUND_BLUE | BACKGROUND_GREEN,
-	IBBgMAGENTA = BACKGROUND_RED | BACKGROUND_BLUE,
-	IBBgBROWN = BACKGROUND_RED | BACKGROUND_GREEN,
-	IBBgIntensity = BACKGROUND_INTENSITY
-}IBColor;
-#else//unix soon
-typedef enum IBColor {
-	//fg
-	IBFgWHITE,
-	IBFgRED,
-	IBFgGREEN,
-	IBFgBLUE,
-	IBFgYELLOW,
-	IBFgCYAN,
-	IBFgMAGENTA,
-	IBFgBROWN,
-	IBFgIntensity,
-
-	//bg
-	IBBgWHITE,
-	IBBgRED,
-	IBBgGREEN,
-	IBBgBLUE,
-	IBBgYELLOW,
-	IBBgCYAN,
-	IBBgMAGENTA,
-	IBBgBROWN,
-	IBBgIntensity
-}IBColor;
-#endif
-
-void IBSetColor(IBColor col);
-void IBPushColor(IBColor col);
-void IBPopColor();
+#define IB_IllegalDbObjNameChars " \t\n,.:~!@#$%^&*=/()[]{}<>?|\\`'\""
+#define IBBoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
+#define IBBoolStrChar(b) (b ? "1" : "0")
 
 #ifdef IBDEBUGPRINTS
 void _PrintLine(int l);
@@ -157,8 +96,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define CASE_VALTYPES case OP_u8: \
 	case OP_i8: case OP_c8: case OP_u16: case OP_i16: \
 	case OP_u32: case OP_i32: case OP_u64: case OP_i64:
-
-void IBVectorCopyPushIBColor(IBVector* vec, IBColor col);
 
 #define IBDStr "s"
 #define IBDNum "d"
