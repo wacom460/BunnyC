@@ -28,12 +28,17 @@ typedef struct IBIdeFileInfo {
 
 }IBIdeFileInfo;
 
+void IBIdeFileInfoInit(IBIdeFileInfo* info);
+void IBIdeFileInfoFree(IBIdeFileInfo* info);
+void IBIdeFileInfoRegenerate(IBIdeFileInfo* info, struct IBIdeFile* ideF);
+
 typedef struct IBIdeFileRegion {
 	int startIdx;
 	int length;
 	char* caption;
 }IBIdeFileRegion;
 
+//for later
 #define IBIDE_FILE_CHUNK_SIZE 1024
 typedef struct IBIdeFileChunk {
 	int startPos;//means: 1*IBIDE_FILE_CHUNK_SIZE
@@ -43,7 +48,12 @@ typedef struct IBIdeFileChunk {
 typedef struct IBIdeFile {
 	IBStr name;
 	IBStr path;
+	
+	//for now load whole files into memory
 	IBStr data;
+	//later
+	//IBVector chunks; //IBIdeFileChunk
+
 	bool modified;
 	IBIdeFileInfo info;
 } IBIdeFile;

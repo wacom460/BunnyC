@@ -2,11 +2,29 @@
 #include <raylib.h>
 #include <assert.h>
 
+void IBIdeFileInfoInit(IBIdeFileInfo* info)
+{
+	IBVectorInit(&info->lineInfo, sizeof(IBIdeLineInfo), OP_IBIdeLineInfo);
+}
+
+void IBIdeFileInfoFree(IBIdeFileInfo* info)
+{
+	GL_PROGRAM_POINT_SIZE
+	IBVectorFreeSimple(&info->lineInfo);
+}
+
+void IBIdeFileInfoRegenerate(IBIdeFileInfo* info, IBIdeFile* ideF)
+{
+	//IBVectorClear(&info->lineInfo, NULL);
+}
+
 void IBIdeFileInit(IBIdeFile* ideF, char* name)
 {
 	IBStrInitWithCStr(&ideF->name, name);
 	IBStrInit(&ideF->path);
 	IBStrInit(&ideF->data);
+	ideF->modified = false;
+	IBIdeFileInfoInit(&ideF->info);
 }
 
 void IBIdeFileFree(IBIdeFile* ideF)

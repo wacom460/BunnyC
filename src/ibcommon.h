@@ -70,15 +70,13 @@ void IBVectorCopyPushBool(IBVector* vec, bool val);
 void IBVectorCopyPushOp(IBVector* vec, IBOp val);
 IBVecData* IBVectorTop(IBVector* vec);
 IBVecData* IBVectorFront(IBVector* vec);
-#define IBVectorPop(vec, freeFunc){\
-	int c=(vec)->elemCount - 1;\
-	_IBVectorPop((vec), freeFunc);\
-	/*PLINE;\
-	DbgFmt(" VectorPop: %s ", #vec); \
-	IBPushColor(IBFgCYAN); \
-	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1);\
-	IBPopColor();\*/ \
+#define IBVectorPop(vec, freeFunc) _IBVectorPop((vec), freeFunc);
+#define IBVectorClear(vec, freeFunc){\
+	while(vec->elemCount){\
+		IBVectorPop(vec, freeFunc)\
+	}\
 }
+
 void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
 void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
 void IBVectorFreeSimple(IBVector* vec);

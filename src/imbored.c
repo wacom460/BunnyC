@@ -168,10 +168,10 @@ void IBStrAppendCh(IBStr* str, char ch, int count){
 	char astr[2];
 	if (count < 1) return;
 	IBASSERT0(str);
-	//IBASSERT0(count > 0);
 	astr[0] = ch;
 	astr[1] = '\0';
-	while(count--) IBStrAppendCStr(str, astr);
+	while(count--)
+		IBStrAppendCStr(str, astr);
 }
 char* IBStrAppendCStr(IBStr* str, char *with) {
 	void* ra;
@@ -246,7 +246,10 @@ int IBStrStripFront(IBStr* str, char ch){
 	str->start=rep;
 	str->end=str->start+(slen - in);
 	IBASSERT0(str->end);
-	if(str->end) IBASSERT0(*(str->end) == '\0');
+	if (str->end) {
+		char ec = *str->end;
+		IBASSERT0(ec == '\0');
+	}
 	return in;
 }
 void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type) {
@@ -264,6 +267,8 @@ void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type) {
 	memset(vec->data, 0, vec->dataSize);
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
+	IBASSERT0(vec);
+	if (vec->elemCount <= 0) return NULL;
 	if (idx >= vec->elemCount) return NULL;
 	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
@@ -314,7 +319,7 @@ void IBVectorCopyPushIBColor(IBVector* vec, IBColor col){
 IBVecData* IBVectorTop(IBVector* vec) {
 	IBASSERT0(vec);
 	if (vec->elemCount <= 0) return NULL;
-	return (IBVecData*)((char*)vec->data + ((vec->elemCount - 1) * vec->elemSize));
+	return IBVectorGet(vec, vec->elemCount - 1);
 }
 IBVecData* IBVectorFront(IBVector* vec) {
 	IBASSERT0(vec);
@@ -361,15 +366,6 @@ void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 void IBVectorFreeSimple(IBVector* vec) {
 	free(vec->data);
 }
-//char* IBDictDataTypeToString(IBDictDataType type){
-//	switch(type){
-//	case IBDictDataType_VoidPtr: return "VoidPtr";
-//	case IBDictDataType_Int: return "Int";
-//	case IBDictDataType_String: return "String";
-//	case IBDictDataType_RootKey: return "RootKey";
-//	default: return "Unknown";
-//	}
-//}
 void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 	key->type = def.type;
 	switch (def.type) {
@@ -378,7 +374,7 @@ void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 		break;
 	}
 	case IBDictDataType_String: {
-		strncpy(key->key.data, def.str, IBDICTKEY_MAXDATASIZE);
+		strncpy(key->key.data, def.str, IBDICTKEY_KEYSIZE);
 		break;
 	}
 	}
@@ -592,8 +588,10 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...){
 		break;
 	}
 	case IBDictManipAction_DataOut: {
+		assert(outPtr);
 		assert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
-		memcpy(outPtr, dk->val.data, count);
+		if(outPtr)
+			memcpy(outPtr, dk->val.data, count);
 		break;
 	}
 	case IBDictManipAction_StrIn: {
@@ -4386,27 +4384,16 @@ void IBSetColor(IBColor col) {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), col);
 #endif
 }
-//struct S8X8 {
-//	char str[8];
-//} S8X8;
-//struct wtf {
-//	char ch;
-//	struct S8X8 s8;
-//} wtf;
-//struct wtf g_Wtf;
 int main(int argc, char** argv) {
 	//IBIdeStart();
 	IBDatabase db;
-	int rv;
 	FILE* f;
-	//memcpy(&g_Wtf.s8, "hello!@#", 8);
 	if (argc < 2) {
 		printf("Please specify a file\n");
-		//getchar();
 		return -1;
 	}
-	rv = 1;
-	IBDictTest();
+	int rv = 1;
+	//IBDictTest();
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
 	IBPushColor(IBFgWHITE);
 	g_DB = &db;
