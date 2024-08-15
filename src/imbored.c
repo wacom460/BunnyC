@@ -1816,6 +1816,7 @@ bool IBLayer3IsNameOpExpected(IBLayer3* ibc, IBOp nameOp){
 	}
 	return false;
 }
+//wtf
 void IBLayer3Tick(IBLayer3* ibc, struct FILE* f){
 	char ch;
 	if (ibc->InputStr) {

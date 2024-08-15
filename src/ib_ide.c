@@ -1,6 +1,7 @@
 #include "ib_ide.h"
 #include <raylib.h>
 #include <assert.h>
+#include <string.h>
 
 void IBIdeFileInfoInit(IBIdeFileInfo* info)
 {
@@ -36,6 +37,19 @@ void IBIdeFileFree(IBIdeFile* ideF)
 	IBStrFree(&ideF->data);
 }
 
+void IBIdeFileCompile(IBIdeFile* ideF)
+{
+	IBLayer3Free(&ideF->ibc);
+	IBLayer3Init(&ideF->ibc);
+	for (int i = 0; i < IBStrGetLen(&ideF->data); i++) {
+		if (ideF->ibc.InputStr) {
+			IBLayer3InputStr(&ideF->ibc, ideF->ibc.InputStr);
+			ideF->ibc.InputStr = NULL;
+		}
+		IBLayer3InputChar(&ideF->ibc, ideF->data.start[i]);
+	}
+}
+
 void IBIdeProjectInit(IBIdeProject* proj, char* name) {
 	IBIdeFile* newFile = NULL;
 	IBStrInitWithCStr(&proj->name, name);
@@ -55,27 +69,26 @@ void IBIdeProjectFree(IBIdeProject* proj)
 	IBStrFree(&proj->name);
 }
 
+void IBIdeFrame() {
+
+}
+
+IBIde g_Ide;
+
 void IBIdeStart() {
+	memset(&g_Ide, 0, sizeof(IBIde));
+	IBIdeProjectInit(&g_Ide.proj, "new project");
+	IBIdeFile* file = IBVectorGet(&g_Ide.proj.files, 0);
+	assert(file);
+	//GenImageFontAtlas
 	InitWindow(800, 600, "imboredIDE");
+	SetWindowState(FLAG_WINDOW_RESIZABLE);
+	SetExitKey(0);
 	SetTargetFPS(20);
-	/*Camera3D cam;
-	cam.fovy = 90;
-	cam.position = (Vector3){ 10,10,0 };
-	cam.target = (Vector3){ 0,0,0 };
-	cam.type = CAMERA_FIRST_PERSON;
-	cam.up = (Vector3){ 0,1,0 };
-	DisableCursor();*/
 	while (!WindowShouldClose()) {
 		BeginDrawing();
-		ClearBackground((Color) { 100, 20, 0, 80 });
-		SetMouseCursor(MOUSE_CURSOR_POINTING_HAND);
-		DrawLineEx((Vector2) { 10, 10 }, (Vector2) { 100, 100 }, 3, RED);
-		DrawRectangleLinesEx((Rectangle) { 10, 10, 200, 100 }, 5, BLUE);
-		/*UpdateCamera(&cam);
-		BeginMode3D(cam);
-		DrawCube((Vector3) { 0, 0, 0 }, 2, 2, 3, BLACK);
-		EndMode3D();
-		DrawText("hi", 100, 100, 20, WHITE);*/
+		ClearBackground((Color) { 35, 20, 130, 80 });
+		IBIdeFrame();
 		EndDrawing();
 	}
 }

@@ -63,6 +63,7 @@ typedef struct IBIdeFile {
 
 void IBIdeFileInit(IBIdeFile* ideF, char* name);
 void IBIdeFileFree(IBIdeFile* ideF);
+void IBIdeFileCompile(IBIdeFile* ideF);
 
 typedef struct IBIdeProject {
 	IBStr name;
@@ -74,8 +75,9 @@ void IBIdeProjectFree(IBIdeProject* proj);
 
 typedef struct IBIde {
 	IBIdeProject proj;
-
 } IBIde;
+
+extern IBIde g_Ide;
 
 void IBIdeStart();
 #endif
