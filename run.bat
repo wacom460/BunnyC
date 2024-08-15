@@ -2,7 +2,7 @@
 rem :top
 cls
 cd ext/raylib
-del /Q libraylib.a
+rem del /Q libraylib.a
 "../tcc/tcc.exe" -w -I. -c -Iexternal/glfw/include core.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD -DGRAPHICS_API_OPENGL_11
 "../tcc/tcc.exe" -w -I. -c rglfw.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD
 "../tcc/tcc.exe" -w -I. -c shapes.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD
@@ -14,9 +14,32 @@ del /Q libraylib.a
 "../tcc/tcc.exe" -ar rcs libraylib.a core.o rglfw.o shapes.o textures.o text.o models.o raudio.o utils.o
 cd..
 cd..
-del /Q IBLayer3.exe
-"./ext/tcc/tcc.exe" src/imbored.c src/ib_ide.c src/ibmain.c -Isrc -Iext/tcc/libtcc/ -L./ -Lext/raylib -Iext/raylib -lmsvcrt -lraylib -lopengl32 -lgdi32 -lwinmm -lkernel32 -lshell32 -luser32 -llibtcc -w -o IBLayer3.exe
+rem del /Q IBLayer3.exe
+
+"./ext/tcc/tcc.exe" ^
+src/imbored.c ^
+src/ib_ide.c ^
+src/ibmain.c ^
+src/imp.c ^
+-Isrc ^
+-Iext/inc ^
+-Iext/tcc/libtcc ^
+-Iext/raylib ^
+-L. ^
+-Lext/raylib ^
+-lmsvcrt ^
+-lraylib ^
+-lopengl32 ^
+-lgdi32 ^
+-lwinmm ^
+-lkernel32 ^
+-lshell32 ^
+-luser32 ^
+-llibtcc ^
+-w ^
+-o IBLayer3.exe
+
 IBLayer3.exe main.txt
-del /Q IBLayer3.exe
+rem del /Q IBLayer3.exe
 pause
 rem goto top

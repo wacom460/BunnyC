@@ -6,6 +6,8 @@
 #include "ib_ide.h"
 #include "ibcolor.h"
 
+#define assert(x) IBASSERT(x, "")
+
 #ifdef _WIN32
 //#include <Windows.h>//included in ibcolor.h
 #define atoll _atoi64

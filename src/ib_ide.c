@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <assert.h>
 #include <string.h>
+#include <raylib-nuklear.h>
 
 void IBIdeFileInfoInit(IBIdeFileInfo* info)
 {
@@ -70,12 +71,13 @@ void IBIdeProjectFree(IBIdeProject* proj)
 }
 
 void IBIdeFrame() {
-
+	
 }
 
 IBIde g_Ide;
 
 void IBIdeStart() {
+	struct nk_context* ctx = InitNuklear(16);
 	memset(&g_Ide, 0, sizeof(IBIde));
 	IBIdeProjectInit(&g_Ide.proj, "new project");
 	IBIdeFile* file = IBVectorGet(&g_Ide.proj.files, 0);
@@ -86,9 +88,19 @@ void IBIdeStart() {
 	SetExitKey(0);
 	SetTargetFPS(20);
 	while (!WindowShouldClose()) {
+		UpdateNuklear(ctx);
+		if (nk_begin(ctx, "Nuklear", nk_rect(100, 100, 220, 220),
+			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_CLOSABLE)) {
+			nk_layout_row_static(ctx, 50, 150, 1);
+			if (nk_button_label(ctx, "Button")) {
+				// Button was clicked!
+			}
+		}
+		nk_end(ctx);
 		BeginDrawing();
 		ClearBackground((Color) { 35, 20, 130, 80 });
 		IBIdeFrame();
+		DrawNuklear(ctx);
 		EndDrawing();
 	}
 }

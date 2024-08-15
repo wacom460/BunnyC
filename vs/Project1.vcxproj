@@ -30,6 +30,7 @@
     <ClCompile Include="..\src\ibmain.c" />
     <ClCompile Include="..\src\ib_ide.c" />
     <ClCompile Include="..\src\imbored.c" />
+    <ClCompile Include="..\src\imp.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\ibcolor.h" />
@@ -146,7 +147,7 @@
       <LanguageStandard_C>Default</LanguageStandard_C>
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\ext\raylib\external\glfw\include;$(SolutionDir)..\ext\raylib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\ext\raylib\external\glfw\include;$(SolutionDir)..\ext\raylib;$(SolutionDir)..\ext\inc\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

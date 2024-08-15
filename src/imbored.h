@@ -81,7 +81,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 		exit(-1);\
 	}\
 }
-#define assert(x) IBASSERT(x, "")
 
 #ifdef IBDEBUGPRINTS
 #define DbgFmt(x, ...){\
