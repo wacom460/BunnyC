@@ -39,6 +39,9 @@
     <ClCompile Include="..\ext\raylib\utils.c">
       <Filter>ext</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ibmain.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\ib_ide.h">
@@ -54,6 +57,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\imbored.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ibmain.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

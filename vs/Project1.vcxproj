@@ -27,11 +27,13 @@
     <ClCompile Include="..\ext\raylib\text.c" />
     <ClCompile Include="..\ext\raylib\textures.c" />
     <ClCompile Include="..\ext\raylib\utils.c" />
+    <ClCompile Include="..\src\ibmain.c" />
     <ClCompile Include="..\src\ib_ide.c" />
     <ClCompile Include="..\src\imbored.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\ibcommon.h" />
+    <ClInclude Include="..\src\ibmain.h" />
     <ClInclude Include="..\src\ibmisc.h" />
     <ClInclude Include="..\src\ibop.h" />
     <ClInclude Include="..\src\ib_ide.h" />

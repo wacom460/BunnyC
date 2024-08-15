@@ -4384,35 +4384,3 @@ void IBSetColor(IBColor col) {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), col);
 #endif
 }
-int main(int argc, char** argv) {
-	//IBIdeStart();
-	IBDatabase db;
-	FILE* f;
-	if (argc < 2) {
-		printf("Please specify a file\n");
-		return -1;
-	}
-	int rv = 1;
-	//IBDictTest();
-	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
-	IBPushColor(IBFgWHITE);
-	g_DB = &db;
-	IBDatabaseInit(g_DB);
-	f = fopen(argv[1], "r");
-	if (f){
-		IBLayer3 comp;
-		IBLayer3Init(&comp);
-		while (comp.Running)
-			IBLayer3Tick(&comp, f);
-		DbgFmt("Exiting\n","");
-		//assert(comp.InputStr == NULL);
-		IBLayer3Free(&comp);
-		fclose(f);
-		rv = 0;
-	}
-	else{
-		printf("Error opening file\n");
-	}	
-	IBVectorFreeSimple(&g_ColorStack);
-	return rv;
-}
