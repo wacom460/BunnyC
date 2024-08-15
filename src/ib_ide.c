@@ -9,13 +9,12 @@ void IBIdeFileInfoInit(IBIdeFileInfo* info)
 
 void IBIdeFileInfoFree(IBIdeFileInfo* info)
 {
-	GL_PROGRAM_POINT_SIZE
 	IBVectorFreeSimple(&info->lineInfo);
 }
 
 void IBIdeFileInfoRegenerate(IBIdeFileInfo* info, IBIdeFile* ideF)
 {
-	//IBVectorClear(&info->lineInfo, NULL);
+	IBVectorClear(&info->lineInfo, NULL);
 }
 
 void IBIdeFileInit(IBIdeFile* ideF, char* name)

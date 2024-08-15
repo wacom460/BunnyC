@@ -72,8 +72,8 @@ IBVecData* IBVectorTop(IBVector* vec);
 IBVecData* IBVectorFront(IBVector* vec);
 #define IBVectorPop(vec, freeFunc) _IBVectorPop((vec), freeFunc);
 #define IBVectorClear(vec, freeFunc){\
-	while(vec->elemCount){\
-		IBVectorPop(vec, freeFunc)\
+	while((vec)->elemCount){\
+		IBVectorPop((vec), freeFunc)\
 	}\
 }
 
