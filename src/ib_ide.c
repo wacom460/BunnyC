@@ -1,5 +1,4 @@
 #include "ib_ide.h"
-#include <raylib.h>
 #include <assert.h>
 #include <string.h>
 #include <raylib-nuklear.h>
@@ -73,18 +72,28 @@ void IBIdeProjectFree(IBIdeProject* proj)
 	IBStrFree(&proj->name);
 }
 
+struct nk_text_edit textEdit;
+char* tePtr = NULL;
+
 void IBIdeFrame() {
-	if (nk_begin(ctx, "Start", nk_rect(100, 100, 220, 220),
-		NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_CLOSABLE | NK_WINDOW_SCALABLE)) {
+	if (nk_begin(ctx, "IBIde", nk_rect(0, 0, GetScreenWidth(), GetScreenHeight()), 0)) {
 		nk_layout_row_static(ctx, 50, 150, 1);
 		if (nk_button_label(ctx, "New project")) {
 		}
+		nk_layout_row_dynamic(ctx, 500, 1);
+		nk_edit_string_zero_terminated(ctx, NK_EDIT_BOX | NK_EDIT_AUTO_SELECT, 
+			(char*)&textEdit.string, 1024, nk_filter_ascii);
 	}
+	nk_end(ctx);
 }
 
 void IBIdeStart() {
-	Font font = LoadFont("font.ttf");
-	ctx = InitNuklearEx(font, 16);
+	//Font font = LoadFont("font.ttf");
+	// struct nk_allocator alloc;
+    // alloc.userdata = nk_handle_ptr(0);
+    // alloc.alloc = nk_raylib_malloc;
+    // alloc.free = nk_raylib_mfree;
+	ctx = InitNuklear(16);
 	memset(&g_Ide, 0, sizeof(IBIde));
 	g_Ide.open = true;
 	IBIdeProjectInit(&g_Ide.proj, "new project");
@@ -94,10 +103,11 @@ void IBIdeStart() {
 	SetWindowState(FLAG_WINDOW_RESIZABLE/* | FLAG_VSYNC_HINT*/);
 	SetTargetFPS(60);
 	SetExitKey(0);
+	tePtr = file->data.start;
+	nk_textedit_init_fixed(&textEdit, tePtr, 1024);
 	while (g_Ide.open) {
 		UpdateNuklear(ctx);
 		IBIdeFrame();
-		nk_end(ctx);
 		BeginDrawing();
 		ClearBackground((Color) { 35, 20, 130, 80 });
 		DrawNuklear(ctx);

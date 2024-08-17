@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "ibcolor.h": "c",
+        "windows.h": "c"
+    }
+}

@@ -29,6 +29,7 @@ void IBcompFrontend(int argc, char** argv, int* rv) {
 
 void IBideFrontend(int argc, char** argv, int* rv) {
 	IBIdeStart();
+	*rv = 0;
 }
 
 int main(int argc, char** argv) {

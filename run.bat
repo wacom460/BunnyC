@@ -1,5 +1,5 @@
 @echo off
-rem :top
+:top
 cls
 cd ext/raylib
 rem del /Q libraylib.a
@@ -14,8 +14,6 @@ rem del /Q libraylib.a
 "../tcc/tcc.exe" -ar rcs libraylib.a core.o rglfw.o shapes.o textures.o text.o models.o raudio.o utils.o
 cd..
 cd..
-rem del /Q IBLayer3.exe
-
 "./ext/tcc/tcc.exe" ^
 src/imbored.c ^
 src/ib_ide.c ^
@@ -39,7 +37,10 @@ src/imp.c ^
 -w ^
 -o IBLayer3.exe
 
+if %errorlevel% neq 0 (
+	pause
+	goto :top
+)
 IBLayer3.exe main.txt
-rem del /Q IBLayer3.exe
-pause
-rem goto top
+if %errorlevel% neq 0 pause
+goto :top
