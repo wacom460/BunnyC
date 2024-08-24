@@ -101,7 +101,7 @@ IBOpNamePair cEquivelents[] = {
 	{"+=", OP_AddEq},{"-=", OP_SubEq},{"*=", OP_MultEq},
 	{"/=", OP_DivEq},{"/", OP_Divide},{"%", OP_Modulo},
 	{"*", OP_Deref},{"&", OP_Ref},{"**", OP_DoubleDeref},
-	{"***", OP_TrippleDeref},{"char", OP_String},
+	{"***", OP_TrippleDeref},{"char*", OP_String},
 };
 IBOpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},
@@ -1039,6 +1039,7 @@ IBOp IBOPFromPfxCh(char ch) {
 	switch (ch) {
 	IBCASE_aTHRUz
 	IBCASE_ATHRUZ return OP_Letter_azAZ;
+	case IBCOMMENT_CHAR: return OP_Comment;
 	case '\t': return OP_TabChar;
 	case ' ': return OP_SpaceChar;
 	case '@': return OP_Op;
@@ -1784,7 +1785,7 @@ bool IBLayer3IsPfxExpected(IBLayer3* ibc, IBOp pfx) {
 	IBTask* t;
 	IBExpects* ap;
 	if(pfx == OP_PfxlessValue) pfx = OP_Value;
-	if (pfx == OP_Letter_azAZ) return true;
+	if (pfx == OP_Letter_azAZ||pfx==OP_Comment) return true;
 	t = NULL;
 	ap = NULL;
 	t = IBLayer3GetTask(ibc);
@@ -1850,35 +1851,50 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	m=IBLayer3GetMode(ibc);
 	t = IBLayer3GetTask(ibc);
 	o = IBLayer3GetObj(ibc);
-	if(ibc->CommentMode==OP_NotSet&&
-		ibc->Ch==IBCOMMENT_CHAR/*&&
-		ibc->LastCh!=IBCOMMENT_CHAR*/)
+	if (ibc->LastCh == IBCOMMENT_CHAR &&
+		ibc->Ch == IBCOMMENT_CHAR_OPEN)
 	{
-		/*PLINE;
-		DbgFmt(" LINE COMMENT ON\n","");*/
-		ibc->CommentMode = OP_Comment;
-		IBLayer3Push(ibc, OP_ModeComment, false);
-	}else if(ibc->CommentMode==OP_Comment&&
-			ibc->LastCh==ibc->Ch &&
-				!ibc->StringMode
-				&&ibc->Ch==IBCOMMENT_CHAR&&
-				m==OP_ModeComment)
-	{
-		/*PLINE;
-		DbgFmt(" MULTI COMMENT ON!!!!!!\n","");*/
-		IBLayer3Pop(ibc);
 		IBLayer3Push(ibc, OP_ModeMultiLineComment, false);
 		ibc->CommentMode = OP_MultiLineComment;
-		ibc->Ch='\0';
-	}else if(ibc->CommentMode==OP_MultiLineComment&&
-		ibc->LastCh==ibc->Ch &&
-				!ibc->StringMode
-				&&ibc->Ch==IBCOMMENT_CHAR&&
-				m==OP_ModeMultiLineComment) {
-		/*PLINE;
-		DbgFmt(" MULTI COMMENT OFF!\n","");*/
-		ibc->CommentMode=OP_NotSet;
+		ibc->Ch = '\0';
 	}
+	else if (ibc->CommentMode == OP_MultiLineComment&&
+		ibc->LastCh == IBCOMMENT_CHAR_CLOSE &&
+		ibc->Ch == IBCOMMENT_CHAR)
+	{
+		IBLayer3Pop(ibc);
+		ibc->CommentMode = OP_NotSet;
+		ibc->Ch = '\0';
+	}
+	//if(ibc->CommentMode==OP_NotSet&&
+	//	ibc->Ch==IBCOMMENT_CHAR/*&&
+	//	ibc->LastCh!=IBCOMMENT_CHAR*/)
+	//{
+	//	/*PLINE;
+	//	DbgFmt(" LINE COMMENT ON\n","");*/
+	//	ibc->CommentMode = OP_Comment;
+	//	IBLayer3Push(ibc, OP_ModeComment, false);
+	//}else if(ibc->CommentMode==OP_Comment&&
+	//		ibc->LastCh==ibc->Ch &&
+	//			!ibc->StringMode
+	//			&&ibc->Ch==IBCOMMENT_CHAR&&
+	//			m==OP_ModeComment)
+	//{
+	//	/*PLINE;
+	//	DbgFmt(" MULTI COMMENT ON!!!!!!\n","");*/
+	//	IBLayer3Pop(ibc);
+	//	IBLayer3Push(ibc, OP_ModeMultiLineComment, false);
+	//	ibc->CommentMode = OP_MultiLineComment;
+	//	ibc->Ch='\0';
+	//}else if(ibc->CommentMode==OP_MultiLineComment&&
+	//	ibc->LastCh==ibc->Ch &&
+	//			!ibc->StringMode
+	//			&&ibc->Ch==IBCOMMENT_CHAR&&
+	//			m==OP_ModeMultiLineComment) {
+	//	/*PLINE;
+	//	DbgFmt(" MULTI COMMENT OFF!\n","");*/
+	//	ibc->CommentMode=OP_NotSet;
+	//}
 	switch (ibc->Ch) {
 	case OP_ParenthesisOpen: {//expression wrapper
 		break;
@@ -2036,7 +2052,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	}
 	}
 	m = IBLayer3GetMode(ibc);
-	if (!nl && ibc->CommentMode == OP_NotSet) {
+	if (!nl /*&& ibc->CommentMode == OP_NotSet*/) {
 #ifdef IBDEBUGPRINTS
 		{
 			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
@@ -2075,9 +2091,10 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		}
 	}
 	ibc->LastCh=ibc->Ch;
-	if(m==OP_ModeMultiLineComment&&ibc->CommentMode==OP_NotSet){
-		IBLayer3Pop(ibc);
-	}
+	//if(m==OP_ModeMultiLineComment&&ibc->CommentMode==OP_NotSet){
+	//	IBLayer3Pop(ibc);
+	//}
+	DbgFmt("End of InputChar\n", 0);
 }
 void IBLayer3InputStr(IBLayer3* ibc, char* str){
 	int i;
@@ -2275,6 +2292,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 					}
 				}
 				IBStrAppendFmt(&t->code.code, "%s%s", IBGetCEqu(ceq), o->name);
+				if (onOp) {
+					IBStrAppendFmt(&t->code.header, "%s", "(");
+					IBStrAppendFmt(&t->code.code, "%s", ")");
+				}
+				onOp = false;
 				break;
 			}
 			case OP_Value: {
@@ -3352,6 +3374,12 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	/* = PFXVALUE */ case OP_Value: {
 		switch (t->type) {
+		case OP_ForNeedStartInitVal: {
+			switch (t->type) {
+				IBCASE_UNIMP
+			}
+			break;
+		}
 		case OP_NeedExpression: {
 			IBObj* o=NULL;
 			IBLayer3PushObj(ibc, &o);

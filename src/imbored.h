@@ -2,7 +2,7 @@
 #define IMBORED_H_
 #include "ibcommon.h"
 #include "ibmisc.h"
-//#define IBDEBUGPRINTS
+#define IBDEBUGPRINTS
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -54,7 +54,9 @@ case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': \
 case 'W': case 'X': case 'Y': case 'Z':
 
 #define IBOP_NAME_LEN 32
-#define IBCOMMENT_CHAR ('~')
+#define IBCOMMENT_CHAR ('~') // ~( ~( )~ )~
+#define IBCOMMENT_CHAR_OPEN ('(')
+#define IBCOMMENT_CHAR_CLOSE (')')
 #define IBLayer3STR_MAX 64
 
 #if defined(__TINYC__) || defined(__GNUC__)

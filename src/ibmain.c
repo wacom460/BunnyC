@@ -32,7 +32,11 @@ void IBideFrontend(int argc, char** argv, int* rv) {
 	*rv = 0;
 }
 
-int main(int argc, char** argv) {
+int
+main(argc, argv)
+int argc;
+char**argv;
+{
 	int rv = 1;
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor);
 	IBPushColor(IBFgWHITE);
@@ -40,8 +44,8 @@ int main(int argc, char** argv) {
 	g_DB = &db;
 	IBDatabaseInit(g_DB);
 
-	//IBcompFrontend(argc, argv, &rv);
-	IBideFrontend(argc, argv, &rv);
+	IBcompFrontend(argc, argv, &rv);
+	//IBideFrontend(argc, argv, &rv);
 
 	IBVectorFreeSimple(&g_ColorStack);
 	return rv;
