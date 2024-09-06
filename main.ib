@@ -1,9 +1,11 @@
-@struct $v2i
-  blk $test -> i64
-    
-  _ 0
-_
-
-blk $main i32 $argc nts^ $argv -> i32
-    "hi %%" $argc
+struct $v2i
+blk $test -> i64    
 _ 0
+_
+blk $main i32 $argc nts^ $argv -> i32
+if $argc eq 0
+nts $a
+~($a <- $argv + 1)~
+"hi %%" $argc
+_
+_ 101142069

@@ -1292,6 +1292,8 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBExpects* exp;
 	IBCodeBlock* cb;
 	ibc->TCC=NULL;
+	ibc->IncludeCStdioHeader = false;
+	ibc->IncludeCStdlibHeader=false;
 	ibc->Running = true;
 	ibc->Imaginary = false;
 	ibc->Line = 1;
@@ -1393,15 +1395,17 @@ void IBLayer3Free(IBLayer3* ibc) {
 			IBStrGetLen(&cb->footer))
 		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");
 	//IBStrAppendCStr(&ibc->CHeader_Funcs, "\n#endif\n");
+	if (ibc->IncludeCStdioHeader)
+		IBStrAppendFmt(&ibc->FinalOutput, 
+			"#include <stdio.h>\n");
+	if (ibc->IncludeCStdlibHeader)
+		IBStrAppendFmt(&ibc->FinalOutput,
+			"#include <stdlib.h>\n");
 	IBStrAppendFmt(&ibc->FinalOutput, "%s%s\n%s",
 		ibc->CHeader_Structs.start,
 		ibc->CHeader_Funcs.start,
 		ibc->CCode.start);
-	IBLayer3CompileTCC(ibc);
 #ifdef IBDEBUGPRINTS
-	IBPushColor(IBFgMAGENTA);
-	DbgFmt("-> Compilation complete <-\n","");
-	IBPopColor();
 	IBPushColor(IBFgWHITE);
 	IBPushColor(IBFgGREEN);
 	DbgFmt("C99 output: \n","");
@@ -1411,6 +1415,11 @@ void IBLayer3Free(IBLayer3* ibc) {
 	printf("%s", ibc->FinalOutput.start);
 #endif
 	IBPopColor();
+	IBLayer3CompileTCC(ibc);
+	IBPushColor(IBFgMAGENTA);
+	DbgFmt("-> Compilation complete. Press any key <-\n", "");
+	IBPopColor();
+	getchar();
 	/*if (ibc->SpaceNameStr != NULL) {
 		free(ibc->SpaceNameStr);
 		ibc->SpaceNameStr = NULL;
@@ -1436,17 +1445,36 @@ _IBLayer3_TCCErrFunc
 void 
 IBLayer3CompileTCC
 (IBLayer3* ibc){
-	IBASSERT(ibc->TCC==NULL,"");
+	int (*Entry)(int, char**);
+	IBASSERT(ibc->TCC==NULL,0);
 	ibc->TCC = tcc_new();
+	IBASSERT(ibc->TCC, 0);
 	tcc_set_error_func(ibc->TCC, ibc, 
 		_IBLayer3_TCCErrFunc);
 	tcc_set_output_type(ibc->TCC, 
 		TCC_OUTPUT_MEMORY);
+#ifdef __TINYC__
+	tcc_add_sysinclude_path(ibc->TCC, "ext/tcc/include/");
+	tcc_add_library_path(ibc->TCC, "ext/tcc/lib/");
+#else
+	tcc_add_sysinclude_path(ibc->TCC, "../ext/tcc/include/");
+	tcc_add_library_path(ibc->TCC, "../ext/tcc/lib/");
+#endif
 	IBASSERT(IBStrGetLen(&ibc->FinalOutput) > 0, 
 		"no code to compile");
 	IBASSERT(tcc_compile_string(ibc->TCC, 
 		(const char*)ibc->FinalOutput.start) != -1, 
 		"TCC compile failed!");
+	IBASSERT(tcc_relocate(ibc->TCC, TCC_RELOCATE_AUTO)>=0,0);
+	Entry = tcc_get_symbol(ibc->TCC, "main");
+	if (Entry) {
+		int entryRet=0;
+		DbgFmt("Program output:\n",0);
+		entryRet = Entry(0, NULL);
+		IBPushColor(IBFgGREEN);
+		DbgFmt("\n\nmain() returned %d.\n", entryRet);
+		IBPopColor();
+	}
 }
 int IBLayer3GetTabCount(IBLayer3* ibc){
 	return ibc->CodeBlockStack.elemCount - 1;
@@ -2802,6 +2830,7 @@ IBCASE_UNIMP
 			fmtObj = (IBObj*)wObjs->data;
 			IBStrAppendCh(&cb->code, '\t', tabCount);
 			IBStrAppendCStr(&cb->code, "printf(\"");
+			ibc->IncludeCStdioHeader=true;
 			firstPercent = false;
 			varIdx = 1;
 			for (i = 0; i < (int)strlen(fmtObj->str); ++i) {

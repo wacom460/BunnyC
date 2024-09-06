@@ -418,6 +418,8 @@ typedef struct IBLayer3 {
 	bool Running;
 	bool StringMode;
 	bool StrAllowSpace;
+	bool IncludeCStdioHeader;
+	bool IncludeCStdlibHeader;
 	IBOp CommentMode;
 	//IBNameInfoDB NameTypeCtx;
 	TCCState* TCC;
