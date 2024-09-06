@@ -1,13 +1,28 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Debug" />
+	<File name="ext\inc\nuklear.h" open="1" top="0" tabpos="4">
+		<Cursor position="23961" topLine="534" />
+	</File>
 	<File name="src\ib_ide.c" open="1" top="0" tabpos="1">
 		<Cursor position="268" topLine="0" />
 	</File>
 	<File name="src\ib_ide.h" open="1" top="0" tabpos="2">
-		<Cursor position="592" topLine="2" />
+		<Cursor position="51" topLine="2" />
 	</File>
-	<File name="src\ibmain.c" open="1" top="1" tabpos="3">
-		<Cursor position="278" topLine="0" />
+	<File name="src\ibcommon.h" open="1" top="0" tabpos="7">
+		<Cursor position="1842" topLine="46" />
+	</File>
+	<File name="src\ibmain.c" open="1" top="0" tabpos="3">
+		<Cursor position="179" topLine="0" />
+	</File>
+	<File name="src\ibop.h" open="1" top="0" tabpos="8">
+		<Cursor position="3522" topLine="195" />
+	</File>
+	<File name="src\imbored.c" open="1" top="1" tabpos="5">
+		<Cursor position="104857" topLine="3976" />
+	</File>
+	<File name="src\imbored.h" open="1" top="0" tabpos="6">
+		<Cursor position="1757" topLine="90" />
 	</File>
 </CodeBlocks_layout_file>
