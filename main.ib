@@ -1,5 +1,5 @@
 blk $main i32 $argc nts^ $argv -> i32
 	if $argc gteq 2
-		"%% %%\n" $argv[0] $argv[1]
+		"%% %%\n" $[0]argv $argv[1]
 	_
 _ 0

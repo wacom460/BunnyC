@@ -284,6 +284,7 @@ typedef struct IBIfObj {
 typedef struct IBArgObj {
 	IBOp type;
 	IBOp mod;
+	char* arrayIndexExpr;
 } IBArgObj;
 typedef struct IBVarObj {
 	IBVal val;
@@ -310,15 +311,13 @@ typedef struct IBObj {
 	IBOp privacy;
 	char* name;
 	char* str;
-	union {
-		IBFuncObj func;
-		IBVarObj var;
-		IBArgObj arg;
-		IBIfObj ifO;
-		IBTableObj table;
-		IBEnumObj enumO;
-		IBForObj forO;
-	};
+	IBFuncObj func;
+	IBVarObj var;
+	IBArgObj arg;
+	IBIfObj ifO;
+	IBTableObj table;
+	IBEnumObj enumO;
+	IBForObj forO;
 	IBVal val;
 	IBOp valType;
 } IBObj;
@@ -398,7 +397,7 @@ typedef struct IBLayer3 {
 	IBStr CCode;
 	IBStr FinalOutput;
 	IBStr CurrentLineStr;
-	IBStr ExprStr;
+	IBStr ArrayIndexExprStr;
 
 	IBVector ObjStack; /*IBObj*/
 	IBVector ModeStack; /*IBOp*/

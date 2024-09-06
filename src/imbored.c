@@ -164,7 +164,7 @@ bool IBStrContainsAnyOfChars(IBStr* str, char* chars) {
 		if(strchr(chars, *p)) return true;
 	return false;	
 }
-long long int IBStrGetLen(IBStr* str) {
+long long int IBStrLen(IBStr* str) {
 	size_t len;
 	IBASSERT0(str);
 	IBASSERT0(str->end);
@@ -191,7 +191,7 @@ char* IBStrAppendCStr(IBStr* str, char *with) {
 	if(!withLen) return str->start;
 	IBASSERT0(withLen > 0);
 	IBASSERT0(str->start);
-	len = IBStrGetLen(str);
+	len = IBStrLen(str);
 	ra = realloc(str->start, len + withLen + 1);
 	IBASSERT0(ra);
 	if (ra) {
@@ -219,11 +219,11 @@ char* IBStrAppend(IBStr* str, IBStr* with){
 	size_t len;
 	size_t withLen;
 	IBASSERT0(str);
-	withLen = IBStrGetLen(with);
+	withLen = IBStrLen(with);
 	if (!withLen) return str->start;
 	IBASSERT0(withLen > 0);
 	IBASSERT0(str->start);
-	len = IBStrGetLen(str);
+	len = IBStrLen(str);
 	ra = realloc(str->start, len + withLen + 1);
 	IBASSERT0(ra);
 	if (ra) {
@@ -240,7 +240,7 @@ char* IBStrAppend(IBStr* str, IBStr* with){
 	return NULL;
 }
 int IBStrStripFront(IBStr* str, char ch){
-	int slen=IBStrGetLen(str);
+	int slen=IBStrLen(str);
 	int in = 0;
 	char* rep = NULL;
 	char ch2 = '\0';
@@ -784,6 +784,7 @@ void ObjInit(IBObj* o) {
 	o->valType = OP_Unknown;
 	memset(&o->func, 0, sizeof(IBFuncObj));
 	o->func.retStr = NULL;
+	memset(&o->arg, 0, sizeof(IBArgObj));
 	memset(&o->var, 0, sizeof(IBVarObj));
 	memset(&o->ifO, 0, sizeof(IBIfObj));
 	memset(&o->table, 0, sizeof(IBTableObj));
@@ -797,6 +798,11 @@ void ObjInit(IBObj* o) {
 void ObjFree(IBObj* o) {
 	assert(o);
 	switch (o->type) {
+	case OP_Name: {
+		if (o->arg.arrayIndexExpr)
+			free(o->arg.arrayIndexExpr);
+		break;
+	}
 	case OP_IfNeedLVal:
 	case OP_IfNeedMidOP:
 	case OP_IfNeedRVal:
@@ -1309,7 +1315,7 @@ void IBLayer3Init(IBLayer3* ibc){
 		"#pragma once\n\n");*/
 	IBStrInit(&ibc->CCode);
 	IBStrInit(&ibc->FinalOutput);
-	IBStrInit(&ibc->ExprStr);
+	IBStrInit(&ibc->ArrayIndexExprStr);
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
 	ibc->NameOp = OP_Null;
@@ -1391,9 +1397,9 @@ void IBLayer3Free(IBLayer3* ibc) {
 		"Reached end of file not at root task");
 	if (ibc->CodeBlockStack.elemCount != 1)
 		Err(OP_Error, "dirty codeblock stack");
-	if (IBStrGetLen(&cb->variables) +
-			IBStrGetLen(&cb->code) +
-			IBStrGetLen(&cb->footer))
+	if (IBStrLen(&cb->variables) +
+			IBStrLen(&cb->code) +
+			IBStrLen(&cb->footer))
 		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");
 	//IBStrAppendCStr(&ibc->CHeader_Funcs, "\n#endif\n");
 	if (ibc->IncludeCStdioHeader)
@@ -1435,7 +1441,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBStrFree(&ibc->CHeader_Structs);
 	IBStrFree(&ibc->CHeader_Funcs);
 	IBStrFree(&ibc->FinalOutput);
-	IBStrFree(&ibc->ExprStr);
+	IBStrFree(&ibc->ArrayIndexExprStr);
 	IBStrFree(&ibc->CCode);
 }
 void 
@@ -1464,7 +1470,7 @@ IBLayer3CompileTCC
 	tcc_add_sysinclude_path(ibc->TCC, "../ext/tcc/include/");
 	tcc_add_library_path(ibc->TCC, "../ext/tcc/lib/");
 #endif
-	IBASSERT(IBStrGetLen(&ibc->FinalOutput) > 0, 
+	IBASSERT(IBStrLen(&ibc->FinalOutput) > 0, 
 		"no code to compile");
 	IBASSERT(tcc_compile_string(ibc->TCC, 
 		(const char*)ibc->FinalOutput.start) != -1, 
@@ -2131,10 +2137,15 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		}
 		case OP_ModeArrayIndexExpr: {
 			if (ibc->Ch == ']') {
+				IBObj* o = IBLayer3GetObj(ibc);
+				PLINE;
+				DbgFmt(" Got Array index expr: %s[%s]\n", 
+					ibc->Str,
+					ibc->ArrayIndexExprStr.start);
 				IBLayer3Pop(ibc);
 			}
 			else 
-				IBStrAppendCh(&ibc->ExprStr, ibc->Ch, 1);
+				IBStrAppendCh(&ibc->ArrayIndexExprStr, ibc->Ch, 1);
 			break;
 		}
 		default: Err(OP_Error, "unknown mode");
@@ -2917,7 +2928,12 @@ IBCASE_UNIMP
 					IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, o->name);
 					if(ni->type == OP_Bool) 
 						IBStrAppendFmt(&cb->code, "%s ? \"true\" : \"false\"", o->name);
-					else IBStrAppendCStr(&cb->code, o->name);
+					else {
+						IBStrAppendCStr(&cb->code, o->name);
+						if (o->arg.arrayIndexExpr)
+							IBStrAppendFmt(&cb->code, "[%s]",
+								o->arg.arrayIndexExpr);
+					}
 					break;
 				}
 				case OP_String: {
@@ -3058,7 +3074,7 @@ void IBLayer3Str(IBLayer3* ibc){
 		case OP_Name: {
 			switch (ibc->Ch) {
 			case '[': {
-				IBStrClear(&ibc->ExprStr);
+				IBStrClear(&ibc->ArrayIndexExprStr);
 				IBLayer3Push(ibc, OP_ModeArrayIndexExpr, false);
 				return;
 			}
@@ -3914,6 +3930,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBLayer3PushObj(ibc, &o);
 			ObjSetName(o, ibc->Str);
 			ObjSetType(o, OP_Name);
+			if (IBStrLen(&ibc->ArrayIndexExprStr))
+				IBOverwriteStr(&o->arg.arrayIndexExpr, 
+					ibc->ArrayIndexExprStr.start);
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
 		}
@@ -3930,7 +3949,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBStrAppendCStr(&ns, "self->");
 				IBStrAppendFmt(&ns, "%s", &ibc->Str[5]);
 				ibc->Str[0]='\0';
-				strncpy_s(ibc->Str, IBLayer3STR_MAX, ns.start, IBStrGetLen(&ns));
+				strncpy_s(ibc->Str, IBLayer3STR_MAX, ns.start, IBStrLen(&ns));
 			}
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);
@@ -4388,6 +4407,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ibc->Pointer = OP_NotSet;
 		IBVectorPop(&ibc->StrReadPtrsStack, NULL);
 	}
+	IBStrClear(&ibc->ArrayIndexExprStr);
 //#define IBOPSTEP
 #ifdef IBOPSTEP
 	{

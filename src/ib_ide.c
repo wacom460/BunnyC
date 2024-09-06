@@ -61,7 +61,7 @@ void IBIdeFileCompile(IBIdeFile* ideF)
 {
 	IBLayer3Free(&ideF->ibc);
 	IBLayer3Init(&ideF->ibc);
-	for (int i = 0; i < IBStrGetLen(&ideF->data); i++) {
+	for (int i = 0; i < IBStrLen(&ideF->data); i++) {
 		if (ideF->ibc.InputStr) {
 			IBLayer3InputStr(&ideF->ibc, ideF->ibc.InputStr);
 			ideF->ibc.InputStr = NULL;
@@ -128,7 +128,7 @@ void IBIdeStart() {
 		BeginDrawing();
 		ClearBackground((Color) { 35, 20, 130, 80 });
 		//DrawNuklear(ctx);
-		for (int i = 0; i < IBStrGetLen(&file->data); i++) {
+		for (int i = 0; i < IBStrLen(&file->data); i++) {
 
 		}
 		EndDrawing();

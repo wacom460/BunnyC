@@ -24,7 +24,7 @@ void IBStrClear(IBStr* str);
 void IBStrReplaceWithCStr(IBStr* str, char* cstr);
 void IBStrInitNTStr(IBStr* str, char* nullTerminated);
 bool IBStrContainsAnyOfChars(IBStr* str, char* chars);
-long long int IBStrGetLen(IBStr* str);
+long long int IBStrLen(IBStr* str);
 void IBStrAppendCh(IBStr* str, char ch, int count);
 char* IBStrAppendCStr(IBStr* str, char* with);
 void IBStrAppendFmt(IBStr* str, char* fmt, ...);
