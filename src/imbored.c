@@ -55,6 +55,7 @@ IBOpNamePair PairNameOps[] = {
 	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
 	{"as", OP_As},{">", OP_GreaterThan},{"output", OP_Output},
 	{"enum", OP_Enum},{"flags", OP_Flags},{"nts", OP_String},
+	{"arguments",OP_RunArguments},
 };
 IBOpNamePair PairDataTypeOPs[] = {
 	{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},{"i64", OP_i64},
@@ -1308,6 +1309,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	ibc->ColumnIS = 1;
 	ibc->Pfx = OP_Null;
 	ibc->Str[0] = '\0';
+	IBStrInit(&ibc->RunArguments);
 	IBStrInit(&ibc->CHeader_Structs);
 	IBStrInit(&ibc->CHeader_Funcs);
 	IBStrInit(&ibc->CurrentLineStr);
@@ -1343,9 +1345,9 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBLayer3Push(ibc, OP_ModePrefixPass, false);
 	IBLayer3PushObj(ibc, &o);
 	IBLayer3PushTask(ibc, OP_RootTask, &exp, NULL);
-	ExpectsInit(exp, "PNNNNNNNNN", 
+	ExpectsInit(exp, "PNNNNNNNNNN", 
 		OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Enum, OP_Flags,
-		OP_Struct, OP_Space, OP_Public, OP_Private);
+		OP_Struct, OP_Space, OP_Public, OP_Private, OP_RunArguments);
 }
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, IBOp type, int limit){
 	int i;
@@ -1441,6 +1443,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBStrFree(&ibc->CHeader_Structs);
 	IBStrFree(&ibc->CHeader_Funcs);
 	IBStrFree(&ibc->FinalOutput);
+	IBStrFree(&ibc->RunArguments);
 	IBStrFree(&ibc->ArrayIndexExprStr);
 	IBStrFree(&ibc->CCode);
 }
@@ -1477,10 +1480,34 @@ IBLayer3CompileTCC
 		"TCC compile failed!");
 	IBASSERT(tcc_relocate(ibc->TCC, TCC_RELOCATE_AUTO)>=0,0);
 	Entry = tcc_get_symbol(ibc->TCC, "main");
+#define IBRUN_MAXARGS 10
+	char* argv[IBRUN_MAXARGS];
+	int argc = 0;
+	memset(argv, 0, sizeof(argv));
+	int argsLen = IBStrLen(&ibc->RunArguments);
+	//int avc = 0;
+	if (argsLen) {
+		IBStr ls;
+		IBStrInit(&ls);
+		for (int i = 0; i < argsLen; ++i) {
+			char ch = ibc->RunArguments.start[i];
+			if (ch == ' ') {
+				IBOverwriteStr(&argv[argc], ls.start);
+				IBStrClear(&ls);
+				++argc;
+				continue;
+			}
+			IBStrAppendCh(&ls, ch, 1);
+		}
+		if (IBStrLen(&ls)) {
+			IBOverwriteStr(&argv[argc], ls.start);
+			++argc;
+		}
+	}
 	if (Entry) {
 		int entryRet=0;
 		DbgFmt("Program output:\n",0);
-		entryRet = Entry(0, NULL);
+		entryRet = Entry(argc, argv);
 		IBPushColor(IBFgGREEN);
 		DbgFmt("\n\nmain() returned %d.\n", entryRet);
 		IBPopColor();
@@ -3396,6 +3423,11 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	/* " PFXSTRING */ case OP_String: {
 		switch(t->type) {
+		case OP_RunArgsNeedArgsStr: {
+			IBStrAppendFmt(&ibc->RunArguments, "%s", ibc->Str);
+			IBLayer3PopTask(ibc, &t, false);
+			break;
+		}
 		case OP_FuncNeedRetVal: {
 			IBObj* o;
 			int idx;
@@ -3988,6 +4020,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		expected = IBLayer3IsNameOpExpected(ibc, ibc->NameOp);
 		if(!expected)Err(OP_ErrUnexpectedNameOP, "unexpected nameOP");
 		switch (ibc->NameOp) {
+		case OP_RunArguments: {
+			IBTask*t=NULL;
+			IBExpects*exp=NULL;
+			IBLayer3PushTask(ibc, OP_RunArgsNeedArgsStr, &exp, &t);
+			ExpectsInit(exp, "P", OP_String);
+			break;
+		}
 		case OP_As: {
 
 			break;

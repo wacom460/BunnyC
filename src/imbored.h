@@ -398,6 +398,7 @@ typedef struct IBLayer3 {
 	IBStr FinalOutput;
 	IBStr CurrentLineStr;
 	IBStr ArrayIndexExprStr;
+	IBStr RunArguments;
 
 	IBVector ObjStack; /*IBObj*/
 	IBVector ModeStack; /*IBOp*/

@@ -206,6 +206,8 @@ X(ForNeedEndExpr) \
 X(NotAllowed) \
 X(IBIdeFile) \
 X(IBIdeLineInfo) \
+X(RunArguments) \
+X(RunArgsNeedArgsStr) \
 
 #define X(x) OP_##x,
 typedef enum IBOp { /* multiple uses */
