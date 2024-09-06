@@ -29,8 +29,10 @@ src/*.c ^
 -lkernel32 ^
 -lshell32 ^
 -luser32 ^
+-llibtcc ^
 -w ^
 -o program.exe
+if %errorlevel% neq 0 pause
 del ext\raylib\libraylib.a
 if %errorlevel% neq 0 (
 	pause

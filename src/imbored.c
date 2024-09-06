@@ -1436,16 +1436,15 @@ _IBLayer3_TCCErrFunc
 void 
 IBLayer3CompileTCC
 (IBLayer3* ibc){
-	IBStr combined;
 	IBASSERT(ibc->TCC==NULL,"");
-	IBStrInit(&combined);
 	ibc->TCC = tcc_new();
 	tcc_set_error_func(ibc->TCC, ibc, 
 		_IBLayer3_TCCErrFunc);
 	tcc_set_output_type(ibc->TCC, 
 		TCC_OUTPUT_MEMORY);
+	IBASSERT(IBStrGetLen(&ibc->FinalOutput) > 0, "");
 	tcc_compile_string(ibc->TCC, 
-		(const char*) combined.start);
+		(const char*)ibc->FinalOutput.start);
 }
 int IBLayer3GetTabCount(IBLayer3* ibc){
 	return ibc->CodeBlockStack.elemCount - 1;
