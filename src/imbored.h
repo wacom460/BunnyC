@@ -284,7 +284,8 @@ typedef struct IBIfObj {
 typedef struct IBArgObj {
 	IBOp type;
 	IBOp mod;
-	char* arrayIndexExpr;
+	//char* arrayIndexExpr;
+	IBVector arrIndexExprs;
 } IBArgObj;
 typedef struct IBVarObj {
 	IBVal val;

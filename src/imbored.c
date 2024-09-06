@@ -3984,9 +3984,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBLayer3PushObj(ibc, &o);
 			ObjSetName(o, ibc->Str);
 			ObjSetType(o, OP_Name);
-			if (IBStrLen(&ibc->ArrayIndexExprStr))
-				IBOverwriteStr(&o->arg.arrayIndexExpr,
-					ibc->ArrayIndexExprStr.start);
+			IBStr* aiT=IBVectorTop(&ibc->ArrayIndexExprsVec);
+			if(aiT){
+                if (IBStrLen(aiT))
+                    IBOverwriteStr(&o->arg.arrayIndexExpr,
+                        aiT);
+                IBVectorPop(&ibc->ArrayIndexExprsVec)
+            }
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
 		}
