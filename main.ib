@@ -1,7 +1,7 @@
-arguments "hi lol"
+arguments "arg1 arg2"
 
 blk $main i32 $argc nts^ $argv -> i32
 	if $argc gteq 2
-		"%% %%\n" $[0]argv $argv[1]
+		"%% %%\n" $argv[0] $argv[1]
 	_
 _ 0

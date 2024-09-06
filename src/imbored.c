@@ -1512,6 +1512,11 @@ IBLayer3CompileTCC
 		DbgFmt("\n\nmain() returned %d.\n", entryRet);
 		IBPopColor();
 	}
+	for (int i = 0; i < IBRUN_MAXARGS; ++i) {
+		if (argv[i])free(argv[i]);
+	}
+	tcc_delete(ibc->TCC);
+	ibc->TCC=NULL;
 }
 int IBLayer3GetTabCount(IBLayer3* ibc){
 	return ibc->CodeBlockStack.elemCount - 1;
