@@ -1404,7 +1404,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBPopColor();
 	IBPushColor(IBFgWHITE);
 	IBPushColor(IBFgGREEN);
-	DbgFmt("C99 code: \n","");
+	DbgFmt("C99 output: \n","");
 	IBPopColor();
 	DbgFmt("%s", ibc->FinalOutput.start);
 #else

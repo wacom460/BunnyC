@@ -1,4 +1,9 @@
 @struct $v2i
   blk $test -> i64
+    
   _ 0
 _
+
+blk $main i32 $argc nts^ $argv -> i32
+    "hi %%" $argc
+_ 0
