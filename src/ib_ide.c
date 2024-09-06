@@ -123,11 +123,14 @@ void IBIdeStart() {
 	tePtr = file->data.start;
 	nk_textedit_init_fixed(&textEdit, tePtr, 1024);
 	while (g_Ide.open) {
-		UpdateNuklear(ctx);
-		IBIdeFrame();
+		//UpdateNuklear(ctx);
+		//IBIdeFrame();
 		BeginDrawing();
 		ClearBackground((Color) { 35, 20, 130, 80 });
-		DrawNuklear(ctx);
+		//DrawNuklear(ctx);
+		for (int i = 0; i < IBStrGetLen(&file->data); i++) {
+
+		}
 		EndDrawing();
 		if(WindowShouldClose()) g_Ide.open = false;
 	}

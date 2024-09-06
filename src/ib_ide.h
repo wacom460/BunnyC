@@ -73,9 +73,17 @@ typedef struct IBIdeProject {
 void IBIdeProjectInit(IBIdeProject* proj, char* name);
 void IBIdeProjectFree(IBIdeProject* proj);
 
+#define IB_TE_RECOMPILE_TIME_SECS 0.25f
+typedef struct IBTextEditor {
+	int column;
+	int row;
+	float recompileTimer;
+} IBTextEditor;
+
 typedef struct IBIde {
 	bool open;
 	IBIdeProject proj;
+	IBTextEditor editor;
 } IBIde;
 
 extern IBIde g_Ide;

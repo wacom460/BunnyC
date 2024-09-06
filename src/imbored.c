@@ -2553,7 +2553,7 @@ IBCASE_UNIMP
 				//assert that this name is unique
 				//blindly trusting for now
 
-				IBStrAppendFmt(&header, "struct %s {\n", o->name);
+				IBStrAppendFmt(&header, "typedef struct %s {\n", o->name);
 				IBStrAppendFmt(&footer, "} %s;\n\n", o->name);
 
 				break;

@@ -42,6 +42,7 @@
     <ClInclude Include="..\src\imbored.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\main.ib" />
     <None Include="..\run.bat" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -148,6 +149,7 @@
       <EnableModules>false</EnableModules>
       <BuildStlModules>false</BuildStlModules>
       <AdditionalIncludeDirectories>$(SolutionDir)..\ext\raylib\external\glfw\include;$(SolutionDir)..\ext\raylib;$(SolutionDir)..\ext\inc\</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

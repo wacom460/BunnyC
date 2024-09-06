@@ -1,5 +1,22 @@
-~( a~(hewwo
-this is a comment
-a)~ a)~)~
-struct $s
+~(
+comment
+)~
+
+flags $EntFlags
+	$destroy
+	$invincible
+	$spectator
+_
+
+enum $EntityType
+	$player $bullet $scriptTrigger
+_
+
+@struct $v2i
+  %i32 $x
+  %i32 $y
+_
+
+@struct $Entity
+  %v2i $pos
 _
