@@ -1,3 +1,6 @@
+~(use $sys)~
+include "ibop.h"
+include "stdlib.h"
 arguments "arg1 arg2"
 
 blk $main i32 $argc nts^ $argv -> i32

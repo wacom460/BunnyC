@@ -208,6 +208,9 @@ X(IBIdeFile) \
 X(IBIdeLineInfo) \
 X(RunArguments) \
 X(RunArgsNeedArgsStr) \
+X(CInclude) \
+X(CIncNeedFilePath) \
+X(IBStr) \
 
 #define X(x) OP_##x,
 typedef enum IBOp { /* multiple uses */

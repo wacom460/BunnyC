@@ -392,12 +392,14 @@ typedef struct IBLayer3 {
 	int ColumnIS;//COLUMN inputstr
 	IBOp Pfx;
 	char Str[IBLayer3STR_MAX];
+	IBStr CIncludesStr;
 	IBStr CHeader_Structs;
 	IBStr CHeader_Funcs;
 	IBStr CCode;
 	IBStr FinalOutput;
 	IBStr CurrentLineStr;
-	IBStr ArrayIndexExprStr;
+	//IBStr ArrayIndexExprStr;
+	IBVector ArrayIndexExprsVec;//IBStr
 	IBStr RunArguments;
 
 	IBVector ObjStack; /*IBObj*/
