@@ -1309,6 +1309,7 @@ void IBLayer3Init(IBLayer3* ibc){
 		"#pragma once\n\n");*/
 	IBStrInit(&ibc->CCode);
 	IBStrInit(&ibc->FinalOutput);
+	IBStrInit(&ibc->ExprStr);
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
 	ibc->NameOp = OP_Null;
@@ -1434,6 +1435,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBStrFree(&ibc->CHeader_Structs);
 	IBStrFree(&ibc->CHeader_Funcs);
 	IBStrFree(&ibc->FinalOutput);
+	IBStrFree(&ibc->ExprStr);
 	IBStrFree(&ibc->CCode);
 }
 void 
@@ -1454,9 +1456,11 @@ IBLayer3CompileTCC
 	tcc_set_output_type(ibc->TCC, 
 		TCC_OUTPUT_MEMORY);
 #ifdef __TINYC__
+	tcc_add_sysinclude_path(ibc->TCC, "src/");
 	tcc_add_sysinclude_path(ibc->TCC, "ext/tcc/include/");
 	tcc_add_library_path(ibc->TCC, "ext/tcc/lib/");
 #else
+	tcc_add_sysinclude_path(ibc->TCC, "../src/");
 	tcc_add_sysinclude_path(ibc->TCC, "../ext/tcc/include/");
 	tcc_add_library_path(ibc->TCC, "../ext/tcc/lib/");
 #endif
@@ -2117,12 +2121,22 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		case OP_ModeComment:
 		case OP_ModeMultiLineComment:
 			break;
-		case OP_ModePrefixPass:
+		case OP_ModePrefixPass: {
 			IBLayer3Prefix(ibc);
 			break;
-		case OP_ModeStrPass:
+		}
+		case OP_ModeStrPass: {
 			IBLayer3Str(ibc);
 			break;
+		}
+		case OP_ModeArrayIndexExpr: {
+			if (ibc->Ch == ']') {
+				IBLayer3Pop(ibc);
+			}
+			else 
+				IBStrAppendCh(&ibc->ExprStr, ibc->Ch, 1);
+			break;
+		}
 		default: Err(OP_Error, "unknown mode");
 			break;
 		}
@@ -3043,6 +3057,12 @@ void IBLayer3Str(IBLayer3* ibc){
 		switch (ibc->Pfx) {
 		case OP_Name: {
 			switch (ibc->Ch) {
+			case '[': {
+				IBStrClear(&ibc->ExprStr);
+				IBLayer3Push(ibc, OP_ModeArrayIndexExpr, false);
+				return;
+			}
+			//case ']':
 			case ' ':
 			case '.':
 			IBCASE_0THRU9
@@ -4394,6 +4414,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 //this is a total joke
 void IBLayer3ExplainErr(IBLayer3* ibc, IBOp code) {
 	switch (code) {
+	case OP_TCC_Error: {
+		printf("Fatal internal compiler error");
+		break;
+	}
 	case OP_YouCantUseThatHere: {
 		printf("You can't use that here");
 		break;

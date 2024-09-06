@@ -186,6 +186,7 @@ X(ModePrefixPass) \
 X(ModeStrPass) \
 X(ModeComment) \
 X(ModeMultiLineComment) \
+X(ModeArrayIndexExpr) \
 X(ActOnName) \
 X(ActOnNameEquals) \
 X(RootObj) \
