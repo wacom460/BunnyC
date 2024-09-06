@@ -1291,6 +1291,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBObj* o;
 	IBExpects* exp;
 	IBCodeBlock* cb;
+	ibc->TCC=NULL;
 	ibc->Running = true;
 	ibc->Imaginary = false;
 	ibc->Line = 1;
@@ -1396,6 +1397,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 		ibc->CHeader_Structs.start,
 		ibc->CHeader_Funcs.start,
 		ibc->CCode.start);
+	IBLayer3CompileTCC(ibc);
 #ifdef IBDEBUGPRINTS
 	IBPushColor(IBFgMAGENTA);
 	DbgFmt("-> Compilation complete <-\n","");
@@ -1429,9 +1431,7 @@ void
 _IBLayer3_TCCErrFunc
 (void* opaque, const char* msg) {
 	IBLayer3*ibc=opaque;
-	IBPushColor(IBFgRED);
-	DbgFmt("TCC Error: %s\n", msg);
-	IBPopColor();
+	ErrF(OP_TCC_Error, "%s\n", msg);
 }
 void 
 IBLayer3CompileTCC
@@ -1442,9 +1442,11 @@ IBLayer3CompileTCC
 		_IBLayer3_TCCErrFunc);
 	tcc_set_output_type(ibc->TCC, 
 		TCC_OUTPUT_MEMORY);
-	IBASSERT(IBStrGetLen(&ibc->FinalOutput) > 0, "");
-	tcc_compile_string(ibc->TCC, 
-		(const char*)ibc->FinalOutput.start);
+	IBASSERT(IBStrGetLen(&ibc->FinalOutput) > 0, 
+		"no code to compile");
+	IBASSERT(tcc_compile_string(ibc->TCC, 
+		(const char*)ibc->FinalOutput.start) != -1, 
+		"TCC compile failed!");
 }
 int IBLayer3GetTabCount(IBLayer3* ibc){
 	return ibc->CodeBlockStack.elemCount - 1;

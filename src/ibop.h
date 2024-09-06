@@ -181,6 +181,7 @@ X(ErrProtectedSlot) \
 X(ErrUnknownPfx) \
 X(ErrUnexpectedNameOP) \
 X(ErrDirtyTaskStack) \
+X(TCC_Error) \
 X(ModePrefixPass) \
 X(ModeStrPass) \
 X(ModeComment) \
