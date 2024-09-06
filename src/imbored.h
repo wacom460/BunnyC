@@ -2,6 +2,7 @@
 #define IMBORED_H_
 #include "ibcommon.h"
 #include "ibmisc.h"
+#include <libtcc.h>
 #define IBDEBUGPRINTS
 
 #ifdef _MSC_VER
@@ -392,9 +393,10 @@ typedef struct IBLayer3 {
 	int ColumnIS;//COLUMN inputstr
 	IBOp Pfx;
 	char Str[IBLayer3STR_MAX];
-	IBStr CHeaderStructs;/* .h */
-	IBStr CHeaderFuncs;
-	IBStr CFile;/* .c */
+	IBStr CHeader_Structs;
+	IBStr CHeader_Funcs;
+	IBStr CCode;
+	IBStr FinalOutput;
 	IBStr CurrentLineStr;
 
 	IBVector ObjStack; /*IBObj*/
@@ -418,6 +420,7 @@ typedef struct IBLayer3 {
 	bool StrAllowSpace;
 	IBOp CommentMode;
 	//IBNameInfoDB NameTypeCtx;
+	TCCState* TCC;
 } IBLayer3;
 #define Err(code, msg) { \
 	int l = ibc->InputStr ? ibc->LineIS : ibc->Line; \
@@ -439,6 +442,7 @@ typedef struct IBLayer3 {
 }
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
+void IBLayer3CompileTCC(IBLayer3* ibc);
 IBObj* IBLayer3GetObj(IBLayer3* ibc);
 IBNameInfo* IBLayer3SearchNameInfo(IBLayer3* ibc, char* name);
 void IBLayer3PrintVecData(IBVecData* data, IBOp type);

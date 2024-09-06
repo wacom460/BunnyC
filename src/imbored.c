@@ -81,6 +81,7 @@ IBOpNamePair pfxNames[] = {
 	{"Comma(,)", OP_Comma}, {"Subtract(-)", OP_Subtract},
 	{"Add(+)", OP_Add},{"Divide(/)", OP_Divide},
 	{"Multiply(*)", OP_Multiply},{"PfxlessValue(=)", OP_PfxlessValue},
+	{"Letter_azAZ", OP_Letter_azAZ},
 };
 IBOpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
@@ -1298,13 +1299,13 @@ void IBLayer3Init(IBLayer3* ibc){
 	ibc->ColumnIS = 1;
 	ibc->Pfx = OP_Null;
 	ibc->Str[0] = '\0';
-	IBStrInit(&ibc->CHeaderStructs);
-	IBStrInit(&ibc->CHeaderFuncs);
+	IBStrInit(&ibc->CHeader_Structs);
+	IBStrInit(&ibc->CHeader_Funcs);
 	IBStrInit(&ibc->CurrentLineStr);
-	IBStrAppendCStr(&ibc->CHeaderStructs, 
-		"#ifndef HEADER_H_\n#define HEADER_H_\n\n");
-	IBStrInit(&ibc->CFile);
-	IBStrAppendCStr(&ibc->CFile, "#include \"header.h\"\n\n");
+	/*IBStrAppendCStr(&ibc->CHeader_Structs, 
+		"#pragma once\n\n");*/
+	IBStrInit(&ibc->CCode);
+	IBStrInit(&ibc->FinalOutput);
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
 	ibc->NameOp = OP_Null;
@@ -1390,24 +1391,22 @@ void IBLayer3Free(IBLayer3* ibc) {
 			IBStrGetLen(&cb->code) +
 			IBStrGetLen(&cb->footer))
 		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");
-	IBStrAppendCStr(&ibc->CHeaderFuncs, "\n#endif\n");
+	//IBStrAppendCStr(&ibc->CHeader_Funcs, "\n#endif\n");
+	IBStrAppendFmt(&ibc->FinalOutput, "%s%s\n%s",
+		ibc->CHeader_Structs.start,
+		ibc->CHeader_Funcs.start,
+		ibc->CCode.start);
 #ifdef IBDEBUGPRINTS
 	IBPushColor(IBFgMAGENTA);
 	DbgFmt("-> Compilation complete <-\n","");
 	IBPopColor();
 	IBPushColor(IBFgWHITE);
-	IBPushColor(IBFgCYAN);
-	DbgFmt(".h File: \n","");
-	IBPopColor();
-	DbgFmt("%s%s", ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start);
 	IBPushColor(IBFgGREEN);
-	DbgFmt(".c File: \n","");
+	DbgFmt("C99 code: \n","");
 	IBPopColor();
-	DbgFmt("%s", ibc->CFile.start);
+	DbgFmt("%s", ibc->FinalOutput.start);
 #else
-	printf("%s%s\n%s\n",
-		ibc->CHeaderStructs.start, ibc->CHeaderFuncs.start, 
-		ibc->CFile.start);
+	printf("%s", ibc->FinalOutput.start);
 #endif
 	IBPopColor();
 	/*if (ibc->SpaceNameStr != NULL) {
@@ -1421,9 +1420,32 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBVectorFreeSimple(&ibc->StrReadPtrsStack);
 	IBVectorFree(&ibc->TaskStack, TaskFree);
 	//IBNameInfoDBFree(&ibc->NameTypeCtx);
-	IBStrFree(&ibc->CHeaderStructs);
-	IBStrFree(&ibc->CHeaderFuncs);
-	IBStrFree(&ibc->CFile);
+	IBStrFree(&ibc->CHeader_Structs);
+	IBStrFree(&ibc->CHeader_Funcs);
+	IBStrFree(&ibc->FinalOutput);
+	IBStrFree(&ibc->CCode);
+}
+void 
+_IBLayer3_TCCErrFunc
+(void* opaque, const char* msg) {
+	IBLayer3*ibc=opaque;
+	IBPushColor(IBFgRED);
+	DbgFmt("TCC Error: %s\n", msg);
+	IBPopColor();
+}
+void 
+IBLayer3CompileTCC
+(IBLayer3* ibc){
+	IBStr combined;
+	IBASSERT(ibc->TCC==NULL,"");
+	IBStrInit(&combined);
+	ibc->TCC = tcc_new();
+	tcc_set_error_func(ibc->TCC, ibc, 
+		_IBLayer3_TCCErrFunc);
+	tcc_set_output_type(ibc->TCC, 
+		TCC_OUTPUT_MEMORY);
+	tcc_compile_string(ibc->TCC, 
+		(const char*) combined.start);
 }
 int IBLayer3GetTabCount(IBLayer3* ibc){
 	return ibc->CodeBlockStack.elemCount - 1;
@@ -1529,7 +1551,7 @@ void _IBLayer3PopCodeBlock(IBLayer3* ibc, bool copyToParent,
 void _IBLayer3PushTask(IBLayer3* ibc, IBOp taskOP, IBExpects** exectsDP, 
 		IBTask** taskDP) {
 	IBTask* t = IBLayer3GetTask(ibc), *bt=NULL;
-	DbgFmt(" Push task ", "");
+	DbgFmt(" Push task: ", "");
 	if (t) {
 		DbgFmt("%s(%d) -> ", IBGetOpName(t->type), (int)t->type);
 		bt = t;
@@ -2053,15 +2075,15 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	}
 	m = IBLayer3GetMode(ibc);
 	if (!nl /*&& ibc->CommentMode == OP_NotSet*/) {
-#ifdef IBDEBUGPRINTS
-		{
-			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
-			int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
-			if (ibc->Ch == ' ') printf("-> SPACE (0x%x)\n", ibc->Ch);
-			else printf("-> %c (0x%x) %d:%d\n",
-				ibc->Ch, ibc->Ch, l, c);
-		}
-#endif
+//#ifdef IBDEBUGPRINTS
+//		{
+//			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
+//			int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
+//			if (ibc->Ch == ' ') printf("-> SPACE (0x%x)\n", ibc->Ch);
+//			else printf("-> %c (0x%x) %d:%d\n",
+//				ibc->Ch, ibc->Ch, l, c);
+//		}
+//#endif
 		switch (m) {
 		case OP_ModeComment:
 		case OP_ModeMultiLineComment:
@@ -2094,7 +2116,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 	//if(m==OP_ModeMultiLineComment&&ibc->CommentMode==OP_NotSet){
 	//	IBLayer3Pop(ibc);
 	//}
-	DbgFmt("End of InputChar\n", 0);
+	//DbgFmt("End of InputChar\n", 0);
 }
 void IBLayer3InputStr(IBLayer3* ibc, char* str){
 	int i;
@@ -2176,8 +2198,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		assert(o);
 		if(!eo || !eo->name || *eo->name == '\0')
 			Err(OP_Error, "enum needs a name");
-		IBStrAppendFmt(&t->code.header, "typedef enum %s {\n", eo->name);
-		IBStrAppendFmt(&t->code.footer, "} %s;\n\n", eo->name);
+		IBStrAppendFmt(&t->code.header, "enum E%s {\n", eo->name);
+		IBStrAppendFmt(&t->code.footer, "};\n\n", eo->name);
 		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
 			case OP_Enum: break;
@@ -2196,7 +2218,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			}
 		}
 		if (!oneFound) Err(OP_Error, "need at least one case in enum");
-		IBCodeBlockFinish(&t->code, &ibc->CHeaderStructs);
+		IBCodeBlockFinish(&t->code, &ibc->CHeader_Structs);
 		break;
 	}
 	case OP_CaseWantCode: {
@@ -2553,17 +2575,17 @@ IBCASE_UNIMP
 				//assert that this name is unique
 				//blindly trusting for now
 
-				IBStrAppendFmt(&header, "typedef struct %s {\n", o->name);
-				IBStrAppendFmt(&footer, "} %s;\n\n", o->name);
+				IBStrAppendFmt(&header, "struct S%s {\n", o->name);
+				IBStrAppendFmt(&footer, "};\n\n", o->name);
 
 				break;
 			}
 			IBCASE_UNIMP
 			}
 		}
-		IBStrAppend(&ibc->CHeaderStructs, &header);
-		IBStrAppend(&ibc->CHeaderStructs, &body);
-		IBStrAppend(&ibc->CHeaderStructs, &footer);
+		IBStrAppend(&ibc->CHeader_Structs, &header);
+		IBStrAppend(&ibc->CHeader_Structs, &body);
+		IBStrAppend(&ibc->CHeader_Structs, &footer);
 		//IBStrAppendFmt(&ibc->CHeaderStructs, "%s%s%s", header, body, footer);
 		IBStrFree(&header);
 		IBStrFree(&body);
@@ -2650,8 +2672,7 @@ IBCASE_UNIMP
 						idx = 0;
 						wo = IBLayer3FindStackObjUnderTop(ibc, OP_Struct);
 						if (wo) {
-							IBStrAppendCStr(&cFuncModsTypeName, wo->name);
-							IBStrAppendCStr(&cFuncModsTypeName, "_");
+							IBStrAppendFmt(&cFuncModsTypeName, "S%s_", wo->name);
 							thingObj = wo;
 						}
 					}
@@ -2659,9 +2680,8 @@ IBCASE_UNIMP
 				}
 				IBStrAppendCStr(&cFuncModsTypeName, "(");
 				if (thingObj) {
-					IBStrAppendCStr(&cFuncArgsThing, "struct ");
-					IBStrAppendCStr(&cFuncArgsThing, thingObj->name);
-					IBStrAppendCStr(&cFuncArgsThing, "* self");
+					IBStrAppendFmt(&cFuncArgsThing, 
+						"struct S%s* self", thingObj->name);
 				}
 				break;
 			}
@@ -2709,7 +2729,8 @@ IBCASE_UNIMP
 			IBStrAppend(&cFuncCode, &cbOut);
 			IBStrFree(&cbOut);
 			IBLayer3PopCodeBlock(ibc, false, &cb);
-			assert(ibc->CodeBlockStack.elemCount == 1);
+			//no longer valid bcuz u can define methods in structs
+			//assert(ibc->CodeBlockStack.elemCount == 1);
 			if (!funcObj) {
 				Err(OP_Error, "funcObj NULL");
 			} else if (funcObj->func.retValType != OP_Void) {
@@ -2755,19 +2776,19 @@ IBCASE_UNIMP
 		}
 		if (funcObj && strcmp(funcObj->name, "main"))
 		{
-			IBStrAppendCStr(&ibc->CHeaderFuncs, cFuncModsTypeName.start);
-			IBStrAppendCStr(&ibc->CHeaderFuncs, cFuncArgsThing.start);
-			if (argc && thingObj) IBStrAppendCStr(&ibc->CHeaderFuncs, ", ");
-			IBStrAppendCStr(&ibc->CHeaderFuncs, cFuncArgs.start);
-			IBStrAppendCStr(&ibc->CHeaderFuncs, ");\n");
+			IBStrAppendCStr(&ibc->CHeader_Funcs, cFuncModsTypeName.start);
+			IBStrAppendCStr(&ibc->CHeader_Funcs, cFuncArgsThing.start);
+			if (argc && thingObj) IBStrAppendCStr(&ibc->CHeader_Funcs, ", ");
+			IBStrAppendCStr(&ibc->CHeader_Funcs, cFuncArgs.start);
+			IBStrAppendCStr(&ibc->CHeader_Funcs, ");\n");
 		}
 		if (!ibc->Imaginary) {
-			IBStrAppendCStr(&ibc->CFile, cFuncModsTypeName.start);
-			IBStrAppendCStr(&ibc->CFile, cFuncArgsThing.start);
-			if (argc && thingObj) IBStrAppendCStr(&ibc->CFile, ", ");
-			IBStrAppendCStr(&ibc->CFile, cFuncArgs.start);
-			IBStrAppendCStr(&ibc->CFile, cFuncArgsEnd.start);
-			IBStrAppendCStr(&ibc->CFile, cFuncCode.start);
+			IBStrAppendCStr(&ibc->CCode, cFuncModsTypeName.start);
+			IBStrAppendCStr(&ibc->CCode, cFuncArgsThing.start);
+			if (argc && thingObj) IBStrAppendCStr(&ibc->CCode, ", ");
+			IBStrAppendCStr(&ibc->CCode, cFuncArgs.start);
+			IBStrAppendCStr(&ibc->CCode, cFuncArgsEnd.start);
+			IBStrAppendCStr(&ibc->CCode, cFuncCode.start);
 		}
 		break;
 	}
@@ -3810,7 +3831,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBPushColor(IBFgIntensity | IBFgYELLOW | IBBgBROWN);
 				DbgFmt("Inputting system lib code to compiler\n","");
 				IBPopColor();
-				IBStrAppendCStr(&ibc->CHeaderFuncs, 
+				IBStrAppendCStr(&ibc->CHeader_Funcs, 
 					"/* System Lib Header */\n");
 				assert(!ibc->InputStr);
 				ibc->InputStr = SysLibCodeStr;

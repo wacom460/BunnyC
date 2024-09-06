@@ -73,5 +73,6 @@
     <None Include="..\run.bat">
       <Filter>src</Filter>
     </None>
+    <None Include="..\main.ib" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,4 @@
-#ifndef IBOP_H_
-#define IBOP_H_
-
+#pragma once
 #define _IB_OPS_ \
 X(Null) \
 X(False) \
@@ -212,5 +210,3 @@ typedef enum IBOp { /* multiple uses */
 	_IB_OPS_
 } IBOp;
 #undef X
-
-#endif
