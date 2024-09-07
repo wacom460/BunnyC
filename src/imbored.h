@@ -259,52 +259,6 @@ extern IBDatabase* g_DB;
 void IBDatabaseInit(IBDatabase* db);
 void IBDatabaseFree(IBDatabase* db);
 IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location);
-typedef struct IBFuncObj {
-	IBOp retTYPE;
-	char* retStr;
-	IBVal retVal;
-	char* retValStr;
-	IBOp retValType;
-	IBOp retTypeMod;
-	struct IBTask* thingTask;
-} IBFuncObj;
-typedef struct IBIfObj {
-	IBOp lvTYPE;
-	char* lvName;
-	IBVal lvVal;
-	IBOp lvDataType;
-	IBOp lvMod;
-	IBOp midOp;
-	IBOp rvTYPE;
-	char* rvName;
-	IBVal rvVal;
-	IBOp rvDataType;
-	IBOp rvMod;
-} IBIfObj;
-typedef struct IBArgObj {
-	IBOp type;
-	IBOp mod;
-	//char* arrayIndexExpr;
-	IBVector arrIndexExprs;//IBStr
-} IBArgObj;
-typedef struct IBVarObj {
-	IBVal val;
-	bool valSet;
-	IBOp type;
-	IBOp mod;
-	IBOp privacy;
-} IBVarObj;
-typedef struct IBTableObj {
-	bool fallthru;
-} IBTableObj;
-typedef struct IBEnumObj {
-	bool flags;
-} IBEnumObj;
-typedef struct IBForObj {
-	char* startName;
-	IBVal start, end;
-	IBVal step;
-} IBForObj;
 char* IBGetOpName(IBOp op);
 typedef struct IBObj {
 	IBOp type;
@@ -312,13 +266,53 @@ typedef struct IBObj {
 	IBOp privacy;
 	char* name;
 	char* str;
-	IBFuncObj func;
-	IBVarObj var;
-	IBArgObj arg;
-	IBIfObj ifO;
-	IBTableObj table;
-	IBEnumObj enumO;
-	IBForObj forO;
+	struct {
+		IBOp retTYPE;
+		char* retStr;
+		IBVal retVal;
+		char* retValStr;
+		IBOp retValType;
+		IBOp retTypeMod;
+		struct IBTask* thingTask;
+	} func;
+	struct {
+		IBOp lvTYPE;
+		char* lvName;
+		IBVal lvVal;
+		IBOp lvDataType;
+		IBOp lvMod;
+		IBOp midOp;
+		IBOp rvTYPE;
+		char* rvName;
+		IBVal rvVal;
+		IBOp rvDataType;
+		IBOp rvMod;
+	} ifO;
+	struct {
+		IBOp type;
+		IBOp mod;
+		//char* arrayIndexExpr;
+		IBVector arrIndexExprs;//IBStr
+	} arg;
+	struct {
+		IBVal val;
+		char* valStrLiteral;
+		bool valSet;
+		IBOp type;
+		IBOp mod;
+		IBOp privacy;
+	} var;
+	struct {
+		bool fallthru;
+	} table;
+	struct {
+		bool flags;
+	} enumO;
+	struct {
+		char* startName;
+		IBVal start, end;
+		IBVal step;
+	} forO;
 	IBVal val;
 	IBOp valType;
 } IBObj;

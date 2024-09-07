@@ -1,5 +1,11 @@
 i32 $fileVar 1011
+nts $testStr "hi"
+arguments "test args"
 
 blk $main i32 $argc nts^ $argv -> i32
-	
+	"%c" $argv[0][0]
+	"%c" $argv[0][1]
+	"%c" $argv[0][2]
+	"%c" $argv[0][3]
+	"\n"
 _ 0
