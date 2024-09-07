@@ -283,12 +283,14 @@ IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	if (idx >= vec->elemCount) return NULL;
 	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
-void* IBVectorIterNext(IBVector* vec, int* idx) {
+void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {	
+	DbgFmt("[%d] IBVectorIterNext",lineNum);
 	IBASSERT0(idx);
 	IBASSERT0(vec);
 	IBASSERT0((*idx) >= 0);
 	IBASSERT0(vec->elemCount <= vec->slotCount);
 	IBASSERT0(vec->elemCount + vec->slotCount + vec->dataSize >= 0);
+	DbgFmt("(%p,%d(%p),%d)\n", vec, *idx, idx, lineNum);
 	if (!vec || !idx) return NULL;
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (char*)vec->data + (vec->elemSize * ((*idx)++));
@@ -770,9 +772,10 @@ IBOp IBNameInfoDBFindType(IBNameInfoDB* db, char* name) {
 	}
 	return OP_NotFound;
 }
-IBNameInfoDB* IBNameInfoDBFind(IBNameInfoDB* db, char* name){
+IBNameInfoDB* _IBNameInfoDBFind(IBNameInfoDB* db, char* name, int lineNum){
 	IBNameInfo* pair=NULL;
 	int idx=0;
+	DbgFmt("[%d] IBNameInfoDBFind(,%s)\n", lineNum,name);
 	while (pair = IBVectorIterNext(&db->pairs, &idx))
 		if (!strcmp(pair->name, name)) return pair;
 	return NULL;
@@ -1068,13 +1071,14 @@ void IBOverwriteStr(char** str, char* with) {
 IBObj* IBLayer3GetObj(IBLayer3* ibc) {
 	return (IBObj*)IBVectorTop(&ibc->ObjStack);
 }
-IBNameInfo* IBLayer3SearchNameInfo(IBLayer3* ibc, char* name){
+IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln){
 	int idx;
 	IBNameInfo* ni=NULL;
 	assert(ibc);
 	assert(ibc->CodeBlockStack.elemCount);
 	assert(name);
 	assert(name[0]);
+	DbgFmt("[%d] IBLayer3SearchNameInfo(,%s)\n", ln, name);
 	idx=ibc->CodeBlockStack.elemCount;
 	while(idx-->=0){
 		IBCodeBlock* cb = IBVectorGet(&ibc->CodeBlockStack, idx);

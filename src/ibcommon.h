@@ -54,7 +54,8 @@ typedef struct IBVector {
 } IBVector;
 void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type);
 IBVecData* IBVectorGet(IBVector* vec, int idx);
-void* IBVectorIterNext(IBVector* vec, int* idx);
+void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
+#define IBVectorIterNext(vec,idx) _IBVectorIterNext(vec,idx,__LINE__)
 void _IBVectorPush(IBVector* vec, IBVecData** dataDP);
 #define IBVectorPush(vec, dataDP){\
 	/*int c=(vec)->elemCount - 1;*/\

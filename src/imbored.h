@@ -234,7 +234,8 @@ void IBNameInfoDBInit(IBNameInfoDB* db);
 void IBNameInfoDBFree(IBNameInfoDB* db);
 IBOp IBNameInfoDBAdd(struct IBLayer3* ibc, IBNameInfoDB* db, char* name, IBOp type, IBNameInfo** niDP);
 IBOp IBNameInfoDBFindType(IBNameInfoDB* db, char* name);
-IBNameInfoDB* IBNameInfoDBFind(IBNameInfoDB* db, char* name);
+IBNameInfoDB* _IBNameInfoDBFind(IBNameInfoDB* db, char* name, int lineNum);
+#define IBNameInfoDBFind(db,name) _IBNameInfoDBFind(db,name,__LINE__)
 typedef struct IBCodeBlock {
 	IBStr header;
 	IBStr variables;
@@ -451,7 +452,9 @@ void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
 void IBLayer3CompileTCC(IBLayer3* ibc);
 IBObj* IBLayer3GetObj(IBLayer3* ibc);
-IBNameInfo* IBLayer3SearchNameInfo(IBLayer3* ibc, char* name);
+IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln);
+#define IBLayer3SearchNameInfo(ibc,name)\
+	_IBLayer3SearchNameInfo(ibc,name,__LINE__)
 void IBLayer3PrintVecData(IBVecData* data, IBOp type);
 void IBLayer3VecPrint(IBVector* vec);
 IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type);
