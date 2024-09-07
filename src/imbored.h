@@ -409,6 +409,7 @@ typedef struct IBLayer3 {
 	IBVector StrReadPtrsStack; /*bool*/
 	IBVector CodeBlockStack; /*IBCodeBlock*/
 	IBVector ExpressionStack; /*IBExpression*/
+	IBNameInfoDB GlobalVariables;
 
 	char* InputStr;
 	IBStr CurSpace;

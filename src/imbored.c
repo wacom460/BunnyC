@@ -1333,6 +1333,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	ibc->StrAllowSpace = false;
 	ibc->CommentMode = OP_NotSet;
 	ibc->InputStr = NULL;
+	IBNameInfoDBInit(&ibc->GlobalVariables);
 	/*ibc->SpaceNameStr = NULL;
 	IBOverwriteStr(&ibc->SpaceNameStr, "global");*/
 	IBStrInit(&ibc->CurSpace);
@@ -1355,25 +1356,13 @@ void IBLayer3Init(IBLayer3* ibc){
 		OP_Struct, OP_Space, OP_Public, OP_Private, OP_RunArguments,
 		OP_CInclude);
 }
-IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, IBOp type, int limit){
-	int i;
-	if(ibc->TaskStack.elemCount < 2)
-		Err(OP_Error, "Not enough tasks on stack");
-	if(index == -1) index = ibc->TaskStack.elemCount - 1;
-	if(index >= ibc->TaskStack.elemCount)
-		Err(OP_Error, "Index out of bounds");
-	for (i = index - 1; i >= 0 && limit--;) {
-		IBTask* t;
-		t = (IBTask*)IBVectorGet(&ibc->TaskStack, i--);
-		if (t->type == type) return t;
-	}
-	return NULL;
-}
 void IBLayer3Free(IBLayer3* ibc) {
 	IBTask* t;
 	IBObj* o;
 	IBCodeBlock* cb;
+	IBStr rootCbFinal;
 	assert(ibc);
+	IBStrInit(&rootCbFinal);
 	if (ibc->InputStr) {
 		IBLayer3InputStr(ibc, ibc->InputStr);
 		ibc->InputStr = NULL;
@@ -1405,10 +1394,11 @@ void IBLayer3Free(IBLayer3* ibc) {
 		"Reached end of file not at root task");
 	if (ibc->CodeBlockStack.elemCount != 1)
 		Err(OP_Error, "dirty codeblock stack");
-	if (IBStrLen(&cb->variables) +
+	IBCodeBlockFinish(cb, &rootCbFinal);
+	/*if (IBStrLen(&cb->variables) +
 			IBStrLen(&cb->code) +
 			IBStrLen(&cb->footer))
-		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");
+		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");*/
 	//IBStrAppendCStr(&ibc->CHeader_Funcs, "\n#endif\n");
 	if (ibc->IncludeCStdioHeader)
 		IBStrAppendFmt(&ibc->FinalOutput,
@@ -1416,8 +1406,9 @@ void IBLayer3Free(IBLayer3* ibc) {
 	if (ibc->IncludeCStdlibHeader)
 		IBStrAppendFmt(&ibc->FinalOutput,
 			"#include <stdlib.h>\n");
-	IBStrAppendFmt(&ibc->FinalOutput, "%s\n%s%s\n%s",
+	IBStrAppendFmt(&ibc->FinalOutput, "%s\n%s%s%s\n%s",
         ibc->CIncludesStr.start,
+		rootCbFinal.start,
 		ibc->CHeader_Structs.start,
 		ibc->CHeader_Funcs.start,
 		ibc->CCode.start);
@@ -1440,6 +1431,8 @@ void IBLayer3Free(IBLayer3* ibc) {
 		free(ibc->SpaceNameStr);
 		ibc->SpaceNameStr = NULL;
 	}*/
+	IBStrFree(&rootCbFinal);
+	IBNameInfoDBFree(&ibc->GlobalVariables);
 	IBStrFree(&ibc->CurSpace);
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
@@ -1455,6 +1448,20 @@ void IBLayer3Free(IBLayer3* ibc) {
 	//IBStrFree(&ibc->ArrayIndexExprStr);
 	IBVectorFree(&ibc->ArrayIndexExprsVec, IBStrFree);
 	IBStrFree(&ibc->CCode);
+}
+IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, IBOp type, int limit){
+	int i;
+	if(ibc->TaskStack.elemCount < 2)
+		Err(OP_Error, "Not enough tasks on stack");
+	if(index == -1) index = ibc->TaskStack.elemCount - 1;
+	if(index >= ibc->TaskStack.elemCount)
+		Err(OP_Error, "Index out of bounds");
+	for (i = index - 1; i >= 0 && limit--;) {
+		IBTask* t;
+		t = (IBTask*)IBVectorGet(&ibc->TaskStack, i--);
+		if (t->type == type) return t;
+	}
+	return NULL;
 }
 void
 _IBLayer3_TCCErrFunc
@@ -3262,6 +3269,7 @@ IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str) {
 void IBLayer3StrPayload(IBLayer3* ibc){
 	IBVal strVal;
 	IBTask *t;
+	IBTask*tParent=NULL;
 	int tabCount = IBLayer3GetTabCount(ibc);
 	IBCodeBlock* cb = IBLayer3CodeBlocksTop(ibc);
 	IBObj* o;
@@ -3269,6 +3277,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	strVal.i32 = 0;
 	t=IBLayer3GetTask(ibc);
 	o=IBLayer3GetObj(ibc);
+	if(ibc->TaskStack.elemCount >= 2){
+		tParent=IBVectorGet(&ibc->TaskStack,ibc->TaskStack.elemCount - 2);
+	}
 	switch (valType) {
 	case OP_Bool: {
 		IBOp boolCheck = IBStrToBool(ibc, ibc->Str);
@@ -3740,22 +3751,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			PopExpects();
 			break;
 		}
-		case OP_StructWantContent: /* {
-			IBObj* o;
-			IBExpects* exp;
-			IBTask* t;
-			IBLayer3PushTask(ibc, OP_VarNeedName, &exp, &t);
-			IBLayer3PushObj(ibc, &o);
-			o->var.type = ibc->NameOp;
-			ObjSetStr(o, ibc->Str);
-			o->var.mod = ibc->Pointer;
-			o->var.privacy = ibc->Privacy;
-			o->var.valSet = false;
-			SetObjType(o, OP_VarNeedName);
-			//IBLayer3PushExpects(ibc, &exp);
-			ExpectsInit(exp, "1P", "expected variable name", OP_Name);
-			break;
-		}*/
+		case OP_StructWantContent:
+		case OP_RootTask:
 		IBCASE_BLOCKWANTCODE
 		{
 			IBObj* o;
@@ -4032,8 +4029,11 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			case OP_VarNeedName: {
 				IBExpects* exp;
 				IBNameInfo* ni = NULL;
+				IBOp rc=0;
 				ObjSetName(o, ibc->Str);
-				IBOp rc = IBNameInfoDBAdd(ibc, &cb->localVariables,
+				rc = IBNameInfoDBAdd(ibc, 
+					(tParent && tParent->type == OP_RootTask) ? 
+						&ibc->GlobalVariables : &cb->localVariables,
 					ibc->Str, o->var.type, &ni);
 				ni->type = o->var.type;
 				/*if(rc == OP_AlreadyExists)
@@ -4481,8 +4481,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	ibc->Str[0] = '\0';
 #ifdef IBDEBUGPRINTS
+	PLINE;
 	IBPushColor(IBFgMAGENTA);
-	printf("Str payload complete");
+	printf(" Str payload complete");
 	IBPopColor();
 	printf("\n");
 #endif

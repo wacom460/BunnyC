@@ -1,12 +1,5 @@
-~(use $sys)~
-include "ibop.h"
-include "stdlib.h"
-arguments "arg1 arg2"
+i32 $fileVar 1011
 
-blk $main i32 $arg nts^ $argv -> i32
-	if $argc gteq 2
-		"%% %%\n" $argv[0] $argv[1]
-	else
-		"%%\n" $argv[0]
-	_
+blk $main i32 $argc nts^ $argv -> i32
+	
 _ 0
