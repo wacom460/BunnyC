@@ -82,7 +82,7 @@ IBOpNamePair pfxNames[] = {
 	{"Comma(,)", OP_Comma}, {"Subtract(-)", OP_Subtract},
 	{"Add(+)", OP_Add},{"Divide(/)", OP_Divide},
 	{"Multiply(*)", OP_Multiply},{"PfxlessValue(=)", OP_PfxlessValue},
-	{"Letter_azAZ", OP_Letter_azAZ},
+	{"Letter_azAZ", OP_Letter_azAZ},{"SingleQuote(\')", OP_SingleQuote},
 };
 IBOpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
@@ -728,6 +728,7 @@ void IBCodeBlockFree(IBCodeBlock* block){
 }
 void IBNameInfoInit(IBNameInfo* info){
 	info->type=OP_NotSet;
+	info->cast=OP_NotSet;
 	info->name=NULL;
 }
 void IBNameInfoFree(IBNameInfo* info) {
@@ -1027,9 +1028,9 @@ IBOp IBOPFromPfxCh(char ch) {
 	case '$': return OP_Name;
 	case '%': return OP_VarType;
 	case '\"': return OP_String;
+	case '\'': return OP_SingleQuote;
 	IBCASE_0THRU9 return OP_PfxlessValue;
 	case '=': return OP_Value;
-	case '\'': return OP_Char;
 	case '&': return OP_Ref;
 	case '+': return OP_Add;
 	case '-': return OP_Subtract;
@@ -1851,11 +1852,11 @@ void IBLayer3ReplaceExpects(IBLayer3* ibc, IBExpects** expDP){
 	assert(t);
 	exp = IBTaskGetExpTop(t);
 	assert(exp);
-#ifdef IBDEBUGPRINTS
-	PLINE;
-	/*DbgFmt(" Replace expects:\n", "");
-	ExpectsPrint(exp);*/
-#endif
+//#ifdef IBDEBUGPRINTS
+//	PLINE;
+//	DbgFmt(" Replace expects:\n", "");
+//	ExpectsPrint(exp);
+//#endif
 	ExpectsFree(exp);
 	*expDP = exp;
 }
@@ -2162,6 +2163,9 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 				DbgFmt(" Got Array index expr: %s[%s]\n",
 					ibc->Str,
 					avT->start);
+				if(!strncmp(avT->start, "as ", 3)){
+					DbgFmt("",0);
+				}
 				IBLayer3Pop(ibc);
 			}
 			else
@@ -2475,6 +2479,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 						else {
 							IBStrAppendFmt(vstr, "\'%c\'", o->var.val.c8);
 						}
+						break;
+					}
+					case OP_u32:{
+						IBStrAppendFmt(vstr, "%u", o->var.val.u32);
 						break;
 					}
 					IBCASE_UNIMP
@@ -3036,6 +3044,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	}
 	}
 	switch (ibc->Pfx) {
+	case OP_SingleQuote: /* ' */
 	case OP_String: { /* " */
 		ibc->StringMode = true;
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
@@ -3093,7 +3102,9 @@ void IBLayer3Str(IBLayer3* ibc){
 	chBuf[1] = '\0';
 	if (ibc->StringMode) {
 		switch (ibc->Ch) {
-		case '"': {
+		case '\''://'
+		case '\"'://"
+		{
 			ibc->StringMode = false;
 			IBLayer3StrPayload(ibc);
 			return;
@@ -3305,6 +3316,17 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	DbgFmt("\n", "");
 	top:
 	switch (ibc->Pfx) {
+	/* ' PFXSINGLEQUOTE */ case OP_SingleQuote: {
+		switch (t->type) {
+		case OP_VarWantValue: {
+			o->var.val.c8=ibc->Str[0];
+			o->var.valSet=true;
+			break;
+		}
+		IBCASE_UNIMP
+		}
+		break;
+	}
 	/* a PFXazAZ */ case OP_Letter_azAZ: {
 		IBOp dataType = IBGetOpFromNameList(ibc->Str, OP_DataTypes);
 		if (dataType != OP_Unknown) {
@@ -4027,9 +4049,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				SetObjType(o, OP_VarWantValue);
 				SetTaskType(t, OP_VarWantValue);
 				IBLayer3ReplaceExpects(ibc, &exp);
-				ExpectsInit(exp, "1PPP",
+				ExpectsInit(exp, "1PPPP",
 					"",
-					OP_Value, OP_String, OP_LineEnd);
+					OP_Value, OP_String, OP_SingleQuote, OP_LineEnd);
 				break;
 			}
 			IBCASE_UNIMP

@@ -45,6 +45,7 @@ X(NoChange) \
 X(Struct) \
 X(VarType) \
 X(LineEnd) \
+X(EmptyLine) \
 X(Comment) \
 X(MultiLineComment) \
 X(Public) \
@@ -211,6 +212,8 @@ X(RunArgsNeedArgsStr) \
 X(CInclude) \
 X(CIncNeedFilePath) \
 X(IBStr) \
+X(SingleQuote) \
+X(ModeCCompTimeMacroPaste) \
 
 #define X(x) OP_##x,
 typedef enum IBOp { /* multiple uses */

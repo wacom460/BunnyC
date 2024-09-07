@@ -218,6 +218,7 @@ typedef union IBVal {
 } IBVal;
 typedef struct IBNameInfo {
 	IBOp type;
+	IBOp cast;
 	char* name;
 } IBNameInfo;
 typedef struct IBNameInfoDB {
