@@ -5,7 +5,11 @@ blk $main i32 $argc nts^ $argv -> i32
 _ $zz[as i32]
 
 
-->C
-return ""
-
+-!
+#define LE "\n"
+return
+"blk $a -> i32"LE
+"_ 0"LE
+;
+!-
 

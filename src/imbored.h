@@ -54,6 +54,10 @@ case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': \
 case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': \
 case 'W': case 'X': case 'Y': case 'Z':
 
+#define IBCASE_NUMTYPES case OP_u8: case OP_c8: case OP_i8: \
+	case OP_u16: case OP_i16: case OP_u32: case OP_i32: \
+	case OP_f32: case OP_u64: case OP_i64: case OP_d64:
+
 #define IBOP_NAME_LEN 32
 #define IBCOMMENT_CHAR ('~') // ~( ~( )~ )~
 #define IBCOMMENT_CHAR_OPEN ('(')
@@ -264,58 +268,57 @@ char* IBGetOpName(IBOp op);
 typedef struct IBObj {
 	IBOp type;
 	IBOp modifier;
+	IBOp valType;
 	IBOp privacy;
 	char* name;
 	char* str;
-	struct {
+	IBVal val;
+	struct _IBFuncObj {
 		IBOp retTYPE;
-		char* retStr;
-		IBVal retVal;
-		char* retValStr;
 		IBOp retValType;
 		IBOp retTypeMod;
+		char* retStr;
+		char* retValStr;
+		IBVal retVal;
 		struct IBTask* thingTask;
 	} func;
-	struct {
+	struct _IBIfObj {
 		IBOp lvTYPE;
-		char* lvName;
-		IBVal lvVal;
 		IBOp lvDataType;
 		IBOp lvMod;
 		IBOp midOp;
 		IBOp rvTYPE;
-		char* rvName;
-		IBVal rvVal;
 		IBOp rvDataType;
 		IBOp rvMod;
+		IBVal lvVal;
+		IBVal rvVal;
+		char* lvName;
+		char* rvName;
 	} ifO;
-	struct {
+	struct _IBArgObj {
 		IBOp type;
 		IBOp mod;
-		//char* arrayIndexExpr;
 		IBVector arrIndexExprs;//IBStr
 	} arg;
-	struct {
-		IBVal val;
-		char* valStrLiteral;
-		bool valSet;
+	struct _IBVarObj {
 		IBOp type;
 		IBOp mod;
 		IBOp privacy;
+		bool valSet;
+		IBVal val;
+		char* valStrLiteral;
 	} var;
-	struct {
-		bool fallthru;
-	} table;
-	struct {
-		bool flags;
-	} enumO;
-	struct {
+	struct _IBForObj {
 		char* startName;
 		IBVal start, end;
 		IBVal step;
 	} forO;
-	IBVal val;
-	IBOp valType;
+	struct _IBEnumObj {
+		bool flags;
+	} enumO;
+	struct _IBTableObj {
+		bool fallthru;
+	} table;
 } IBObj;
 void _ObjSetType(IBObj* obj, IBOp type);
 #define ObjSetType(obj, type){\

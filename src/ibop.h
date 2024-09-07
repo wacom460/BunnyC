@@ -1,3 +1,6 @@
+#ifndef HEADER_9EA13AF0801797A2
+#define HEADER_9EA13AF0801797A2
+
 #pragma once
 #define _IB_OPS_ \
 X(Null) \
@@ -216,7 +219,8 @@ X(SingleQuote) \
 X(ModeCCompTimeMacroPaste) \
 
 #define X(x) OP_##x,
-typedef enum IBOp { /* multiple uses */
-	_IB_OPS_
-} IBOp;
+typedef enum IBOp { _IB_OPS_ } IBOp;
 #undef X
+//typedef short IBOp;
+#endif // header guard 
+

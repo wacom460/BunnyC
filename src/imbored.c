@@ -56,6 +56,7 @@ IBOpNamePair PairNameOps[] = {
 	{"as", OP_As},{">", OP_GreaterThan},{"output", OP_Output},
 	{"enum", OP_Enum},{"flags", OP_Flags},{"nts", OP_String},
 	{"arguments",OP_RunArguments},{"include", OP_CInclude},
+	{"!", OP_Exclaim},
 };
 IBOpNamePair PairDataTypeOPs[] = {
 	{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},{"i64", OP_i64},
@@ -1276,7 +1277,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBCodeBlock* cb;
 	memset(ibc,0,sizeof*ibc);
 
-	//unneeded 
+	//unneeded
 	ibc->TCC=NULL;
 	ibc->IncludeCStdioHeader = false;
 	ibc->IncludeCStdlibHeader=false;
@@ -1315,7 +1316,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBVectorInit(&ibc->TaskStack, sizeof(IBTask), OP_Task);
 	IBVectorInit(&ibc->CodeBlockStack,
 		sizeof(IBCodeBlock), OP_IBCodeBlock);
-	IBVectorInit(&ibc->ExpressionStack, 
+	IBVectorInit(&ibc->ExpressionStack,
 		sizeof(IBExpression), OP_IBExpression);
 	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
@@ -2164,7 +2165,14 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 					ibc->Str,
 					avT->start);
 				if(!strncmp(avT->start, "as ", 3)){
-					DbgFmt("",0);
+					IBOp nameOP = IBGetOpFromNameList(avT->start + 3, OP_NameOps);
+					switch(nameOP){
+						IBCASE_NUMTYPES
+						{
+							break;
+						}
+						IBCASE_UNIMP
+					}
 				}
 				IBLayer3Pop(ibc);
 			}
@@ -3369,16 +3377,30 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	/* / PFXDIVIDE */ case OP_Divide:
 	/* - PFXSUBTRACT */ case OP_Subtract: {
 		bool fall = true;
-		switch (ibc->NameOp) {
-		case OP_GreaterThan: {
-			IBExpects* exp;
-			fall = false;
-			SetObjType(o, OP_FuncNeedsRetValType);
-			IBLayer3PushExpects(ibc, &exp);
-			ExpectsInit(exp, "P", OP_VarType);
+		switch(t->type){
+		case OP_RootTask:{
+			switch (ibc->NameOp) {
+			case OP_Exclaim: {
+				IBLayer3Push(ibc, OP_ModeCCompTimeMacroPaste, true);
+				break;
+			}
+			IBCASE_UNIMP
+			}
 			break;
 		}
-		IBCASE_UNIMP
+		default:{
+			switch (ibc->NameOp) {
+			case OP_GreaterThan: {
+				IBExpects* exp;
+				fall = false;
+				SetObjType(o, OP_FuncNeedsRetValType);
+				IBLayer3PushExpects(ibc, &exp);
+				ExpectsInit(exp, "P", OP_VarType);
+				break;
+			}
+			IBCASE_UNIMP
+			}
+		}
 		}
 		if (!fall) break;
 	}
@@ -4038,8 +4060,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBNameInfo* ni = NULL;
 				IBOp rc=0;
 				ObjSetName(o, ibc->Str);
-				rc = IBNameInfoDBAdd(ibc, 
-					(tParent && tParent->type == OP_RootTask) ? 
+				rc = IBNameInfoDBAdd(ibc,
+					(tParent && tParent->type == OP_RootTask) ?
 						&ibc->GlobalVariables : &cb->localVariables,
 					ibc->Str, o->var.type, &ni);
 				ni->type = o->var.type;
