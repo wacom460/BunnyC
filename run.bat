@@ -1,7 +1,7 @@
 @echo off
 :top
 cd ext/raylib
-del libraylib.a
+del /Q libraylib.a > nul
 "../tcc/tcc.exe" -w -I. -c core.c -std=c99 -Wall -Iexternal/glfw/include -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -DSTBI_NO_SIMD
 "../tcc/tcc.exe" -w -I. -c rglfw.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD
 "../tcc/tcc.exe" -w -I. -c shapes.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD
@@ -11,10 +11,10 @@ del libraylib.a
 "../tcc/tcc.exe" -w -I. -c raudio.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD -DMAL_NO_WASAPI
 "../tcc/tcc.exe" -w -I. -c utils.c -std=c99 -Wall -DPLATFORM_DESKTOP -DSTBI_NO_SIMD
 "../tcc/tcc.exe" -ar rcs libraylib.a core.o rglfw.o shapes.o textures.o text.o models.o raudio.o utils.o
-del core.o rglfw.o shapes.o textures.o text.o models.o raudio.o utils.o
+del /Q core.o rglfw.o shapes.o textures.o text.o models.o raudio.o utils.o>nul
 cd..
 cd..
-del program.exe
+del /Q program.exe > nul
 "./ext/tcc/tcc.exe" ^
 src/*.c ^
 -Isrc ^
@@ -33,7 +33,7 @@ src/*.c ^
 -w ^
 -o program.exe
 if %errorlevel% neq 0 pause
-del ext\raylib\libraylib.a
+del ext\raylib\libraylib.a>nul
 if %errorlevel% neq 0 (
 	pause
 	goto :top
@@ -41,5 +41,5 @@ if %errorlevel% neq 0 (
 cls
 program.exe main.ib
 if %errorlevel% neq 0 pause
-del program.exe
+del program.exe > nul
 goto :top

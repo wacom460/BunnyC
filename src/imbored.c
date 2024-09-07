@@ -792,18 +792,20 @@ void ObjInit(IBObj* o) {
 	memset(&o->enumO, 0, sizeof(IBEnumObj));
 	//o->table.fallthru = false;
 	o->arg.type = OP_Null;
+	IBVectorInit(&o->arg.arrIndexExprs,sizeof(IBStr),OP_IBStr);
 	o->arg.mod = OP_NotSet;
 	o->ifO.lvName=NULL;
 	o->ifO.rvName = NULL;
 }
 void ObjFree(IBObj* o) {
 	assert(o);
+	IBVectorFree(&o->arg.arrIndexExprs, IBStrFree);
 	switch (o->type) {
-	case OP_Name: {
+	/*case OP_Name: {
 		if (o->arg.arrayIndexExpr)
 			free(o->arg.arrayIndexExpr);
 		break;
-	}
+	}*/
 	case OP_IfNeedLVal:
 	case OP_IfNeedMidOP:
 	case OP_IfNeedRVal:
@@ -2969,10 +2971,14 @@ IBCASE_UNIMP
 					if(ni->type == OP_Bool)
 						IBStrAppendFmt(&cb->code, "%s ? \"true\" : \"false\"", o->name);
 					else {
+						IBStr*ibs=NULL;
+						int idx=0;
+
 						IBStrAppendCStr(&cb->code, o->name);
-						if (o->arg.arrayIndexExpr)
+						while(ibs=IBVectorIterNext(&o->arg.arrIndexExprs,&idx)){
 							IBStrAppendFmt(&cb->code, "[%s]",
-								o->arg.arrayIndexExpr);
+								ibs->start);
+						}
 					}
 					break;
 				}
@@ -3121,7 +3127,11 @@ void IBLayer3Str(IBLayer3* ibc){
 				IBLayer3Push(ibc, OP_ModeArrayIndexExpr, false);
 				return;
 			}
-			//case ']':
+			case ']':{
+				if(IBLayer3GetMode(ibc)==OP_ModeArrayIndexExpr)
+					IBLayer3Pop(ibc);
+				return;
+			}
 			case ' ':
 			case '.':
 			IBCASE_0THRU9
@@ -3986,10 +3996,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ObjSetType(o, OP_Name);
 			IBStr* aiT=IBVectorTop(&ibc->ArrayIndexExprsVec);
 			if(aiT){
-                if (IBStrLen(aiT))
-                    IBOverwriteStr(&o->arg.arrayIndexExpr,
-                        aiT);
-                IBVectorPop(&ibc->ArrayIndexExprsVec)
+                if (IBStrLen(aiT)){
+					IBStr*ss=NULL;
+					IBVectorPush(&o->arg.arrIndexExprs,&ss);
+					IBStrInit(ss);
+					IBStrAppend(ss,aiT);
+				}
+                IBVectorPop(&ibc->ArrayIndexExprsVec, IBStrFree)
             }
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
@@ -4479,7 +4492,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			ibc->Pointer = OP_NotSet;
 		IBVectorPop(&ibc->StrReadPtrsStack, NULL);
 	}
-	IBStrClear(&ibc->ArrayIndexExprStr);
+	IBVectorClear(&ibc->ArrayIndexExprsVec, IBStrFree);
 //#define IBOPSTEP
 #ifdef IBOPSTEP
 	{

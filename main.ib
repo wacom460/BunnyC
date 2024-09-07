@@ -3,7 +3,7 @@ include "ibop.h"
 include "stdlib.h"
 arguments "arg1 arg2"
 
-blk $main i32 $argc nts^ $argv -> i32
+blk $main i32 $arg nts^ $argv -> i32
 	if $argc gteq 2
 		"%% %%\n" $argv[0] $argv[1]
 	else
