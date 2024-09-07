@@ -1324,10 +1324,11 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBLayer3Push(ibc, OP_ModePrefixPass, false);
 	IBLayer3PushObj(ibc, &o);
 	IBLayer3PushTask(ibc, OP_RootTask, &exp, NULL);
-	ExpectsInit(exp, "PNNNNNNNNNNN",
-		OP_Op, OP_Use, OP_Imaginary, OP_Func, OP_Enum, OP_Flags,
-		OP_Struct, OP_Space, OP_Public, OP_Private, OP_RunArguments,
-		OP_CInclude);
+	ExpectsInit(exp, "PPPNNNNNNNNNNN",
+		OP_Op, OP_VarType, OP_Subtract, OP_Use, OP_Imaginary, OP_Func, 
+		OP_Enum, OP_Flags, OP_Struct, OP_Space, OP_Public, 
+		OP_Private, OP_RunArguments, OP_CInclude
+	);
 }
 void IBLayer3Free(IBLayer3* ibc) {
 	IBTask* t;
@@ -2167,11 +2168,14 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 				if(!strncmp(avT->start, "as ", 3)){
 					IBOp nameOP = IBGetOpFromNameList(avT->start + 3, OP_NameOps);
 					switch(nameOP){
-						IBCASE_NUMTYPES
-						{
-							break;
-						}
-						IBCASE_UNIMP
+					IBCASE_NUMTYPES
+					{
+						if(ibc->Varcast!=OP_Null)
+							Err(OP_Error, "");
+						ibc->Varcast=nameOP;
+						break;
+					}
+					IBCASE_UNIMP
 					}
 				}
 				IBLayer3Pop(ibc);
@@ -2463,6 +2467,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				if (o->var.valSet && !thing) {
 					IBStrAppendCStr(vstr, " = ");
 					switch (o->var.type) {
+					case OP_i8:
+					case OP_i16:
 					case OP_i64:
 					case OP_i32: {
 						IBStrAppendFmt(vstr, "%d", o->var.val.i32);
@@ -2489,8 +2495,20 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 						}
 						break;
 					}
+					case OP_u8:{
+						IBStrAppendFmt(vstr, "%u", o->var.val.u8);
+						break;
+					}
+					case OP_u16:{
+						IBStrAppendFmt(vstr, "%u", o->var.val.u16);
+						break;
+					}
 					case OP_u32:{
 						IBStrAppendFmt(vstr, "%u", o->var.val.u32);
+						break;
+					}
+					case OP_u64:{
+						IBStrAppendFmt(vstr, "%llu", o->var.val.u64);
 						break;
 					}
 					IBCASE_UNIMP
@@ -2528,7 +2546,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			if (o->type != OP_Arg) continue;
 			switch(o->valType) {
 			case OP_Value: {
-				IBStrAppendFmt(&t->code.code, "%d", o->val.i32);//for now
+				IBStrAppendFmt(&t->code.code, "%llu", o->val.i64);
 				break;
 			}
 			case OP_String: {
@@ -2558,7 +2576,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		assert(o->type == OP_BlockReturnNeedValue);
 		switch (o->valType) {
 		case OP_Value: {
-			IBStrAppendFmt(&cb->code, "%d", o->val.i32);//for now
+			IBStrAppendFmt(&cb->code, "%llu", o->val.i64);
 			break;
 		}
 		case OP_String: {
@@ -2832,6 +2850,15 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				Err(OP_Error, "funcObj NULL");
 			} else if (funcObj->func.retValType != OP_Void) {
 				IBStrAppendCStr(&cFuncCode, "\treturn ");
+				switch(funcObj->func.retValVarcast){
+					IBCASE_NUMTYPES
+					{
+						IBStrAppendFmt(&cFuncCode,"(%s) ", 
+							IBGetCEqu(funcObj->func.retValVarcast));
+						break;
+					}
+					IBCASE_UNIMP
+				}
 				switch (funcObj->func.retTYPE) {
 				case OP_String: {
 					IBStrAppendFmt(&cFuncCode, "\"%s\"", funcObj->func.retValStr);
@@ -3271,7 +3298,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	IBCodeBlock* cb = IBLayer3CodeBlocksTop(ibc);
 	IBObj* o;
 	IBOp valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
-	strVal.i32 = 0;
+	strVal.i64 = 0;
 	t=IBLayer3GetTask(ibc);
 	o=IBLayer3GetObj(ibc);
 	if(ibc->TaskStack.elemCount >= 2){
@@ -3295,7 +3322,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	case OP_String: break;
 	case OP_Number: {
-		strVal.i32 = atoi(ibc->Str);
+		strVal.i64 = atoll(ibc->Str);
 		break;
 	}
 	case OP_Double: {
@@ -3381,6 +3408,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_RootTask:{
 			switch (ibc->NameOp) {
 			case OP_Exclaim: {
+				fall=false;
 				IBLayer3Push(ibc, OP_ModeCCompTimeMacroPaste, true);
 				break;
 			}
@@ -3899,11 +3927,12 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 					assert(ni);
 					if(ni->type==OP_NotFound)
 						Err(OP_NotFound, "variable name not found");
-					if (o->func.retValType != ni->type)
+					if (o->func.retValType != ni->type && o->func.retValType != ibc->Varcast)
 						Err(OP_Error, "variable doesn't match function return type");
 					DbgFmt("Finishing func got ret value as name\n", "");
 					IBOverwriteStr(&o->func.retStr, ibc->Str);
 					o->func.retTYPE = OP_Name;
+					o->func.retValVarcast=ibc->Varcast;
 					PopExpects();
 					SetTaskType(t, OP_Func);
 					IBLayer3FinishTask(ibc);
@@ -4524,6 +4553,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		IBVectorPop(&ibc->StrReadPtrsStack, NULL);
 	}
 	IBVectorClear(&ibc->ArrayIndexExprsVec, IBStrFree);
+	ibc->Varcast=OP_Null;
 //#define IBOPSTEP
 #ifdef IBOPSTEP
 	{

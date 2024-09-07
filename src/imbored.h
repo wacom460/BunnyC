@@ -276,6 +276,7 @@ typedef struct IBObj {
 	struct _IBFuncObj {
 		IBOp retTYPE;
 		IBOp retValType;
+		IBOp retValVarcast;
 		IBOp retTypeMod;
 		char* retStr;
 		char* retValStr;
@@ -415,6 +416,7 @@ typedef struct IBLayer3 {
 	IBOp Privacy;
 	IBOp NameOp;
 	IBOp LastNameOp;
+	IBOp Varcast;
 	char Ch;
 	char LastCh;
 	bool Imaginary;

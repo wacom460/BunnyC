@@ -1,15 +1,13 @@
-arguments "test args"
-c8 $testChar 'a'
-u32 $zz 101142069
-blk $main i32 $argc nts^ $argv -> i32
-_ $zz[as i32]
+@arguments "test args"
+%c8 $tc8 'a'
+%u8 $tu8 10
+%i8 $ti8 =-10
+%i16 $ti16 =-20001
+%u16 $tu16 15055
+%u64 $tu64 101142069
 
-
--!
-#define LE "\n"
-return
-"blk $a -> i32"LE
-"_ 0"LE
-;
-!-
+@blk $main %i32 $argc %nts^ $argv -> %i32
+	%c8 $zc
+	return $[as i32]tu64
+_ $[as i32]tu64
 
