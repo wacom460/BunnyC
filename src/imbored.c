@@ -1294,7 +1294,9 @@ void IBLayer3VecPrint(IBVector* vec) {
 	IBPopColor();
 }
 IBObj* IBLayer3FindStackObjRev(IBLayer3* ibc, IBOp type){
-	for(int i = ibc->ObjStack.elemCount - 1; i >= 0; ++i){
+	assert(ibc);
+	assert(type>0);
+	for(int i = ibc->ObjStack.elemCount - 1; i >= 0; i--){
 		IBObj*o=IBVectorGet(&ibc->ObjStack,i);
 		assert(o);
 		if(o->type==type)return o;
@@ -1714,7 +1716,7 @@ IBObj* IBLayer3FindWorkingObj(IBLayer3* ibc, IBOp type){
 IBObj* IBLayer3FindWorkingObjRev(IBLayer3* ibc, IBOp type){
 	IBTask* t=IBLayer3GetTask(ibc);
 	assert(t);
-	for(int i = t->working.elemCount - 1; i >= 0; ++i){
+	for(int i = t->working.elemCount - 1; i >= 0; i--){
 		IBObj*o=IBVectorGet(&t->working,i);
 		assert(o);
 		if(o->type==type)return o;
@@ -2538,7 +2540,12 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrInit(&fc);
 		IBCodeBlockFinish(&st->code, &fc);
 		IBStrAppendCh(&cb->code, '\t', tabCount);
-		IBStrAppendFmt(&cb->code, "%s = %s;\n", o->name, fc.start);
+		if(!strncmp(o->name,"self.",5)){
+			IBStrAppendFmt(&cb->code, "self->%s = %s;\n", o->name + 5, fc.start);
+		}
+		else {
+			IBStrAppendFmt(&cb->code, "%s = %s;\n", o->name, fc.start);
+		}
 		break;
 	}
 	case OP_NeedExpression: {
@@ -2964,8 +2971,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				IBStrAppendCStr(&cFuncModsTypeName, IBGetCEqu(o->func.retTypeMod));
 				IBStrAppendCStr(&cFuncModsTypeName, " ");
 				if (!o->name)Err(OP_Error, "func name NULL");
+				IBTypeInfo*mti=0;
+				char mtiC='\0';
 				if (o->name) {
-					if (o->func.thingTask)
+					if (o->func.thingTask)//stupid
 					{
 						IBObj* wo;
 						int idx;
@@ -2975,6 +2984,25 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 							IBStrAppendFmt(&cFuncModsTypeName, "S%s_", wo->name);
 							thingObj = wo;
 						}
+					}
+					IBObj*mo=IBLayer3FindStackObjRev(ibc,OP_Methods);
+					if(mo){
+						IBLayer3FindType(ibc,mo->name,&mti);
+						assert(mti);
+						switch(mti->type){
+						case OP_Enum:{
+							IBStrAppendCh(&cFuncModsTypeName, 'E', 1);
+							mtiC='E';
+							break;
+						}
+						case OP_Struct: {
+							IBStrAppendCh(&cFuncModsTypeName, 'S', 1);
+							mtiC='S';
+							break;
+						}
+						IBCASE_UNIMP
+						}
+						IBStrAppendFmt(&cFuncModsTypeName, "%s_", mo->name);
 					}
 					IBStrAppendCStr(&cFuncModsTypeName, o->name);
 
@@ -2989,6 +3017,21 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				if (thingObj) {
 					IBStrAppendFmt(&cFuncArgsThing,
 						"struct S%s* self", thingObj->name);
+				}
+				if(mti){
+					switch (mtiC) {
+					case 'E': {
+						IBStrAppendFmt(&cFuncArgsThing,
+							"enum %c%s* self", mtiC, mti->name.start);
+						break;
+					}
+					case 'S':{
+						IBStrAppendFmt(&cFuncArgsThing,
+							"struct %c%s* self", mtiC, mti->name.start);
+						break;
+					}
+					IBCASE_UNIMP
+					}
 				}
 				break;
 			}
@@ -4067,12 +4110,12 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		case OP_MethodsNeedName:{
 			IBTypeInfo*ti=0;
 			IBLayer3FindType(ibc,ibc->Str,&ti);
-			assert(ti);
 			if(!ti){
 				ErrF(OP_NotFound,"%s isnt found\n",ibc->Str);
 			} else {
 				IBObj*mo=0;
 				IBExpects*exp=0;
+				assert(ti);
 				IBLayer3PushObj(ibc,&mo);
 				SetObjType(mo,OP_Methods);
 				ObjSetName(mo,ibc->Str);

@@ -292,7 +292,7 @@ typedef struct IBObj {
 		char* retStr;
 		char* retValStr;
 		IBVal retVal;
-		struct IBTask* thingTask;
+		struct IBTask* thingTask;//stupid
 	} func;
 	struct _IBIfObj {
 		IBOp lvTYPE;
