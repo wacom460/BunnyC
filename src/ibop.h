@@ -31,6 +31,7 @@ X(FuncArg) \
 X(CompletedFunction) \
 X(VarNeedName) \
 X(VarWantValue) \
+X(VarNeedExpr) \
 X(VarComplete) \
 X(BlockReturnNeedValue) \
 X(ArgNeedValue) \
@@ -224,6 +225,8 @@ X(ModeCCompTimeMacroPaste) \
 X(Methods)\
 X(MethodsNeedName)\
 X(MethodsWantContent)\
+/* | */X(Or) \
+/* & */X(And) \
 
 #define X(x) OP_##x,
 typedef enum IBOp { _IB_OPS_ } IBOp;

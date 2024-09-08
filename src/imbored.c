@@ -104,7 +104,7 @@ IBOpNamePair cEquivelents[] = {
 	{"+=", OP_AddEq},{"-=", OP_SubEq},{"*=", OP_MultEq},
 	{"/=", OP_DivEq},{"/", OP_Divide},{"%", OP_Modulo},
 	{"*", OP_Deref},{"&", OP_Ref},{"**", OP_DoubleDeref},
-	{"***", OP_TrippleDeref},{"char*", OP_String},
+	{"***", OP_TrippleDeref},{"char*", OP_String},{"|",OP_Or},
 };
 IBOpNamePair dbgAssertsNP[] = {
 	{"taskType", OP_TaskType},
@@ -963,6 +963,19 @@ void IBTypeInfoFree(IBTypeInfo* ti){
 	IBVectorFree(&ti->members, IBTypeInfoFree);
 	IBStrFree(&ti->name);
 }
+void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP){
+	IBTypeInfo*nti=0;
+	int idx=0;
+	IBASSERT0(ti);
+	IBASSERT0(name);
+	IBASSERT0(strlen(name)>0);
+	while(nti=IBVectorIterNext(&ti->members,&idx)){
+		IB_ASSERTMAGICP(nti);
+		IBASSERT0(nti->name.start)
+			if (!strcmp(nti->name.start, name)) break;
+	}
+	if(outDP) (*outDP)=nti;
+}
 char* IBGetCEqu(IBOp op) {
 	int sz;
 	int i;
@@ -1784,8 +1797,8 @@ void _IBLayer3PushTask(IBLayer3* ibc, IBOp taskOP, IBExpects** exectsDP,
 		IBExpects* exp=IBTaskGetExpTop(t);
 		switch (taskOP) {
 		case OP_NeedExpression: {
-			ExpectsInit(exp, "PPPPPP", OP_Value, OP_Name, OP_Add,
-				OP_Subtract, OP_Divide, OP_Multiply);
+			ExpectsInit(exp, "PPPPPPPP", OP_Value, OP_Name, OP_Add,
+				OP_Subtract, OP_Divide, OP_Multiply, OP_Or, OP_Dot);
 			break;
 		}
 		default: {
@@ -2466,7 +2479,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			case OP_EnumName: {
 				IBTypeInfo*nti=0;
 				IBVectorPush(&ti->members,&nti);
-				IBTypeInfoInit(nti,OP_EnumVal,eo->name);
+				IBTypeInfoInit(nti,OP_EnumVal,o->name);
 				oneFound = true;
 				IBStrAppendFmt(&t->code.code, "\tE%s_%s", eo->name, o->name);
 				if (eo->enumO.flags) {
@@ -3346,7 +3359,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	case OP_Subtract:
 	case OP_Multiply:
 	case OP_Divide:
-	case OP_Dot:
+	case OP_Dot://context aware
 	case OP_Caret:
 	case OP_Underscore:
 	case OP_BracketOpen:
@@ -3592,6 +3605,33 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	DbgFmt("\n", "");
 	top:
 	switch (ibc->Pfx) {
+	/* . PFXDOT */ case OP_Dot: {
+		switch(t->type){
+		case OP_NeedExpression: {
+			IBOp type=OP_Unknown;
+			IBObj* o;
+			IBObj*vneO=IBLayer3FindStackObjRev(ibc,OP_VarNeedExpr);
+			IBTypeInfo*st=0;
+			if(vneO){
+				IBTypeInfo*ti=0;
+				IBLayer3FindType(ibc,vneO->str,&ti);
+				if(ti){
+					type=ti->type;
+					IBTypeInfoFindMember(ti,ibc->Str,&st);
+				}
+			}
+			if(type==OP_Unknown || !st)
+				ErrF(OP_Error, "context not found",0);
+			IBLayer3PushObj(ibc, &o);
+			ObjSetType(o, type);
+			ObjSetName(o, ibc->Str);
+			IBLayer3PopObj(ibc, true, &o);
+			break;
+		}
+		IBCASE_UNIMP
+		}
+		break;
+	}
 	/* ' PFXSINGLEQUOTE */ case OP_SingleQuote: {
 		switch (t->type) {
 		case OP_VarWantValue: {
@@ -3697,6 +3737,19 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	}
 	/* < PFXLESSTHAN */ case OP_LessThan: {
 		switch (t->type) {
+		case OP_VarWantValue: {
+			switch(ibc->NameOp){
+			case OP_Subtract:{
+				o=IBLayer3GetObj(ibc);
+				SetTaskType(t, OP_VarNeedExpr);
+				SetObjType(o, OP_VarNeedExpr);
+				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
+				break;
+			}
+			IBCASE_UNIMP
+			}
+			break;
+		}
 		case OP_ActOnName: {
 			switch (ibc->NameOp)
 			{
@@ -4389,9 +4442,9 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				SetObjType(o, OP_VarWantValue);
 				SetTaskType(t, OP_VarWantValue);
 				IBLayer3ReplaceExpects(ibc, &exp);
-				ExpectsInit(exp, "1PPPP",
+				ExpectsInit(exp, "1PPPPP",
 					"",
-					OP_Value, OP_String, OP_SingleQuote, OP_LineEnd);
+					OP_Value, OP_LessThan, OP_String, OP_SingleQuote, OP_LineEnd);
 				break;
 			}
 			IBCASE_UNIMP

@@ -7,6 +7,8 @@ _
 methods $ss
 blk $fm
 $self.lv1 <- 10
+$self.lv3 <- 100
+$self.lv2 <- =-100
 _
 
 _
@@ -22,7 +24,7 @@ _
 enum $e1 $e1 $e2 $e3 _
 
 blk $b
-~(%ft $f <- .f1 | .f2 | .f3)~
+%ft $f <- .f1 | .f2 | .f3
 i32 $a 1
 
 table $a

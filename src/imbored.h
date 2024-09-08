@@ -423,6 +423,7 @@ typedef struct {
 } IBTypeInfo;
 void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name);
 void IBTypeInfoFree(IBTypeInfo* ti);
+void IBTypeInfoFindMember(IBTypeInfo*ti,char*name,IBTypeInfo**outDP);
 typedef struct IBLayer3 {
 	IBOp Pfx;
 	IBOp Pointer;
