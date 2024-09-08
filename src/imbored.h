@@ -66,6 +66,20 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IBCOMMENT_CHAR_CLOSE (')')
 #define IBLayer3STR_MAX 64
 
+#define IB_WARN_ON_REALLOC 1
+
+#if IB_WARN_ON_REALLOC
+#define IBREALLOCWARNING\
+	DbgFmt("[%s:%d]realloc called!\n",__FILE__,__LINE__);
+#else
+#define IBREALLOCWARNING
+#endif
+
+#define IBREALLOC(nptr,ptr,sz)\
+	nptr = realloc(ptr,sz);\
+	IBREALLOCWARNING
+
+
 #define IBASSERT0(x) { \
 	if(!(x)) { \
 		printf("[%d]Assertion failed!!! %s\n", __LINE__, #x); \

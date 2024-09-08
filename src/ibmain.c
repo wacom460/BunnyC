@@ -38,7 +38,8 @@ int argc;
 char**argv;
 {
 	int rv = 1;
-	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor, 1);
+	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor, 512);
+	g_ColorStack.doNotShrink=1;
 	IBPushColor(IBFgWHITE);
 	IBDatabase db;
 	g_DB = &db;

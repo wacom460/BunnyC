@@ -194,7 +194,7 @@ char* IBStrAppendCStr(IBStr* str, char *with) {
 	IBASSERT0(withLen > 0);
 	IBASSERT0(str->start);
 	len = IBStrLen(str);
-	ra = realloc(str->start, len + withLen + 1);
+	IBREALLOC(ra, str->start, len + withLen + 1);
 	IBASSERT0(ra);
 	if (ra) {
 		str->start = (char*)ra;
@@ -223,7 +223,7 @@ char* IBStrAppend(IBStr* str, IBStr* with){
 	IBASSERT0(withLen > 0);
 	IBASSERT0(str->start);
 	len = IBStrLen(str);
-	ra = realloc(str->start, len + withLen + 1);
+	IBREALLOC(ra, str->start, len + withLen + 1);
 	IBASSERT0(ra);
 	if (ra) {
 		str->start = (char*)ra;
@@ -265,6 +265,8 @@ void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count) {
 	vec->elemSize = elemSize;
 	vec->type = type;
 	vec->elemCount = 0;
+	vec->initialSlotCount=count;
+	vec->doNotShrink=count > 1;
 	vec->slotCount = count;
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	vec->data = NULL;
@@ -310,7 +312,7 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
 		vec->dataSize = vec->elemSize * vec->slotCount;
 		//DbgFmt("vec->dataSize: %d\n", vec->dataSize);
 		IBASSERT0(vec->data);
-		ra = realloc(vec->data, vec->dataSize);
+		IBREALLOC(ra,vec->data, vec->dataSize);
 		IBASSERT0(ra);
 		if(ra) vec->data = ra;
 		vec->reallocCount++;
@@ -359,12 +361,12 @@ void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 	if(vec->elemCount <= 0) return;
 	if(freeFunc) freeFunc((void*)IBVectorGet(vec, vec->elemCount - 1));
 	vec->elemCount--;
-	vec->slotCount=vec->elemCount;
+	if(!vec->doNotShrink) vec->slotCount=vec->elemCount;
 	if(vec->slotCount<1)vec->slotCount=1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
-	if(vec->elemCount){
+	if(!vec->doNotShrink && vec->elemCount){
 		IBASSERT0(vec->data);
-		ra = realloc(vec->data, vec->dataSize);
+		IBREALLOC(ra, vec->data, vec->dataSize);
 		IBASSERT0(ra);
 		if (ra) vec->data = ra;
 		IBASSERT0(vec->data);
@@ -375,15 +377,17 @@ void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 	void *ra;
 	if(vec->elemCount < 1) return;
 	vec->elemCount--;
-	vec->slotCount = vec->elemCount;
+	if(!vec->doNotShrink) vec->slotCount = vec->elemCount;
 	if (vec->slotCount < 1)vec->slotCount = 1;
 	if(vec->elemCount > 1){
-		newSize = (vec->dataSize * vec->elemCount) - vec->dataSize;
+		size_t rns = ((vec->dataSize * vec->elemCount) - vec->dataSize);
+		newSize = vec->doNotShrink ? (vec->dataSize)
+			: rns;
 		IBASSERT0(newSize >= vec->dataSize);
 		ra = malloc(newSize);
 		IBASSERT0(ra);
 		if (ra) {
-			memcpy(ra, IBVectorGet(vec, 1), newSize);
+			memcpy(ra, IBVectorGet(vec, 1), rns);
 			free(vec->data);
 			vec->data = ra;
 		}
@@ -404,12 +408,12 @@ void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 		break;
 	}
 	}
-	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, 1);
+	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, IBVEC_DEFAULT_SLOTCOUNT);
 }
 void IBDictKeyInitRoot(IBDictKey* key){
 	memset(key, 0, sizeof(IBDictKey));
 	key->type = IBDictDataType_RootKey;
-	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, 1);
+	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, IBVEC_DEFAULT_SLOTCOUNT);
 }
 void IBDictKeyFree(IBDictKey* key) {
 	int idx = 0;
@@ -535,7 +539,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...){
 	IBDictKey** outKeyPtr=NULL;
 	size_t count=0;
 	IBDictManipAction action = IBDictManipAction_Unknown;
-	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, 1);
+	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, IBVEC_DEFAULT_SLOTCOUNT);
 	va_start(args, fmt);
 	for (i = 0; i < strlen(fmt); i++) {
 		char ch = fmt[i];
@@ -648,7 +652,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...){
 }
 IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath){
 	IBVector keyStack;
-	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, 1);
+	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, IBVEC_DEFAULT_SLOTCOUNT);
 	IBDictKeyDef*kd;
 	IBVectorPush(&keyStack, &kd);
 	IBDictKey* dk = IBDictKeyFind(rootKey, &keyStack);
@@ -756,7 +760,7 @@ void IBNameInfoFree(IBNameInfo* info) {
 	free(info->name);
 }
 void IBNameInfoDBInit(IBNameInfoDB* db) {
-	IBVectorInit(&db->pairs, sizeof(IBNameInfo), OP_NameInfo, 1);
+	IBVectorInit(&db->pairs, sizeof(IBNameInfo), OP_NameInfo, IBVEC_DEFAULT_SLOTCOUNT);
 }
 void IBNameInfoDBFree(IBNameInfoDB* db) {
 	IBASSERT0(db);
@@ -810,7 +814,7 @@ void ObjInit(IBObj* o) {
 	o->valType = OP_Unknown;
 	o->func.retStr = NULL;
 	o->arg.type = OP_Null;
-	IBVectorInit(&o->arg.arrIndexExprs,sizeof(IBStr),OP_IBStr, 1);
+	IBVectorInit(&o->arg.arrIndexExprs,sizeof(IBStr),OP_IBStr, IBVEC_DEFAULT_SLOTCOUNT);
 	o->arg.mod = OP_NotSet;
 	o->ifO.lvName=NULL;
 	o->ifO.rvName = NULL;
@@ -834,8 +838,8 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char *fmt, ...) {
 	IBOp nameOp;
 	int i;
 	assert(exp);
-	IBVectorInit(&exp->pfxs, sizeof(IBOp), OP_Op, 1);
-	IBVectorInit(&exp->nameOps, sizeof(IBOp), OP_Op, 1);
+	IBVectorInit(&exp->pfxs, sizeof(IBOp), OP_Op, IBVEC_DEFAULT_SLOTCOUNT);
+	IBVectorInit(&exp->nameOps, sizeof(IBOp), OP_Op, IBVEC_DEFAULT_SLOTCOUNT);
 	exp->pfxErr="";
 	exp->nameOpErr="";
 	exp->life=0;
@@ -930,9 +934,9 @@ void ExpectsFree(IBExpects* ap) {
 	IBVectorFreeSimple(&ap->nameOps);
 }
 void TaskInit(IBTask* t, IBOp type) {
-	IBVectorInit(&t->working, sizeof(IBObj), OP_Obj, 1);
-	IBVectorInit(&t->expStack, sizeof(IBExpects), OP_Expects, 1);
-	IBVectorInit(&t->subTasks, sizeof(IBTask), OP_Task, 1);
+	IBVectorInit(&t->working, sizeof(IBObj), OP_Obj, IBVEC_DEFAULT_SLOTCOUNT);
+	IBVectorInit(&t->expStack, sizeof(IBExpects), OP_Expects, IBVEC_DEFAULT_SLOTCOUNT);
+	IBVectorInit(&t->subTasks, sizeof(IBTask), OP_Task, IBVEC_DEFAULT_SLOTCOUNT);
 	IBCodeBlockInit(&t->code);
 	t->type = type;
 	memset(&t->exprData, 0, sizeof(IBTaskNeedExpression));
@@ -983,7 +987,7 @@ IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn,
 		IBStrAppend(&ret->name, objName);
 		cic = IBStrContainsAnyOfChars(&ret->name, IB_IllegalDbObjNameChars);
 		assert(!cic);
-		IBVectorInit(&ret->children, sizeof(IB_DBObj), OP_DBObj, 1);
+		IBVectorInit(&ret->children, sizeof(IB_DBObj), OP_DBObj, IBVEC_DEFAULT_SLOTCOUNT);
 	}
 	return ret;
 }
@@ -1360,20 +1364,20 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBStrInit(&ibc->CIncludesStr);
 	IBStrInit(&ibc->CCode);
 	IBStrInit(&ibc->FinalOutput);
-	IBVectorInit(&ibc->ArrayIndexExprsVec, sizeof(IBStr), OP_IBStr, 1);
+	IBVectorInit(&ibc->ArrayIndexExprsVec, sizeof(IBStr), OP_IBStr, IBVEC_DEFAULT_SLOTCOUNT);
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
 	ibc->CommentMode = OP_NotSet;
 	IBNameInfoDBInit(&ibc->GlobalVariables);
 	IBStrInit(&ibc->CurSpace);
-	IBVectorInit(&ibc->ObjStack, sizeof(IBObj), OP_Obj, 1);
-	IBVectorInit(&ibc->ModeStack, sizeof(IBOp), OP_Op, 1);
-	IBVectorInit(&ibc->StrReadPtrsStack, sizeof(bool), OP_Bool, 1);
-	IBVectorInit(&ibc->TaskStack, sizeof(IBTask), OP_Task, 1);
+	IBVectorInit(&ibc->ObjStack, sizeof(IBObj), OP_Obj, IBVEC_DEFAULT_SLOTCOUNT);
+	IBVectorInit(&ibc->ModeStack, sizeof(IBOp), OP_Op, IBVEC_DEFAULT_SLOTCOUNT);
+	IBVectorInit(&ibc->StrReadPtrsStack, sizeof(bool), OP_Bool, IBVEC_DEFAULT_SLOTCOUNT);
+	IBVectorInit(&ibc->TaskStack, sizeof(IBTask), OP_Task, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&ibc->CodeBlockStack,
-		sizeof(IBCodeBlock), OP_IBCodeBlock, 1);
+		sizeof(IBCodeBlock), OP_IBCodeBlock, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&ibc->ExpressionStack,
-		sizeof(IBExpression), OP_IBExpression, 1);
+		sizeof(IBExpression), OP_IBExpression, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
 	IBVectorCopyPushBool(&ibc->StrReadPtrsStack, false);

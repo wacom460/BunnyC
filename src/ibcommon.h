@@ -49,6 +49,8 @@ typedef union IBVecData {
 	struct IBDictKeyDef* dictKeyDef;
 } IBVecData;
 #define IBVEC_PUSHINFO_MAX (100)
+#define IBVEC_DEFAULT_SLOTCOUNT 16
+#define IBVEC_WARNINGS 1
 typedef struct IBVecPushInfo {
 	char* filePath;
 	int lineNum;
@@ -58,8 +60,10 @@ typedef struct IBVector {
 	IBOp type;
 	int elemCount;
 	int slotCount;
+	int initialSlotCount;
 	int dataSize;
 	int reallocCount;
+	char doNotShrink;
 	IB_DEFMAGIC;
 	//do not expect pointers to stay valid, realloc is called on change
 	IBVecData* data;/*DATA BLOCK*/
