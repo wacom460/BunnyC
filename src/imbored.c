@@ -953,11 +953,14 @@ void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name){
 	memset(ti,0,sizeof*ti);
 	IBStrInitWithCStr(&ti->name, name);
 	ti->type=type;
+	IBVectorInit(&ti->members, sizeof*ti, 
+		OP_IBTypeInfo, IBVEC_DEFAULT_SLOTCOUNT);
 	IB_SETMAGICP(ti);
 }
 void IBTypeInfoFree(IBTypeInfo* ti){
 	IBASSERT0(ti);
 	IB_ASSERTMAGICP(ti);
+	IBVectorFree(&ti->members, IBTypeInfoFree);
 	IBStrFree(&ti->name);
 }
 char* IBGetCEqu(IBOp op) {
@@ -1322,9 +1325,7 @@ void IBLayer3Init(IBLayer3* ibc){
 		*u64ti=0,*i64ti=0,*d64ti=0,*stringti=0;
 	memset(ibc,0,sizeof*ibc);
 
-	IBVectorInit(&ibc->TypeRegistry,sizeof(IBTypeInfo), OP_IBTypeInfo, 
-		12//prealloc
-	);
+	IBVectorInit(&ibc->TypeRegistry,sizeof(IBTypeInfo), OP_IBTypeInfo, 32);
 	IBVectorPush(&ibc->TypeRegistry,&u8ti);
 	IBVectorPush(&ibc->TypeRegistry,&i8ti);
 	IBVectorPush(&ibc->TypeRegistry,&c8ti);
@@ -1349,8 +1350,8 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBTypeInfoInit(i64ti, OP_i64,"i64");
 	IBTypeInfoInit(d64ti, OP_d64,"d64");
 	IBTypeInfoInit(stringti, OP_String,"nts");
-//getchar();
-	IBLayer3RegisterCustomType(ibc,"ct",OP_Enum,NULL);
+	//getchar();
+	//IBLayer3RegisterCustomType(ibc,"ct",OP_Enum,NULL);
 
 	ibc->Running = true;
 	ibc->Line = 1;
@@ -1502,6 +1503,7 @@ IBLayer3RegisterCustomType
 	switch (type) {
 	case OP_Enum:
 	case OP_Struct:
+	case OP_Func:
 		break;
 	IBCASE_UNIMP
 	}
@@ -1632,6 +1634,7 @@ void IBLayer3Done(IBLayer3* ibc){
 		assert(o->type == OP_Struct);
 		IBLayer3PopObj(ibc, true, &o);
 		assert(o->type == OP_NotSet);
+		ibc->DefiningStruct=0;
 	}
 	case OP_EnumWantContent:
 	case OP_BlockWantCode:
@@ -2384,6 +2387,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	tabCount=IBLayer3GetTabCount(ibc);
 	switch (t->type) {
 	case OP_EnumWantContent: {
+		IBTypeInfo*ti=0;
 		int idx = 0;
 		int flagsI = 0;
 		IBObj* o = IBVectorFront(&t->working);
@@ -2392,18 +2396,29 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		assert(o);
 		if(!eo || !eo->name || *eo->name == '\0')
 			Err(OP_Error, "enum needs a name");
+		IBLayer3FindType(ibc,eo->name,&ti);
+		IBASSERT0(!ti);
+		if(ti) ErrF(OP_AlreadyExists,"type %s already exists");
+		IBLayer3RegisterCustomType(ibc,eo->name,OP_Enum,&ti);
+		ti->Enum.isFlags=eo->enumO.flags;
 		IBStrAppendFmt(&t->code.header, "enum E%s {\n", eo->name);
 		IBStrAppendFmt(&t->code.footer, "};\n\n", eo->name);
 		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
 			case OP_Enum: break;
 			case OP_EnumName: {
+				IBTypeInfo*nti=0;
+				IBVectorPush(&ti->members,&nti);
+				IBTypeInfoInit(nti,OP_EnumVal,eo->name);
 				oneFound = true;
 				IBStrAppendFmt(&t->code.code, "\t%s_%s", eo->name, o->name);
 				if (eo->enumO.flags) {
+					nti->EnumValue.val=flagsI;
 					IBStrAppendFmt(&t->code.code, " = %d", flagsI);
 					flagsI *= 2;
 					if (flagsI == 0) flagsI = 2;
+				}else{
+					nti->EnumValue.val=ti->members.elemCount-1;
 				}
 				IBStrAppendFmt(&t->code.code, "%s\n", idx == wObjs->elemCount ? "" : ",");
 				break;
@@ -2759,6 +2774,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBObj* o;
 		IBTask* st;
 		int idx;
+		IBTypeInfo*ti=0;
 
 		IBStrInit(&header);
 		IBStrInit(&body);
@@ -2789,10 +2805,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			case OP_Struct: {
 				assert(o->name);
 				assert(*o->name);
-
-				//TODO:
-				//assert that this name is unique
-				//blindly trusting for now
+				
+				IBLayer3FindType(ibc,o->name,&ti);
+				IBASSERT0(!ti);
+				if(ti) ErrF(OP_AlreadyExists,"type %s already exists");
+				IBLayer3RegisterCustomType(ibc,o->name,OP_Struct,&ti);
 
 				IBStrAppendFmt(&header, "struct S%s {\n", o->name);
 				IBStrAppendFmt(&footer, "};\n\n", o->name);
@@ -2810,7 +2827,15 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		IBStrFree(&body);
 		IBStrFree(&footer);
 
-		//TODO: harvest var info
+		{
+			int idx=0;
+			IBNameInfo*ni=0;
+			while(ni=IBVectorIterNext(&cb->localVariables,&idx)){
+				IBTypeInfo*nti=0;
+				IBVectorPush(&ti->members,&nti);
+				IBTypeInfoInit(nti,OP_StructVar,ni->name);
+			}
+		}
 		IBLayer3PopCodeBlock(ibc, false, &cb);
 		break;
 	}
@@ -2828,6 +2853,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 	case OP_FuncSigComplete:
 	case OP_FuncHasName:
 	case OP_Func: {
+		IBTypeInfo*ti=0;
 		IBObj* o;
 		int idx;
 		int i;
@@ -2896,6 +2922,13 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 						}
 					}
 					IBStrAppendCStr(&cFuncModsTypeName, o->name);
+
+					IBASSERT0(!ti);
+					IBLayer3FindType(ibc,o->name,&ti);
+					IBASSERT0(!ti);
+					IBLayer3RegisterCustomType(ibc,o->name,OP_Func,&ti);
+					IBASSERT0(ti);
+					ti->Function.isMethod=ibc->DefiningStruct;
 				}
 				IBStrAppendCStr(&cFuncModsTypeName, "(");
 				if (thingObj) {
@@ -3472,9 +3505,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		break;
 	}
+	//prefix infer a-z A-Z
 	/* a PFXazAZ */ case OP_Letter_azAZ: {
-		IBOp dataType = IBGetOpFromNameList(ibc->Str, OP_DataTypes);
-		if (dataType != OP_Unknown) {
+		IBTypeInfo*ti=0;
+		IBLayer3FindType(ibc,ibc->Str,&ti);
+		//IBOp dataType = IBGetOpFromNameList(ibc->Str, OP_DataTypes);
+		//if (dataType != OP_Unknown)
+		if(ti){
 			ibc->Pfx = OP_VarType;
 			DbgFmt("infered vartype\n", "");
 			goto top;
@@ -3883,6 +3920,10 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		break;
 	}
 	/* % PFXVARTYPE */ case OP_VarType: {
+		IBTypeInfo*ti=0;
+		IBLayer3FindType(ibc,ibc->Str,&ti);
+		if(!ti)
+			ErrF(OP_NotFound, "type %s doesn't exist", ibc->Str);
 		switch (t->type) {
 		case OP_FuncHasName: {
 			switch (o->type) {
@@ -4279,6 +4320,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBExpects* ap;
 				IBLayer3PushObj(ibc, &o);
 				ObjSetType(o, OP_Enum);
+				o->enumO.flags=false;
 				IBLayer3PushTask(ibc, OP_EnumNeedName, &ap, NULL);
 				ExpectsInit(ap, "1P", "expected enum name", OP_Name);
 				break;
@@ -4304,6 +4346,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			case OP_RootTask: {
 				IBExpects* ap;
 				//onion
+				assert(!ibc->DefiningStruct);
+				ibc->DefiningStruct=1;
 				IBLayer3PushTask(ibc, OP_StructWantName, &ap, NULL);
 				ExpectsInit(ap, "PP", OP_Op, OP_Underscore);
 				IBLayer3PushExpects(ibc, &ap);

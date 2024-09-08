@@ -47,8 +47,9 @@ typedef union IBVecData {
 	struct IBDictionary* dict;
 	struct IBDictKey* dictKey;
 	struct IBDictKeyDef* dictKeyDef;
+	struct IBTypeInfo* ti;
 } IBVecData;
-#define IBVEC_PUSHINFO_MAX (100)
+#define IBVEC_PUSHINFO_MAX (32)
 #define IBVEC_DEFAULT_SLOTCOUNT 16
 #define IBVEC_WARNINGS 1
 typedef struct IBVecPushInfo {

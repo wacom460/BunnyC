@@ -1,21 +1,14 @@
-arguments "test args"
-c8 $tc8 'a'
-u8 $tu8 10
-i8 $ti8 =-10
-i16 $ti16 =-20001
-u16 $tu16 15055
-u64 $tu64 101142069
-
-flags $ft
-	$f1
-	$f2
-	$f3
+struct $ss
+	i32 $lv1
+	i64 $lv2
+	u8 $lv3
+	blk $fm
+	_
 _
 
-blk $main i32 $argc nts^ $argv -> i32
-	%ft $f <- .f1 | .f2 | .f3
-	c8 $zc
-	nts $a "test"
-	return $[as i32]tu64
-_ $[as i32]tu64
+flags $ft $f1 $f2 $f3 _
+enum $e1 $e1 $e2 $e3 _
 
+blk $b
+	%ft $f <- .f1 | .f2 | .f3
+_

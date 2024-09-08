@@ -17,6 +17,7 @@ X(CallWantArgs) \
 X(Space) \
 X(Enum) \
 X(Flags) \
+X(Method)\
 X(Func) \
 X(FuncHasName) \
 X(FuncNeedName) \
@@ -43,6 +44,7 @@ X(Value) \
 X(Return) \
 X(NoChange) \
 X(Struct) \
+X(StructVar)\
 X(VarType) \
 X(LineEnd) \
 X(EmptyLine) \
@@ -106,6 +108,7 @@ X(TableNeedExpr) \
 X(TableCaseNeedExpr) \
 X(TableWantCase) \
 X(CaseWantCode) \
+X(EnumVal)\
 X(EnumNeedName) \
 X(EnumWantContent) \
 X(IfBlockWantCode) \

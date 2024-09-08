@@ -66,11 +66,11 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IBCOMMENT_CHAR_CLOSE (')')
 #define IBLayer3STR_MAX 64
 
-#define IB_WARN_ON_REALLOC 1
+#define IB_WARN_ON_REALLOC 0
 
 #if IB_WARN_ON_REALLOC
 #define IBREALLOCWARNING\
-	DbgFmt("[%s:%d]realloc called!\n",__FILE__,__LINE__);
+	DbgFmt("[%s:%d] %s realloc called!\n",__FILE__,__LINE__,__func__);
 #else
 #define IBREALLOCWARNING
 #endif
@@ -396,10 +396,28 @@ typedef struct IBSharedState {
 typedef struct IBExpression {
 	IBCodeBlock cb;
 } IBExpression;
-typedef struct IBTypeInfo {
+typedef struct {
 	//IBOp infoType; //OP_Builtin,OP_Custom
-	IBOp type;//OP_Enum,OP_Struct,OP_i32,OP_c8 etc..
+	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
 	IBStr name;
+	IBVector members;
+	struct {
+		char isFlags;
+	} Enum;
+	struct {
+		int val;
+	} EnumValue;
+	struct {
+		int flags;
+		char placeholder;
+	} Struct;
+	struct {
+		IBOp privacy;
+	} StructVar;
+	struct {
+		char isMethod;/*methods are sub functions of types*/
+		//todo: store func args info
+	} Function;
 	IB_DEFMAGIC;
 } IBTypeInfo;
 void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name);
@@ -439,6 +457,8 @@ typedef struct IBLayer3 {
 	IBStr CurSpace;
 	char Ch;
 	char LastCh;
+	char DefiningStruct;
+	//char DefiningEnum;
 	bool Imaginary;
 	bool Running;
 	bool StringMode;
