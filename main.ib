@@ -23,13 +23,18 @@ enum $e1 $e1 $e2 $e3 _
 
 blk $b
 ~(%ft $f <- .f1 | .f2 | .f3)~
-i32 $a
+i32 $a 1
 
 table $a
 case 0
 "hi"
 fall
 case 1
+"hello"
 _
 
 _
+
+blk $main i32 $argc nts^ $argv -> i32
+!b
+_ 0
