@@ -221,6 +221,9 @@ X(CIncNeedFilePath) \
 X(IBStr) \
 X(SingleQuote) \
 X(ModeCCompTimeMacroPaste) \
+X(Methods)\
+X(MethodsNeedName)\
+X(MethodsWantContent)\
 
 #define X(x) OP_##x,
 typedef enum IBOp { _IB_OPS_ } IBOp;

@@ -413,6 +413,7 @@ typedef struct {
 	} Struct;
 	struct {
 		IBOp privacy;
+		IBOp type;
 	} StructVar;
 	struct {
 		char isMethod;/*methods are sub functions of types*/
@@ -498,6 +499,7 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln);
 	_IBLayer3SearchNameInfo(ibc,name,__LINE__)
 void IBLayer3PrintVecData(IBVecData* data, IBOp type);
 void IBLayer3VecPrint(IBVector* vec);
+IBObj* IBLayer3FindStackObjRev(IBLayer3*ibc,IBOp type);
 IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type);
 IBObj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, IBOp type);
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, IBOp type, int limit);

@@ -2,12 +2,22 @@ struct $ss
 	i32 $lv1
 	i64 $lv2
 	u8 $lv3
+_
+
+methods $ss
 	blk $fm
 		$self.lv1 <- 10
 	_
 _
 
 flags $ft $f1 $f2 $f3 _
+
+methods $ft
+	blk $isValid -> bool
+		
+	_
+_
+
 enum $e1 $e1 $e2 $e3 _
 
 blk $b
