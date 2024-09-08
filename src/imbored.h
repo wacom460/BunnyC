@@ -504,6 +504,8 @@ IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, IBOp type, int limi
 int IBLayer3GetTabCount(IBLayer3* ibc);
 void IBLayer3Done(IBLayer3* ibc);
 IBObj* IBLayer3FindWorkingObj(IBLayer3* ibc, IBOp type);
+IBObj* IBLayer3FindWorkingObjRev(IBLayer3* ibc, IBOp type);
+IBObj* IBLayer3FindWorkingObjUnderIndex(IBLayer3* ibc, int index, IBOp type);
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc);
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP);
 #define IBLayer3PushCodeBlock(ibc, cbDP){\

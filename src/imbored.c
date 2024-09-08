@@ -251,7 +251,7 @@ int IBStrStripFront(IBStr* str, char ch){
 	str->end=str->start+(slen - in);
 	IBASSERT0(str->end);
 	if (str->end) {
-		char ec = 
+		char ec =
 			*(str->end);
 		IBASSERT0(ec == '\0');
 	}
@@ -287,7 +287,7 @@ IBVecData* IBVectorGet(IBVector* vec, int idx) {
 		|| idx >= vec->elemCount) return NULL;
 	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
-void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {	
+void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {
 	//DbgFmt("[%d]"__FUNCTION__,lineNum);
 	IBASSERT0(idx);
 	IBASSERT0(vec);
@@ -953,7 +953,7 @@ void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name){
 	memset(ti,0,sizeof*ti);
 	IBStrInitWithCStr(&ti->name, name);
 	ti->type=type;
-	IBVectorInit(&ti->members, sizeof*ti, 
+	IBVectorInit(&ti->members, sizeof*ti,
 		OP_IBTypeInfo, IBVEC_DEFAULT_SLOTCOUNT);
 	IB_SETMAGICP(ti);
 }
@@ -1295,13 +1295,16 @@ void IBLayer3VecPrint(IBVector* vec) {
 }
 IBObj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, IBOp type) {
 	int i;
+	if(index<0)index=ibc->ObjStack.elemCount + index;
+	IBASSERT0(index>=0);
 	if(ibc->ObjStack.elemCount < 2)
 		Err(OP_Error, "Not enough objects on stack");
-	if(index >= ibc->ObjStack.elemCount)
+	if(index > ibc->ObjStack.elemCount)
 		Err(OP_Error, "Index out of bounds");
 	for (i = index - 1; i >= 0;) {
 		IBObj* o;
-		o = (IBObj*)IBVectorGet(&ibc->ObjStack, i--);
+		o = (IBObj*)IBVectorGet(&ibc->ObjStack, i);
+		i--;
 		if (o->type == type) return o;
 	}
 	return NULL;
@@ -1386,8 +1389,8 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBLayer3PushObj(ibc, &o);
 	IBLayer3PushTask(ibc, OP_RootTask, &exp, NULL);
 	ExpectsInit(exp, "PPPNNNNNNNNNNN",
-		OP_Op, OP_VarType, OP_Subtract, OP_Use, OP_Imaginary, OP_Func, 
-		OP_Enum, OP_Flags, OP_Struct, OP_Space, OP_Public, 
+		OP_Op, OP_VarType, OP_Subtract, OP_Use, OP_Imaginary, OP_Func,
+		OP_Enum, OP_Flags, OP_Struct, OP_Space, OP_Public,
 		OP_Private, OP_RunArguments, OP_CInclude
 	);
 }
@@ -1488,7 +1491,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBVectorFree(&ibc->ArrayIndexExprsVec, IBStrFree);
 	IBStrFree(&ibc->CCode);
 }
-void 
+void
 IBLayer3RegisterCustomType
 (IBLayer3* ibc, char* name, IBOp type, IBTypeInfo**outDP){
 	IBTypeInfo*ti=0;
@@ -1512,7 +1515,7 @@ IBLayer3RegisterCustomType
 	IBTypeInfoInit(ti, type, name);
 	if(outDP) (*outDP)=ti;
 }
-void 
+void
 IBLayer3FindType
 (IBLayer3* ibc, char* name, IBTypeInfo** outDP){
 	IBTypeInfo*ti=0;
@@ -1686,8 +1689,37 @@ IBObj* IBLayer3FindWorkingObj(IBLayer3* ibc, IBOp type){
 	int idx=0;
 	IBTask* t=IBLayer3GetTask(ibc);
 	assert(t);
-	while (o = (IBObj*)IBVectorIterNext(&t->working, &idx))
+	while (o = IBVectorIterNext(&t->working, &idx))
 		if (o->type == type) return o;
+	return NULL;
+}
+IBObj* IBLayer3FindWorkingObjRev(IBLayer3* ibc, IBOp type){
+	IBTask* t=IBLayer3GetTask(ibc);
+	assert(t);
+	for(int i = t->working.elemCount - 1; i >= 0; ++i){
+		IBObj*o=IBVectorGet(&t->working,i);
+		assert(o);
+		if(o->type==type)return o;
+	}
+	return NULL;
+}
+IBObj* IBLayer3FindWorkingObjUnderIndex(IBLayer3* ibc, int index, IBOp type)
+{
+	IBTask* t=IBLayer3GetTask(ibc);
+	int i=0;
+	IBASSERT0(t);
+	if(index<0)index=t->working.elemCount + index;
+	IBASSERT0(index>=0);
+	if(t->working.elemCount < 2)
+		Err(OP_Error, "Not enough objects on stack");
+	if(index > t->working.elemCount)
+		Err(OP_Error, "Index out of bounds");
+	for (i = index - 1; i >= 0;) {
+		IBObj*o=0;
+		o = IBVectorGet(&t->working, i);
+		i--;
+		if (o->type == type) return o;
+	}
 	return NULL;
 }
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc){
@@ -2398,7 +2430,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			Err(OP_Error, "enum needs a name");
 		IBLayer3FindType(ibc,eo->name,&ti);
 		IBASSERT0(!ti);
-		if(ti) ErrF(OP_AlreadyExists,"type %s already exists");
+		if(ti) ErrF(OP_AlreadyExists,"type %s already exists", eo->name);
 		IBLayer3RegisterCustomType(ibc,eo->name,OP_Enum,&ti);
 		ti->Enum.isFlags=eo->enumO.flags;
 		IBStrAppendFmt(&t->code.header, "enum E%s {\n", eo->name);
@@ -2411,7 +2443,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				IBVectorPush(&ti->members,&nti);
 				IBTypeInfoInit(nti,OP_EnumVal,eo->name);
 				oneFound = true;
-				IBStrAppendFmt(&t->code.code, "\t%s_%s", eo->name, o->name);
+				IBStrAppendFmt(&t->code.code, "\tE%s_%s", eo->name, o->name);
 				if (eo->enumO.flags) {
 					nti->EnumValue.val=flagsI;
 					IBStrAppendFmt(&t->code.code, " = %d", flagsI);
@@ -2805,10 +2837,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			case OP_Struct: {
 				assert(o->name);
 				assert(*o->name);
-				
+
 				IBLayer3FindType(ibc,o->name,&ti);
 				IBASSERT0(!ti);
-				if(ti) ErrF(OP_AlreadyExists,"type %s already exists");
+				if(ti) ErrF(OP_AlreadyExists,"type %s already exists",o->name);
 				IBLayer3RegisterCustomType(ibc,o->name,OP_Struct,&ti);
 
 				IBStrAppendFmt(&header, "struct S%s {\n", o->name);
@@ -2990,7 +3022,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				switch(funcObj->func.retValVarcast){
 				IBCASE_NUMTYPES
 				{
-					IBStrAppendFmt(&cFuncCode,"(%s) ", 
+					IBStrAppendFmt(&cFuncCode,"(%s) ",
 						IBGetCEqu(funcObj->func.retValVarcast));
 					break;
 				}
@@ -3606,7 +3638,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBObj* o;
 				IBNameInfo* ni;
 				IBExpects* exp=NULL;
-				o = IBLayer3FindWorkingObj(ibc, OP_ActOnName);
+				o = IBLayer3FindWorkingObjRev(ibc, OP_ActOnName);
 				assert(o);
 				assert(o->name[0] != '\0');
 				ni = IBLayer3SearchNameInfo(ibc, o->name);
@@ -4226,7 +4258,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBStrAppendCStr(&ns, "self->");
 				IBStrAppendFmt(&ns, "%s", &ibc->Str[5]);
 				ibc->Str[0]='\0';
-				//strncpy(ibc->Str, ns.start, IBLayer3STR_MAX/*IBStrLen(&ns)*/);
+				strncpy(ibc->Str, ns.start, IBLayer3STR_MAX);
 			}
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);

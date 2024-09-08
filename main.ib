@@ -3,6 +3,7 @@ struct $ss
 	i64 $lv2
 	u8 $lv3
 	blk $fm
+		$self.lv1 <- 10
 	_
 _
 
