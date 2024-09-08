@@ -257,14 +257,15 @@ int IBStrStripFront(IBStr* str, char ch){
 	}
 	return in;
 }
-void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type) {
+void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count) {
 	void* m;
+	IBASSERT0(count>0);
 	memset(vec,0,sizeof*vec);
 	vec->initMagic=IBMAGIC;
 	vec->elemSize = elemSize;
 	vec->type = type;
 	vec->elemCount = 0;
-	vec->slotCount = 1;
+	vec->slotCount = count;
 	vec->dataSize = vec->elemSize * vec->slotCount;
 	vec->data = NULL;
 	m=malloc(vec->dataSize);
@@ -304,8 +305,7 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
 	IBASSERT0(vec->elemSize);
 	IBASSERT0(vec->type)
 	if (vec->elemCount + 1 > vec->slotCount) {
-		void* ra;
-		ra = NULL;
+		void*ra=0;
 		vec->slotCount++;
 		vec->dataSize = vec->elemSize * vec->slotCount;
 		//DbgFmt("vec->dataSize: %d\n", vec->dataSize);
@@ -313,8 +313,9 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
 		ra = realloc(vec->data, vec->dataSize);
 		IBASSERT0(ra);
 		if(ra) vec->data = ra;
+		vec->reallocCount++;
 	}
-	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
+	topPtr = (IBVecData*)((char*)vec->data + (vec->elemSize * vec->elemCount));
 	memset(topPtr, 0, vec->elemSize);
 	int pil = ClampInt(vec->elemCount, 0, IBVEC_PUSHINFO_MAX - 1);
 	vec->PushInfo[pil].lineNum=ln;
@@ -403,12 +404,12 @@ void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 		break;
 	}
 	}
-	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey);
+	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, 1);
 }
 void IBDictKeyInitRoot(IBDictKey* key){
 	memset(key, 0, sizeof(IBDictKey));
 	key->type = IBDictDataType_RootKey;
-	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey);
+	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, 1);
 }
 void IBDictKeyFree(IBDictKey* key) {
 	int idx = 0;
@@ -534,7 +535,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...){
 	IBDictKey** outKeyPtr=NULL;
 	size_t count=0;
 	IBDictManipAction action = IBDictManipAction_Unknown;
-	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef);
+	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, 1);
 	va_start(args, fmt);
 	for (i = 0; i < strlen(fmt); i++) {
 		char ch = fmt[i];
@@ -647,7 +648,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...){
 }
 IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath){
 	IBVector keyStack;
-	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef);
+	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, 1);
 	IBDictKeyDef*kd;
 	IBVectorPush(&keyStack, &kd);
 	IBDictKey* dk = IBDictKeyFind(rootKey, &keyStack);
@@ -755,7 +756,7 @@ void IBNameInfoFree(IBNameInfo* info) {
 	free(info->name);
 }
 void IBNameInfoDBInit(IBNameInfoDB* db) {
-	IBVectorInit(&db->pairs, sizeof(IBNameInfo), OP_NameInfo);
+	IBVectorInit(&db->pairs, sizeof(IBNameInfo), OP_NameInfo, 1);
 }
 void IBNameInfoDBFree(IBNameInfoDB* db) {
 	IBASSERT0(db);
@@ -809,7 +810,7 @@ void ObjInit(IBObj* o) {
 	o->valType = OP_Unknown;
 	o->func.retStr = NULL;
 	o->arg.type = OP_Null;
-	IBVectorInit(&o->arg.arrIndexExprs,sizeof(IBStr),OP_IBStr);
+	IBVectorInit(&o->arg.arrIndexExprs,sizeof(IBStr),OP_IBStr, 1);
 	o->arg.mod = OP_NotSet;
 	o->ifO.lvName=NULL;
 	o->ifO.rvName = NULL;
@@ -833,8 +834,8 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char *fmt, ...) {
 	IBOp nameOp;
 	int i;
 	assert(exp);
-	IBVectorInit(&exp->pfxs, sizeof(IBOp), OP_Op);
-	IBVectorInit(&exp->nameOps, sizeof(IBOp), OP_Op);
+	IBVectorInit(&exp->pfxs, sizeof(IBOp), OP_Op, 1);
+	IBVectorInit(&exp->nameOps, sizeof(IBOp), OP_Op, 1);
 	exp->pfxErr="";
 	exp->nameOpErr="";
 	exp->life=0;
@@ -929,9 +930,9 @@ void ExpectsFree(IBExpects* ap) {
 	IBVectorFreeSimple(&ap->nameOps);
 }
 void TaskInit(IBTask* t, IBOp type) {
-	IBVectorInit(&t->working, sizeof(IBObj), OP_Obj);
-	IBVectorInit(&t->expStack, sizeof(IBExpects), OP_Expects);
-	IBVectorInit(&t->subTasks, sizeof(IBTask), OP_Task);
+	IBVectorInit(&t->working, sizeof(IBObj), OP_Obj, 1);
+	IBVectorInit(&t->expStack, sizeof(IBExpects), OP_Expects, 1);
+	IBVectorInit(&t->subTasks, sizeof(IBTask), OP_Task, 1);
 	IBCodeBlockInit(&t->code);
 	t->type = type;
 	memset(&t->exprData, 0, sizeof(IBTaskNeedExpression));
@@ -982,7 +983,7 @@ IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn,
 		IBStrAppend(&ret->name, objName);
 		cic = IBStrContainsAnyOfChars(&ret->name, IB_IllegalDbObjNameChars);
 		assert(!cic);
-		IBVectorInit(&ret->children, sizeof(IB_DBObj), OP_DBObj);
+		IBVectorInit(&ret->children, sizeof(IB_DBObj), OP_DBObj, 1);
 	}
 	return ret;
 }
@@ -1317,7 +1318,9 @@ void IBLayer3Init(IBLayer3* ibc){
 		*u64ti=0,*i64ti=0,*d64ti=0,*stringti=0;
 	memset(ibc,0,sizeof*ibc);
 
-	IBVectorInit(&ibc->TypeRegistry,sizeof(IBTypeInfo), OP_IBTypeInfo);
+	IBVectorInit(&ibc->TypeRegistry,sizeof(IBTypeInfo), OP_IBTypeInfo, 
+		12//prealloc
+	);
 	IBVectorPush(&ibc->TypeRegistry,&u8ti);
 	IBVectorPush(&ibc->TypeRegistry,&i8ti);
 	IBVectorPush(&ibc->TypeRegistry,&c8ti);
@@ -1342,7 +1345,7 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBTypeInfoInit(i64ti, OP_i64,"i64");
 	IBTypeInfoInit(d64ti, OP_d64,"d64");
 	IBTypeInfoInit(stringti, OP_String,"nts");
-
+//getchar();
 	IBLayer3RegisterCustomType(ibc,"ct",OP_Enum,NULL);
 
 	ibc->Running = true;
@@ -1357,20 +1360,20 @@ void IBLayer3Init(IBLayer3* ibc){
 	IBStrInit(&ibc->CIncludesStr);
 	IBStrInit(&ibc->CCode);
 	IBStrInit(&ibc->FinalOutput);
-	IBVectorInit(&ibc->ArrayIndexExprsVec, sizeof(IBStr), OP_IBStr);
+	IBVectorInit(&ibc->ArrayIndexExprsVec, sizeof(IBStr), OP_IBStr, 1);
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
 	ibc->CommentMode = OP_NotSet;
 	IBNameInfoDBInit(&ibc->GlobalVariables);
 	IBStrInit(&ibc->CurSpace);
-	IBVectorInit(&ibc->ObjStack, sizeof(IBObj), OP_Obj);
-	IBVectorInit(&ibc->ModeStack, sizeof(IBOp), OP_Op);
-	IBVectorInit(&ibc->StrReadPtrsStack, sizeof(bool), OP_Bool);
-	IBVectorInit(&ibc->TaskStack, sizeof(IBTask), OP_Task);
+	IBVectorInit(&ibc->ObjStack, sizeof(IBObj), OP_Obj, 1);
+	IBVectorInit(&ibc->ModeStack, sizeof(IBOp), OP_Op, 1);
+	IBVectorInit(&ibc->StrReadPtrsStack, sizeof(bool), OP_Bool, 1);
+	IBVectorInit(&ibc->TaskStack, sizeof(IBTask), OP_Task, 1);
 	IBVectorInit(&ibc->CodeBlockStack,
-		sizeof(IBCodeBlock), OP_IBCodeBlock);
+		sizeof(IBCodeBlock), OP_IBCodeBlock, 1);
 	IBVectorInit(&ibc->ExpressionStack,
-		sizeof(IBExpression), OP_IBExpression);
+		sizeof(IBExpression), OP_IBExpression, 1);
 	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
 	IBVectorCopyPushBool(&ibc->StrReadPtrsStack, false);
@@ -1513,6 +1516,7 @@ IBLayer3FindType
 	IBASSERT0(strlen(name)>0);
 	while(ti=IBVectorIterNext(&ibc->TypeRegistry,&idx)){
 		IB_ASSERTMAGICP(ti);
+		IBASSERT0(ti->name.start)
 		if (!strcmp(ti->name.start, name)) break;
 	}
 	if(outDP) (*outDP)=ti;

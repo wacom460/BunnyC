@@ -25,7 +25,7 @@ IBIde g_Ide;
 
 void IBIdeFileInfoInit(IBIdeFileInfo* info)
 {
-	IBVectorInit(&info->lineInfo, sizeof(IBIdeLineInfo), OP_IBIdeLineInfo);
+	IBVectorInit(&info->lineInfo, sizeof(IBIdeLineInfo), OP_IBIdeLineInfo, 1);
 }
 
 void IBIdeFileInfoFree(IBIdeFileInfo* info)
@@ -73,7 +73,7 @@ void IBIdeFileCompile(IBIdeFile* ideF)
 void IBIdeProjectInit(IBIdeProject* proj, char* name) {
 	IBIdeFile* newFile = NULL;
 	IBStrInitWithCStr(&proj->name, name);
-	IBVectorInit(&proj->files, sizeof(IBIdeFile), OP_IBIdeFile);
+	IBVectorInit(&proj->files, sizeof(IBIdeFile), OP_IBIdeFile, 1);
 	IBVectorPush(&proj->files, &newFile);
 	IBIdeFileInit(newFile, "new."IB_FILE_EXT);
 	IBStrAppendCStr(&newFile->data, IBHELLO_WORLD_SAMPLE_CODE);

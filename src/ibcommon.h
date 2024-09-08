@@ -58,13 +58,14 @@ typedef struct IBVector {
 	IBOp type;
 	int elemCount;
 	int slotCount;
-	long long int dataSize;
+	int dataSize;
+	int reallocCount;
 	IB_DEFMAGIC;
 	//do not expect pointers to stay valid, realloc is called on change
 	IBVecData* data;/*DATA BLOCK*/
 	IBVecPushInfo PushInfo[IBVEC_PUSHINFO_MAX];
 } IBVector;
-void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type);
+void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count);
 IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
 
