@@ -275,8 +275,11 @@ void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type) {
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	IBASSERT0(vec);
+	IB_ASSERTMAGICP(vec);
 	IBASSERT0(vec->elemCount >= 0);
 	IBASSERT0(vec->slotCount >= 0);
+	IBASSERT0(idx>=0);
+	IBASSERT0(idx < vec->elemCount);
 	if (vec->elemCount < 1
 		|| idx >= vec->elemCount) return NULL;
 	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
@@ -285,6 +288,7 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {
 	//DbgFmt("[%d]"__FUNCTION__,lineNum);
 	IBASSERT0(idx);
 	IBASSERT0(vec);
+	IB_ASSERTMAGICP(vec);
 	IBASSERT0((*idx) >= 0);
 	IBASSERT0(vec->elemCount <= vec->slotCount);
 	IBASSERT0(vec->elemCount + vec->slotCount + vec->dataSize >= 0);
@@ -296,6 +300,7 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {
 void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
 	IBVecData* topPtr;
 	IBASSERT0(vec);
+	IB_ASSERTMAGICP(vec);
 	IBASSERT0(vec->elemSize);
 	IBASSERT0(vec->type)
 	if (vec->elemCount + 1 > vec->slotCount) {
@@ -318,6 +323,8 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
 	if(dataDP) *dataDP = topPtr;
 }
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS) {
+	IBASSERT0(vec);
+	IB_ASSERTMAGICP(vec);
 	IBVecData* top;
 	_IBVectorPush(vec, &top IBDBGFPL2);//FIX
 	memcpy(top, elem, vec->elemSize);
@@ -333,6 +340,7 @@ void _IBVectorCopyPushIBColor(IBVector* vec, IBColor col IBDBGFILELINEPARAMS){
 }
 IBVecData* IBVectorTop(IBVector* vec) {
 	IBASSERT0(vec);
+	IB_ASSERTMAGICP(vec);
 	IBASSERT0(vec->elemCount >= 0);
 	IBASSERT0(vec->slotCount >= 0);
 	if (vec->elemCount <= 0) return NULL;
@@ -1090,13 +1098,14 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln){
 	assert(name);
 	assert(name[0]);
 	//DbgFmt("[%d]"__FUNCTION__"(,%s)\n", ln, name);
-	idx=ibc->CodeBlockStack.elemCount;
-	while(idx-->=0){
+	idx=ibc->CodeBlockStack.elemCount-1;
+	while(idx>=0){
 		IBCodeBlock* cb = IBVectorGet(&ibc->CodeBlockStack, idx);
 		assert(cb);
 		IB_ASSERTMAGICP(&cb->localVariables.pairs);
 		ni = IBNameInfoDBFind(&cb->localVariables, name);
 		if (ni) return ni;
+		idx--;
 	}
 	ni=IBNameInfoDBFind(&ibc->GlobalVariables, name);
 	return ni;
@@ -1607,7 +1616,7 @@ IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc){
 	return (IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
 }
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP){
-	IBCodeBlock* cb;
+	IBCodeBlock*cb=0;
 	DbgFmt(" Push code block\n","");
 	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);

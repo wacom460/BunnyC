@@ -3,6 +3,11 @@
 #include "ibop.h"
 #include "ibmisc.h"
 
+#if defined(__TINYC__) || defined(__GNUC__)
+#define __debugbreak()
+#endif
+#define DB __debugbreak();
+
 #define CLAMP_IMP\
 	return val < min ? min : val > max ? max : val;
 #define CLAMP_FUNC(type, name)\
@@ -109,6 +114,96 @@ void IBVectorFreeSimple(IBVector* vec);
 	}\
 	IBVectorFreeSimple((vec));\
 }
+
+// ZII :3
+
+#define Assert(x) \
+if(!(x)) {         \
+    printf("FAIL: " \
+        "at %s:%d -> %s==0!\n", \
+        __FILE__, __LINE__, #x); \
+    DB;               \
+}
+
+#define LE "\n"
+#define SPC " "
+#define SET(x, y)\
+	((x) |= (y))
+#define SETIF(e, x, y)\
+    if(e) SET(x, y);
+#define UNSET(x, y)\
+	((x) &= ~(y))
+#define UNSETIF(e,x,y)\
+    if(e)UNSET(x,y);
+#define TOGGLE(x, y)\
+	((x) ^= (y))
+#define TOGGLEIF(e,x,y)\
+    if(e)TOGGLE(x,y);
+#define ISSET(x, y)\
+	((x) & (y))
+#define ISNTSET(x,y)\
+	!ISSET(x,y)
+#define ARRITEMLEN(x)\
+    (sizeof((x)[0]))
+#define ARRLEN(x)\
+    (sizeof((x))\
+	/ ARRITEMLEN((x)))
+#define LOADED_BIT\
+	(1 << 0)
+#define LB LOADED_BIT
+#define LOADED(x)\
+    ((x)->flags & LB)
+#define FLAGBIT(x)\
+	(1 << (x))
+#define FB(x)\
+	FLAGBIT(x)
+
+#define DEFSAVELOAD(TYPE)                   \
+    void TYPE##Save(TYPE* ptr, char* loc);  \
+    bool TYPE##Load(TYPE* ptr, char* loc);
+
+#define IMPSAVELOAD(TYPE, VER)               \
+    void TYPE##Save(TYPE* ptr, char* loc) {  \
+        FILE* file = fopen(loc, "wb");       \
+        Assert(file);                        \
+        if (file) {                          \
+            fwrite(ptr, sizeof(char),        \
+            	sizeof(TYPE), file);         \
+            fclose(file);                    \
+        }                                    \
+    }                                        \
+    bool TYPE##Load(TYPE* ptr, char* loc){   \
+        Assert(ptr->ver<=VER);               \
+        FILE* file = fopen(loc, "rb");       \
+        if (file) {                          \
+            memset(ptr,0,sizeof(TYPE));      \
+            fseek(file, 0, SEEK_END);        \
+            long size=ftell(file);           \
+            Assert(size<=sizeof(TYPE));      \
+            fseek(file, 0, SEEK_SET);        \
+            fread(ptr,                       \
+            	sizeof(TYPE), 1, file);      \
+            fclose(file);                    \
+            return true;\
+        }                                    \
+        return false;\
+    }
+
+#define FORARR(arr)\
+    for(int i=0;i<ARRLEN(arr);++i)
+
+#define FORARRREV(arr)\
+    for(int i=ARRLEN(arr)-1;i>0;--i)
+
+#define FORARRLB(arr) \
+    for(int i=0;(i<ARRLEN(arr)) \
+        && LOADED(&((arr)[i])); \
+        ++i)
+
+#define FORARRNLB(arr)\
+    for(int i=0;(i<ARRLEN(arr))\
+        && (!LOADED(&((arr)[i])));\
+        ++i)
 
 
 #endif

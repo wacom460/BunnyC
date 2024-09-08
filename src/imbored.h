@@ -3,7 +3,10 @@
 #include "ibcommon.h"
 #include "ibmisc.h"
 #include <libtcc.h>
-//#define IBDEBUGPRINTS
+
+
+
+#define IBDEBUGPRINTS
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -62,11 +65,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IBCOMMENT_CHAR_OPEN ('(')
 #define IBCOMMENT_CHAR_CLOSE (')')
 #define IBLayer3STR_MAX 64
-
-#if defined(__TINYC__) || defined(__GNUC__)
-#define __debugbreak()
-#endif
-#define DB __debugbreak();
 
 #define IBASSERT0(x) { \
 	if(!(x)) { \
