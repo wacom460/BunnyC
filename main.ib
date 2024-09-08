@@ -6,8 +6,16 @@ i16 $ti16 =-20001
 u16 $tu16 15055
 u64 $tu64 101142069
 
+flags $ft
+	$f1
+	$f2
+	$f3
+_
+
 blk $main i32 $argc nts^ $argv -> i32
+	%ft $f <- .f1 | .f2 | .f3
 	c8 $zc
-	~(return $[as i32]tu64)~
+	nts $a "test"
+	return $[as i32]tu64
 _ $[as i32]tu64
 

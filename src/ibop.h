@@ -75,6 +75,7 @@ X(ParenthesisOpen) \
 X(ParenthesisClose) \
 X(CurlyBraceOpen) \
 X(CurlyBraceClose) \
+X(Custom) \
 X(TaskStackEmpty) \
 X(RootTask) \
 X(StructWantName) \
@@ -163,9 +164,12 @@ X(NameInfoDB) \
 X(NameInfo) \
 X(Expects) \
 X(CodeBlockCallFunc) \
+X(FuncPtr) \
 X(ElseIf) \
 X(EmptyStr) \
 X(BuildingIf) \
+X(Builtin) \
+X(IBTypeInfo)\
 X(SubtaskArgs) \
 X(FloatingPoint) \
 X(Modulo) \

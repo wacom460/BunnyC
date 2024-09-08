@@ -295,7 +295,7 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {
 	//DbgFmt("(%p,%d(%p),%d)\n", vec, *idx, idx, lineNum);
 	if (!vec || !idx) return NULL;
 	if ((*idx) >= vec->elemCount) return NULL;
-	return (char*)vec->data + (vec->elemSize * ((*idx)++));
+	return (void*)((char*)vec->data + (vec->elemSize * ((*idx)++)));
 }
 void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
 	IBVecData* topPtr;
@@ -330,13 +330,13 @@ void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS) {
 	memcpy(top, elem, vec->elemSize);
 }
 void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS) {
-	IBVectorCopyPush(vec, &val IBDBGFPL2);
+	_IBVectorCopyPush(vec, &val IBDBGFPL2);
 }
 void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS) {
-	IBVectorCopyPush(vec, &val IBDBGFPL2);
+	_IBVectorCopyPush(vec, &val IBDBGFPL2);
 }
 void _IBVectorCopyPushIBColor(IBVector* vec, IBColor col IBDBGFILELINEPARAMS){
-	IBVectorCopyPush(vec, &col IBDBGFPL2);
+	_IBVectorCopyPush(vec, &col IBDBGFPL2);
 }
 IBVecData* IBVectorTop(IBVector* vec) {
 	IBASSERT0(vec);
@@ -943,6 +943,18 @@ void TaskFree(IBTask* t) {
 	IBVectorFree(&t->expStack, ExpectsFree);
 	IBVectorFree(&t->working, ObjFree);
 }
+void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name){
+	IBASSERT0(ti);
+	memset(ti,0,sizeof*ti);
+	IBStrInitWithCStr(&ti->name, name);
+	ti->type=type;
+	IB_SETMAGICP(ti);
+}
+void IBTypeInfoFree(IBTypeInfo* ti){
+	IBASSERT0(ti);
+	IB_ASSERTMAGICP(ti);
+	IBStrFree(&ti->name);
+}
 char* IBGetCEqu(IBOp op) {
 	int sz;
 	int i;
@@ -1297,25 +1309,41 @@ IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type){
 	return NULL;
 }
 void IBLayer3Init(IBLayer3* ibc){
-	IBObj* o;
-	IBExpects* exp;
-	IBCodeBlock* cb;
+	IBObj* o=0;
+	IBExpects* exp=0;
+	IBCodeBlock* cb=0;
+	IBTypeInfo*u8ti=0,*i8ti=0,*c8ti=0,*u16ti=0,
+		*i16ti=0,*u32ti=0,*i32ti=0,*f32ti=0,
+		*u64ti=0,*i64ti=0,*d64ti=0,*stringti=0;
 	memset(ibc,0,sizeof*ibc);
 
-	//unneeded
-	ibc->TCC=NULL;
-	ibc->IncludeCStdioHeader = false;
-	ibc->IncludeCStdlibHeader=false;
-	ibc->Imaginary = false;
-	ibc->Pfx = OP_Null;
-	ibc->Str[0] = '\0';
-	ibc->NameOp = OP_Null;
-	ibc->LastNameOp = OP_Null;
-	ibc->Ch = '\0';
-	ibc->LastCh = '\0';
-	ibc->StringMode = false;
-	ibc->StrAllowSpace = false;
-	ibc->InputStr = NULL;
+	IBVectorInit(&ibc->TypeRegistry,sizeof(IBTypeInfo), OP_IBTypeInfo);
+	IBVectorPush(&ibc->TypeRegistry,&u8ti);
+	IBVectorPush(&ibc->TypeRegistry,&i8ti);
+	IBVectorPush(&ibc->TypeRegistry,&c8ti);
+	IBVectorPush(&ibc->TypeRegistry,&u16ti);
+	IBVectorPush(&ibc->TypeRegistry,&i16ti);
+	IBVectorPush(&ibc->TypeRegistry,&u32ti);
+	IBVectorPush(&ibc->TypeRegistry,&i32ti);
+	IBVectorPush(&ibc->TypeRegistry,&f32ti);
+	IBVectorPush(&ibc->TypeRegistry,&u64ti);
+	IBVectorPush(&ibc->TypeRegistry,&i64ti);
+	IBVectorPush(&ibc->TypeRegistry,&d64ti);
+	IBVectorPush(&ibc->TypeRegistry,&stringti);
+	IBTypeInfoInit(u8ti, OP_u8,"u8");
+	IBTypeInfoInit(i8ti, OP_i8,"i8");
+	IBTypeInfoInit(c8ti, OP_c8,"c8");
+	IBTypeInfoInit(u16ti, OP_u16,"u16");
+	IBTypeInfoInit(i16ti, OP_i16,"i16");
+	IBTypeInfoInit(u32ti, OP_u32,"u32");
+	IBTypeInfoInit(i32ti, OP_i32,"i32");
+	IBTypeInfoInit(f32ti, OP_f32,"f32");
+	IBTypeInfoInit(u64ti, OP_u64,"u64");
+	IBTypeInfoInit(i64ti, OP_i64,"i64");
+	IBTypeInfoInit(d64ti, OP_d64,"d64");
+	IBTypeInfoInit(stringti, OP_String,"nts");
+
+	IBLayer3RegisterCustomType(ibc,"ct",OP_Enum,NULL);
 
 	ibc->Running = true;
 	ibc->Line = 1;
@@ -1360,6 +1388,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBObj* o;
 	IBCodeBlock* cb;
 	IBStr rootCbFinal;
+
 	assert(ibc);
 	IBStrInit(&rootCbFinal);
 	if (ibc->InputStr) {
@@ -1446,9 +1475,47 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBStrFree(&ibc->RunArguments);
 	IBStrFree(&ibc->CIncludesStr);
 	IBStrFree(&ibc->CurrentLineStr);
+	IBVectorFree(&ibc->TypeRegistry, IBTypeInfoFree);
 	//IBStrFree(&ibc->ArrayIndexExprStr);
 	IBVectorFree(&ibc->ArrayIndexExprsVec, IBStrFree);
 	IBStrFree(&ibc->CCode);
+}
+void 
+IBLayer3RegisterCustomType
+(IBLayer3* ibc, char* name, IBOp type, IBTypeInfo**outDP){
+	IBTypeInfo*ti=0;
+	IBASSERT0(ibc);
+	IBASSERT0(name);
+	IBASSERT0(type>0);
+	IBLayer3FindType(ibc,name,&ti);
+	if(ti) {
+		ErrF(OP_AlreadyExists, "type %s already exists", name);
+		return;
+	}
+	switch (type) {
+	case OP_Enum:
+	case OP_Struct:
+		break;
+	IBCASE_UNIMP
+	}
+	IB_ASSERTMAGIC(ibc->TypeRegistry);
+	IBVectorPush(&ibc->TypeRegistry, &ti);
+	IBTypeInfoInit(ti, type, name);
+	if(outDP) (*outDP)=ti;
+}
+void 
+IBLayer3FindType
+(IBLayer3* ibc, char* name, IBTypeInfo** outDP){
+	IBTypeInfo*ti=0;
+	int idx=0;
+	IBASSERT0(ibc);
+	IBASSERT0(name);
+	IBASSERT0(strlen(name)>0);
+	while(ti=IBVectorIterNext(&ibc->TypeRegistry,&idx)){
+		IB_ASSERTMAGICP(ti);
+		if (!strcmp(ti->name.start, name)) break;
+	}
+	if(outDP) (*outDP)=ti;
 }
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, IBOp type, int limit){
 	int i;
@@ -1520,6 +1587,7 @@ IBLayer3CompileTCC
 			IBOverwriteStr(&argv[argc], ls.start);
 			++argc;
 		}
+		IBStrFree(&ls);
 	}
 	if (Entry) {
 		int entryRet=0;

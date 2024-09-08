@@ -382,6 +382,14 @@ typedef struct IBSharedState {
 typedef struct IBExpression {
 	IBCodeBlock cb;
 } IBExpression;
+typedef struct IBTypeInfo {
+	//IBOp infoType; //OP_Builtin,OP_Custom
+	IBOp type;//OP_Enum,OP_Struct,OP_i32,OP_c8 etc..
+	IBStr name;
+	IB_DEFMAGIC;
+} IBTypeInfo;
+void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name);
+void IBTypeInfoFree(IBTypeInfo* ti);
 typedef struct IBLayer3 {
 	IBOp Pfx;
 	IBOp Pointer;
@@ -403,6 +411,7 @@ typedef struct IBLayer3 {
 	IBStr RunArguments;
 	//IBStr ArrayIndexExprStr;
 	IBVector ArrayIndexExprsVec;//IBStr
+	IBVector TypeRegistry;//IBTypeInfo
 
 	IBVector ObjStack; /*IBObj*/
 	IBVector ModeStack; /*IBOp*/
@@ -444,6 +453,10 @@ typedef struct IBLayer3 {
 }
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
+void IBLayer3RegisterCustomType(IBLayer3*ibc,char*name, 
+	IBOp type,/*OP_Enum,OP_Struct,OP_FuncPtr*/
+	IBTypeInfo**outDP);
+void IBLayer3FindType(IBLayer3*ibc,char*name,IBTypeInfo**outDP);
 void IBLayer3CompileTCC(IBLayer3* ibc);
 IBObj* IBLayer3GetObj(IBLayer3* ibc);
 IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln);
