@@ -43,48 +43,69 @@ typedef union IBVecData {
 	struct IBDictKey* dictKey;
 	struct IBDictKeyDef* dictKeyDef;
 } IBVecData;
+#define IBVEC_PUSHINFO_MAX (100)
+typedef struct IBVecPushInfo {
+	char* filePath;
+	int lineNum;
+} IBVecPushInfo;
 typedef struct IBVector {
 	long long int elemSize;
 	IBOp type;
 	int elemCount;
 	int slotCount;
 	long long int dataSize;
+	IB_DEFMAGIC;
 	//do not expect pointers to stay valid, realloc is called on change
 	IBVecData* data;/*DATA BLOCK*/
+	IBVecPushInfo PushInfo[IBVEC_PUSHINFO_MAX];
 } IBVector;
 void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type);
 IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
+
+#define IBDBGFILELINEPARAMS	,char*file,int ln
+#define IBDBGFPL2 ,file,ln
+#define IBDBGFLPI1 ,__FILE__,__LINE__
+
 #define IBVectorIterNext(vec,idx) _IBVectorIterNext(vec,idx,__LINE__)
-void _IBVectorPush(IBVector* vec, IBVecData** dataDP);
+void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS);
 #define IBVectorPush(vec, dataDP){\
 	/*int c=(vec)->elemCount - 1;*/\
-	_IBVectorPush((vec), dataDP);\
+	_IBVectorPush((vec), dataDP IBDBGFLPI1);\
 	/*PLINE;\
 	DbgFmt(" VectorPush: %s ", #vec); \
 	IBPushColor(IBFgCYAN); \
 	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1);\
 	IBPopColor();\*/ \
 }
-void IBVectorCopyPush(IBVector* vec, void* elem);
-void IBVectorCopyPushBool(IBVector* vec, bool val);
-void IBVectorCopyPushOp(IBVector* vec, IBOp val);
+void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS);
+#define IBVectorCopyPush(vec,elem)\
+	_IBVectorCopyPush(vec,elem IBDBGFLPI1)
+void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS);
+#define IBVectorCopyPushBool(vec,val)\
+	_IBVectorCopyPushBool(vec,val IBDBGFLPI1)
+void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS);
+#define IBVectorCopyPushOp(vec,val)\
+	_IBVectorCopyPushOp(vec,val IBDBGFLPI1)
 IBVecData* IBVectorTop(IBVector* vec);
 IBVecData* IBVectorFront(IBVector* vec);
-#define IBVectorPop(vec, freeFunc) _IBVectorPop((vec), freeFunc);
+#define IBVectorPop(vec, freeFunc)\
+	_IBVectorPop((vec), (void(*)(void*))(freeFunc))
 #define IBVectorClear(vec, freeFunc){\
 	while((vec)->elemCount){\
-		IBVectorPop((vec), freeFunc)\
+		IBVectorPop((vec), (void(*)(void*))(freeFunc));\
 	}\
 }
 
 void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
-void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
+void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
+#define IBVectorPopFront(vec,freeFunc)\
+	_IBVectorPopFront(vec,(void(*)(void*))(freeFunc))
 void IBVectorFreeSimple(IBVector* vec);
 #define IBVectorFree(vec, freeFunc){\
 	int i;\
 	for(i = 0;i<(vec)->elemCount;i++){\
-		freeFunc((void*)IBVectorGet((vec), i));\
+		(freeFunc)((void*)IBVectorGet((vec), i));\
 	}\
 	IBVectorFreeSimple((vec));\
 }

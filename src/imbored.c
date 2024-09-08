@@ -1,7 +1,7 @@
 #include "imbored.h"
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdarg.h>
 #include "ib_ide.h"
 #include "ibcolor.h"
@@ -141,12 +141,12 @@ void IBStrFree(IBStr* str){
 	free(str->start);
 }
 void IBStrClear(IBStr* str){
-	free(str->start);
+	if(str->start) free(str->start);
 	str->start = NULL;
 	str->start = malloc(1);
 	IBASSERT0(str->start);
 	if (str->start) {
-		*str->start = '\0';
+		*(str->start) = '\0';
 		str->end = str->start;
 	}
 }
@@ -202,9 +202,6 @@ char* IBStrAppendCStr(IBStr* str, char *with) {
 		*(str->start + len + withLen) = '\0';
 		str->end = str->start + len + withLen;
 		return str->start;
-	} else {
-		IBASSERT0(0);
-		exit(-1);
 	}
 	return NULL;
 }
@@ -235,10 +232,6 @@ char* IBStrAppend(IBStr* str, IBStr* with){
 		str->end = str->start + len + withLen;
 		return str->start;
 	}
-	else {
-		IBASSERT0(0);
-		exit(-1);
-	}
 	return NULL;
 }
 int IBStrStripFront(IBStr* str, char ch){
@@ -258,13 +251,16 @@ int IBStrStripFront(IBStr* str, char ch){
 	str->end=str->start+(slen - in);
 	IBASSERT0(str->end);
 	if (str->end) {
-		char ec = *str->end;
+		char ec = 
+			*(str->end);
 		IBASSERT0(ec == '\0');
 	}
 	return in;
 }
 void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type) {
 	void* m;
+	memset(vec,0,sizeof*vec);
+	vec->initMagic=IBMAGIC;
 	vec->elemSize = elemSize;
 	vec->type = type;
 	vec->elemCount = 0;
@@ -279,23 +275,25 @@ void IBVectorInit(IBVector* vec, long long int elemSize, IBOp type) {
 }
 IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	IBASSERT0(vec);
-	if (vec->elemCount <= 0) return NULL;
-	if (idx >= vec->elemCount) return NULL;
+	IBASSERT0(vec->elemCount >= 0);
+	IBASSERT0(vec->slotCount >= 0);
+	if (vec->elemCount < 1
+		|| idx >= vec->elemCount) return NULL;
 	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {	
-	DbgFmt("[%d] IBVectorIterNext",lineNum);
+	//DbgFmt("[%d]"__FUNCTION__,lineNum);
 	IBASSERT0(idx);
 	IBASSERT0(vec);
 	IBASSERT0((*idx) >= 0);
 	IBASSERT0(vec->elemCount <= vec->slotCount);
 	IBASSERT0(vec->elemCount + vec->slotCount + vec->dataSize >= 0);
-	DbgFmt("(%p,%d(%p),%d)\n", vec, *idx, idx, lineNum);
+	//DbgFmt("(%p,%d(%p),%d)\n", vec, *idx, idx, lineNum);
 	if (!vec || !idx) return NULL;
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (char*)vec->data + (vec->elemSize * ((*idx)++));
 }
-void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
+void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
 	IBVecData* topPtr;
 	IBASSERT0(vec);
 	IBASSERT0(vec->elemSize);
@@ -313,25 +311,30 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP) {
 	}
 	topPtr = (IBVecData*)((char*)vec->data + vec->elemSize * vec->elemCount);
 	memset(topPtr, 0, vec->elemSize);
+	int pil = ClampInt(vec->elemCount, 0, IBVEC_PUSHINFO_MAX - 1);
+	vec->PushInfo[pil].lineNum=ln;
+	vec->PushInfo[pil].filePath=file;
 	vec->elemCount++;
 	if(dataDP) *dataDP = topPtr;
 }
-void IBVectorCopyPush(IBVector* vec, void* elem) {
+void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS) {
 	IBVecData* top;
-	_IBVectorPush(vec, &top);
+	_IBVectorPush(vec, &top IBDBGFPL2);//FIX
 	memcpy(top, elem, vec->elemSize);
 }
-void IBVectorCopyPushBool(IBVector* vec, bool val) {
-	IBVectorCopyPush(vec, &val);
+void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS) {
+	IBVectorCopyPush(vec, &val IBDBGFPL2);
 }
-void IBVectorCopyPushOp(IBVector* vec, IBOp val) {
-	IBVectorCopyPush(vec, &val);
+void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS) {
+	IBVectorCopyPush(vec, &val IBDBGFPL2);
 }
-void IBVectorCopyPushIBColor(IBVector* vec, IBColor col){
-	IBVectorCopyPush(vec, &col);
+void _IBVectorCopyPushIBColor(IBVector* vec, IBColor col IBDBGFILELINEPARAMS){
+	IBVectorCopyPush(vec, &col IBDBGFPL2);
 }
 IBVecData* IBVectorTop(IBVector* vec) {
 	IBASSERT0(vec);
+	IBASSERT0(vec->elemCount >= 0);
+	IBASSERT0(vec->slotCount >= 0);
 	if (vec->elemCount <= 0) return NULL;
 	return IBVectorGet(vec, vec->elemCount - 1);
 }
@@ -358,7 +361,7 @@ void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 		IBASSERT0(vec->data);
 	}
 }
-void IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
+void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 	size_t newSize;
 	void *ra;
 	if(vec->elemCount < 1) return;
@@ -574,7 +577,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...){
 		}
 		case 'j': {//out new char* (null terminated)
 			assert(action == IBDictManipAction_Unknown);
-			outStr = va_arg(args, char*);
+			outStr = va_arg(args, char**);
 			action = IBDictManipAction_StrOut;
 			break;
 		}
@@ -637,8 +640,8 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...){
 IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath){
 	IBVector keyStack;
 	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef);
-
-	IBVectorPush(&keyStack, keyPath);
+	IBDictKeyDef*kd;
+	IBVectorPush(&keyStack, &kd);
 	IBDictKey* dk = IBDictKeyFind(rootKey, &keyStack);
 	return NULL;
 }
@@ -705,6 +708,8 @@ char StrStartsWith(char* str, char* with) {
 IBVector g_ColorStack;
 
 void IBCodeBlockInit(IBCodeBlock* block){
+	IBASSERT0(block);
+	IB_SETMAGICP(block);
 	IBStrInit(&block->header);
 	IBStrInit(&block->variables);
 	IBStrInit(&block->varsInit);
@@ -713,6 +718,8 @@ void IBCodeBlockInit(IBCodeBlock* block){
 	IBNameInfoDBInit(&block->localVariables);
 }
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
+	IBASSERT0(block);
+	IB_ASSERTMAGICP(block);
 	IBStrAppendFmt(output,
 		"%s%s%s%s%s",
 		block->header.start,
@@ -722,6 +729,8 @@ void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
 		block->footer.start);
 }
 void IBCodeBlockFree(IBCodeBlock* block){
+	IBASSERT0(block);
+	IB_ASSERTMAGICP(block);
 	IBNameInfoDBFree(&block->localVariables);
 	IBStrFree(&block->header);
 	IBStrFree(&block->variables);
@@ -766,7 +775,7 @@ IBOp IBNameInfoDBFindType(IBNameInfoDB* db, char* name) {
 	IBNameInfo* pair;
 	int idx;
 	idx = 0;
-	while (pair = (IBNameInfo*)IBVectorIterNext(&db->pairs, &idx)) {
+	while (pair = IBVectorIterNext(&db->pairs, &idx)) {
 		if (!strcmp(pair->name, name))
 			return pair->type;
 	}
@@ -775,7 +784,8 @@ IBOp IBNameInfoDBFindType(IBNameInfoDB* db, char* name) {
 IBNameInfoDB* _IBNameInfoDBFind(IBNameInfoDB* db, char* name, int lineNum){
 	IBNameInfo* pair=NULL;
 	int idx=0;
-	DbgFmt("[%d] IBNameInfoDBFind(,%s)\n", lineNum,name);
+	assert(db);
+	//DbgFmt("[%d]"__FUNCTION__"(,%s)\n", lineNum,name);
 	while (pair = IBVectorIterNext(&db->pairs, &idx))
 		if (!strcmp(pair->name, name)) return pair;
 	return NULL;
@@ -970,6 +980,7 @@ void IBDatabaseInit(IBDatabase* db){
 	db->root = IB_DBObjNew(&fn, 0, 0, OP_RootObj, &on);
 }
 void IBDatabaseFree(IBDatabase* db){
+	IB_DBObjFree(db->root);
 }
 IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location){
 	return NULL;
@@ -1069,7 +1080,7 @@ void IBOverwriteStr(char** str, char* with) {
 	assert(*str);
 }
 IBObj* IBLayer3GetObj(IBLayer3* ibc) {
-	return (IBObj*)IBVectorTop(&ibc->ObjStack);
+	return IBVectorTop(&ibc->ObjStack);
 }
 IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln){
 	int idx;
@@ -1078,11 +1089,12 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln){
 	assert(ibc->CodeBlockStack.elemCount);
 	assert(name);
 	assert(name[0]);
-	DbgFmt("[%d] IBLayer3SearchNameInfo(,%s)\n", ln, name);
+	//DbgFmt("[%d]"__FUNCTION__"(,%s)\n", ln, name);
 	idx=ibc->CodeBlockStack.elemCount;
 	while(idx-->=0){
 		IBCodeBlock* cb = IBVectorGet(&ibc->CodeBlockStack, idx);
 		assert(cb);
+		IB_ASSERTMAGICP(&cb->localVariables.pairs);
 		ni = IBNameInfoDBFind(&cb->localVariables, name);
 		if (ni) return ni;
 	}
@@ -1415,6 +1427,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
 	IBVectorFreeSimple(&ibc->ModeStack);
+	IBVectorFreeSimple(&ibc->ExpressionStack);
 	IBVectorFreeSimple(&ibc->StrReadPtrsStack);
 	IBVectorFree(&ibc->TaskStack, TaskFree);
 	//IBNameInfoDBFree(&ibc->NameTypeCtx);
@@ -1423,6 +1436,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBStrFree(&ibc->FinalOutput);
 	IBStrFree(&ibc->RunArguments);
 	IBStrFree(&ibc->CIncludesStr);
+	IBStrFree(&ibc->CurrentLineStr);
 	//IBStrFree(&ibc->ArrayIndexExprStr);
 	IBVectorFree(&ibc->ArrayIndexExprsVec, IBStrFree);
 	IBStrFree(&ibc->CCode);
@@ -2005,9 +2019,10 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		}
 		}
 
+		o=IBLayer3GetObj(ibc);
 		switch (o->type) {
 		case OP_CallWantArgs: {
-			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3PopObj(ibc, true, NULL);
 			break;
 		}
 		}
@@ -2253,16 +2268,16 @@ char* IBLayer3GetCPrintfFmtForType(IBLayer3* ibc, IBOp type) {
 void Val2Str(char *dest, int destSz, IBVal v, IBOp type) {
 
 	switch (type) {
-	case OP_u8:  { sprintf(dest, "%u",   v.u8);  break; }
-	case OP_c8:  { sprintf(dest, "%c",   v.c8);  break; }
-	case OP_i16: { sprintf(dest, "%d",   v.i16); break; }
-	case OP_u16: { sprintf(dest, "%u",   v.u16); break; }
-	case OP_i32: { sprintf(dest, "%d",   v.i32); break; }
-	case OP_i64: { sprintf(dest, "%lld", v.i64); break; }
-	case OP_u32: { sprintf(dest, "%u",   v.u32); break; }
-	case OP_u64: { sprintf(dest, "%llu", v.u64); break; }
-	case OP_f32: { sprintf(dest, "%f",   v.f32); break; }
-	case OP_d64: { sprintf(dest, "%f",   v.d64); break; }
+	case OP_u8:  { snprintf(dest, destSz, "%u",   v.u8);  break; }
+	case OP_c8:  { snprintf(dest, destSz, "%c",   v.c8);  break; }
+	case OP_i16: { snprintf(dest, destSz, "%d",   v.i16); break; }
+	case OP_u16: { snprintf(dest, destSz, "%u",   v.u16); break; }
+	case OP_i32: { snprintf(dest, destSz, "%d",   v.i32); break; }
+	case OP_i64: { snprintf(dest, destSz, "%lld", v.i64); break; }
+	case OP_u32: { snprintf(dest, destSz, "%u",   v.u32); break; }
+	case OP_u64: { snprintf(dest, destSz, "%llu", v.u64); break; }
+	case OP_f32: { snprintf(dest, destSz, "%f",   v.f32); break; }
+	case OP_d64: { snprintf(dest, destSz, "%f",   v.d64); break; }
 	}
 }
 void _IBLayer3FinishTask(IBLayer3* ibc)	{
@@ -2855,13 +2870,14 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			} else if (funcObj->func.retValType != OP_Void) {
 				IBStrAppendCStr(&cFuncCode, "\treturn ");
 				switch(funcObj->func.retValVarcast){
-					IBCASE_NUMTYPES
-					{
-						IBStrAppendFmt(&cFuncCode,"(%s) ", 
-							IBGetCEqu(funcObj->func.retValVarcast));
-						break;
-					}
-					IBCASE_UNIMP
+				IBCASE_NUMTYPES
+				{
+					IBStrAppendFmt(&cFuncCode,"(%s) ", 
+						IBGetCEqu(funcObj->func.retValVarcast));
+					break;
+				}
+				case OP_Null:break;
+				IBCASE_UNIMP
 				}
 				switch (funcObj->func.retTYPE) {
 				case OP_String: {
@@ -2918,6 +2934,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			IBStrAppendCStr(&ibc->CCode, cFuncArgsEnd.start);
 			IBStrAppendCStr(&ibc->CCode, cFuncCode.start);
 		}
+		IBStrFree(&cFuncModsTypeName);
+		IBStrFree(&cFuncArgsThing);
+		IBStrFree(&cFuncArgs);
+		IBStrFree(&cFuncArgsEnd);
+		IBStrFree(&cFuncCode);
 		break;
 	}
 	case OP_CPrintfHaveFmtStr: {
@@ -4079,7 +4100,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				IBStrAppendCStr(&ns, "self->");
 				IBStrAppendFmt(&ns, "%s", &ibc->Str[5]);
 				ibc->Str[0]='\0';
-				strncpy_s(ibc->Str, IBLayer3STR_MAX, ns.start, IBStrLen(&ns));
+				//strncpy(ibc->Str, ns.start, IBLayer3STR_MAX/*IBStrLen(&ns)*/);
 			}
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);

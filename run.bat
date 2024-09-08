@@ -30,7 +30,6 @@ src/*.c ^
 -lshell32 ^
 -luser32 ^
 -llibtcc ^
--w ^
 -o program.exe
 if %errorlevel% neq 0 pause
 del ext\raylib\libraylib.a>nul
@@ -38,7 +37,6 @@ if %errorlevel% neq 0 (
 	pause
 	goto :top
 )
-cls
 program.exe main.ib
 if %errorlevel% neq 0 pause
 del program.exe > nul

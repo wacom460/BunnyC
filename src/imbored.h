@@ -3,7 +3,7 @@
 #include "ibcommon.h"
 #include "ibmisc.h"
 #include <libtcc.h>
-#define IBDEBUGPRINTS
+//#define IBDEBUGPRINTS
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -35,7 +35,6 @@ default: {                               \
 
 #define IBCASE_UNIMP_A default: { \
 	DB; \
-	exit(-1); \
 	break; \
 }
 
@@ -73,7 +72,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 	if(!(x)) { \
 		printf("[%d]Assertion failed!!! %s\n", __LINE__, #x); \
 		DB; \
-		exit(-1); \
 	} \
 }
 
@@ -85,7 +83,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 			errMsg, #x);\
 		IBPopColor();\
 		DB;\
-		exit(-1);\
 	}\
 }
 
@@ -243,6 +240,7 @@ typedef struct IBCodeBlock {
 	IBStr code;
 	IBStr footer;
 	IBNameInfoDB localVariables;
+	IB_DEFMAGIC;
 } IBCodeBlock;
 void IBCodeBlockInit(IBCodeBlock* block);
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output);
@@ -387,21 +385,26 @@ typedef struct IBExpression {
 	IBCodeBlock cb;
 } IBExpression;
 typedef struct IBLayer3 {
+	IBOp Pfx;
+	IBOp Pointer;
+	IBOp Privacy;
+	IBOp NameOp;
+	IBOp LastNameOp;
+	IBOp Varcast;
+	IBOp CommentMode;
 	int Line;
 	int Column;
 	int LineIS; //LINE inputstr
 	int ColumnIS;//COLUMN inputstr
-	IBOp Pfx;
-	char Str[IBLayer3STR_MAX];
 	IBStr CIncludesStr;
 	IBStr CHeader_Structs;
 	IBStr CHeader_Funcs;
 	IBStr CCode;
 	IBStr FinalOutput;
 	IBStr CurrentLineStr;
+	IBStr RunArguments;
 	//IBStr ArrayIndexExprStr;
 	IBVector ArrayIndexExprsVec;//IBStr
-	IBStr RunArguments;
 
 	IBVector ObjStack; /*IBObj*/
 	IBVector ModeStack; /*IBOp*/
@@ -413,11 +416,6 @@ typedef struct IBLayer3 {
 
 	char* InputStr;
 	IBStr CurSpace;
-	IBOp Pointer;
-	IBOp Privacy;
-	IBOp NameOp;
-	IBOp LastNameOp;
-	IBOp Varcast;
 	char Ch;
 	char LastCh;
 	bool Imaginary;
@@ -426,9 +424,8 @@ typedef struct IBLayer3 {
 	bool StrAllowSpace;
 	bool IncludeCStdioHeader;
 	bool IncludeCStdlibHeader;
-	IBOp CommentMode;
-	//IBNameInfoDB NameTypeCtx;
 	TCCState* TCC;
+	char Str[IBLayer3STR_MAX];
 } IBLayer3;
 #define Err(code, msg) { \
 	int l = ibc->InputStr ? ibc->LineIS : ibc->Line; \
@@ -440,8 +437,7 @@ typedef struct IBLayer3 {
 		l, c, IBGetOpName(code), (int)code, msg); \
 	IBLayer3ExplainErr(ibc, code); \
 	IBPopColor(); \
-	DB \
-	exit(-1); \
+	DB; \
 }
 #define ErrF(code, fmt, ...) { \
 	char str[512]; \

@@ -48,5 +48,7 @@ char**argv;
 	//IBideFrontend(argc, argv, &rv);
 
 	IBVectorFreeSimple(&g_ColorStack);
+
+	IBDatabaseFree(g_DB);
 	return rv;
 }
