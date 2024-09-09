@@ -386,6 +386,7 @@ typedef struct IBTask {
 } IBTask;
 void TaskInit(IBTask* t, IBOp type);
 void TaskFree(IBTask* t);
+void TaskFindWorkingObj(IBTask*t,IBOp type, IBObj**outDP);
 /*IBSharedState: shared state between
 	multiple IBLayer3 instances*/
 	//TODO: make race condition safe

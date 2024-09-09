@@ -84,6 +84,7 @@ IBOpNamePair pfxNames[] = {
 	{"Add(+)", OP_Add},{"Divide(/)", OP_Divide},
 	{"Multiply(*)", OP_Multiply},{"PfxlessValue(=)", OP_PfxlessValue},
 	{"Letter_azAZ", OP_Letter_azAZ},{"SingleQuote(\')", OP_SingleQuote},
+	{"Or(|)",OP_Or},
 };
 IBOpNamePair cEquivelents[] = {
 	{"void", OP_Void},{"return", OP_Return},
@@ -948,6 +949,17 @@ void TaskFree(IBTask* t) {
 	IBVectorFree(&t->expStack, ExpectsFree);
 	IBVectorFree(&t->working, ObjFree);
 }
+void TaskFindWorkingObj(IBTask* t, IBOp type, IBObj** outDP){
+	IBObj*o=0;
+	int idx=0;
+	assert(t);
+	while(o=IBVectorIterNext(&t->working,&idx)){
+		if (o->type == type) {
+			if(outDP) (*outDP)=o;
+			return;
+		}
+	}
+}
 void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name){
 	IBASSERT0(ti);
 	memset(ti,0,sizeof*ti);
@@ -1078,6 +1090,7 @@ IBOp IBOPFromPfxCh(char ch) {
 	IBCASE_aTHRUz
 	IBCASE_ATHRUZ return OP_Letter_azAZ;
 	case IBCOMMENT_CHAR: return OP_Comment;
+	case '|': return OP_Or;
 	case '\t': return OP_TabChar;
 	case ' ': return OP_SpaceChar;
 	case '@': return OP_Op;
@@ -1861,7 +1874,7 @@ void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP) {
 		IBObj* newHome;
 		if (o->type == OP_NotSet)Err(OP_Error, "");
 #ifdef IBDEBUGPRINTS
-		DbgFmt(" To working: ","");
+		DbgFmt(" To working(%s(%d)): ",IBGetOpName(t->type), (int)t->type);
 #endif
 #ifdef IBDEBUGPRINTS
 		ObjPrint(o);
@@ -2205,6 +2218,9 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 				ExpectsInit(exp, "PPN", OP_Op, OP_Underscore, OP_Case);
 				IBLayer3PushCodeBlock(ibc, NULL);
 				break;
+			}
+			case OP_VarNeedExpr:{
+				IBLayer3PopObj(ibc,true,&o);
 			}
 			case OP_ExprToName: {
 				IBLayer3FinishTask(ibc);
@@ -2570,6 +2586,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 		pop2Parent = true;
 		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
 			switch (o->type) {
+			case OP_Or:
 			case OP_Multiply:
 			case OP_Divide:
 			case OP_Subtract:
@@ -2605,6 +2622,20 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				onOp = false;
 				break;
 			}
+			case OP_EnumVal: {
+				gotVal=true;
+				IBStrAppendFmt(&t->code.code,"E%s_%s",o->str,o->name);
+				if (onOp) {
+					IBStrAppendFmt(&t->code.header, "%s", "(");
+					IBStrAppendFmt(&t->code.code, "%s", ")");
+				}
+				onOp = false;
+				break;
+			}
+			case OP_StructVar:{
+
+				break;
+			}
 			case OP_Value: {
 				gotVal = true;
 				switch (o->valType) {
@@ -2632,6 +2663,33 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			}
 		}
 		if (onOp) Err(OP_Error, "missing op rval in expression");
+		break;
+	}
+	case OP_VarNeedExpr:{
+		IBTask* st;
+		IBTypeInfo*ti=0;
+		//IBObj* o = IBVectorGet(wObjs, 0);
+		//assert(o);
+		assert(t->subTasks.elemCount == 1);
+		st = IBVectorGet(&t->subTasks, 0);
+		assert(st);
+		
+		assert(st->type==OP_NeedExpression);
+		assert(!ibc->DefiningStruct);
+		IBStrAppendCh(&cb->variables, '\t', tabCount);
+		IBObj*vo=0;
+		TaskFindWorkingObj(t,OP_VarNeedExpr,&vo);
+		assert(vo);
+		IBLayer3FindType(ibc,vo->str, &ti);
+		assert(ti);
+		IBStr stf;
+		IBStrInit(&stf);
+		IBCodeBlockFinish(&st->code, &stf);
+		char* typeStr = vo->var.type == OP_Unknown ? vo->str : IBGetCEqu(vo->var.type);
+		IBStrAppendFmt(&cb->variables, "%s%s%s %s = %s;\n", ti->type==OP_Enum ? "enum E"
+			: "",
+			typeStr, IBGetCEqu(vo->var.mod), vo->name, stf.start);
+		IBStrFree(&stf);
 		break;
 	}
 	case OP_VarWantValue: {
@@ -3355,6 +3413,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	}
 	case OP_LessThan:
 	case OP_GreaterThan:
+	case OP_Or:
 	case OP_Add:
 	case OP_Subtract:
 	case OP_Multiply:
@@ -3612,8 +3671,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBObj* o;
 			IBObj*vneO=IBLayer3FindStackObjRev(ibc,OP_VarNeedExpr);
 			IBTypeInfo*st=0;
+			IBTypeInfo*ti=0;
 			if(vneO){
-				IBTypeInfo*ti=0;
 				IBLayer3FindType(ibc,vneO->str,&ti);
 				if(ti){
 					type=ti->type;
@@ -3625,6 +3684,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBLayer3PushObj(ibc, &o);
 			assert(st);
 			if(st)ObjSetType(o, st->type);
+			if(ti)ObjSetStr(o, ti->name.start);
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);
 			break;
@@ -3718,6 +3778,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		if (!fall) break;
 	}
+	/* | PFXOR */ case OP_Or:
 	/* + PFXADD */ case OP_Add: {
 		switch (ibc->NameOp) {
 		case OP_EmptyStr: {
