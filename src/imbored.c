@@ -3623,7 +3623,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			if(type==OP_Unknown || !st)
 				ErrF(OP_Error, "context not found",0);
 			IBLayer3PushObj(ibc, &o);
-			ObjSetType(o, type);
+			assert(st);
+			if(st)ObjSetType(o, st->type);
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);
 			break;
