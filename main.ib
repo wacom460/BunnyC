@@ -1,49 +1,51 @@
 flags $ssF
-$h1
-$h2
+	$h1
+	$h2
 _
 
 struct $ss
-i32 $lv1
-i64 $lv2
-u8 $lv3
-%ssF $e
+	i32 $lv1
+	i64 $lv2
+	u8 $lv3
+	%ssF $e
 _
 
 methods $ss
-blk $fm
-$self.lv1 <- 10
-$self.lv3 <- 100
-$self.lv2 <- =-100
-$self.e <- .h1
-_
-
+	blk $fm
+		$self.lv1 <- 10
+		$self.lv3 <- 100
+		$self.lv2 <- =-100
+		$self.e <- .h1
+		~($self.e <- ssF.h1)~
+	_
 _
 
 flags $ft $f1 $f2 $f3 _
 
 methods $ft
-blk $test
-		
-_
+	blk $test		
+	_
 _
 
 enum $e1 $e1 $e2 $e3 _
 
 blk $b
-%ft $f <- .f1 | .f2 | .f3
-i32 $a 1
-
-table $a
-case 0
-"hi"
-fall
-case 1
-"hello"
-_
-
+	i32 $a 1
+	table $a
+	case 0
+		"hi"
+		fall
+	case 1
+		"hello"
+	_
+	%ft $f <- .f1 | .f2 | .f3
+	~(if $f & .f2 || $f & .f1
+		"f2 or f1 is set!\n"
+	_
+	if $f & .f3
+	_)~
 _
 
 blk $main i32 $argc nts^ $argv -> i32
-!b
+	!b
 _ 0

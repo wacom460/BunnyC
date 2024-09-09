@@ -249,7 +249,9 @@ typedef struct IBCodeBlock {
 	IBStr header;
 	IBStr variables;
 	IBStr varsInit;
+	IBStr codeLeft;
 	IBStr code;
+	IBStr codeRight;
 	IBStr footer;
 	IBNameInfoDB localVariables;
 	IB_DEFMAGIC;

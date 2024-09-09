@@ -226,7 +226,9 @@ X(Methods)\
 X(MethodsNeedName)\
 X(MethodsWantContent)\
 /* | */X(Or) \
+/* || */X(OrOr) \
 /* & */X(And) \
+/* && */X(AndAnd) \
 
 #define X(x) OP_##x,
 typedef enum IBOp { _IB_OPS_ } IBOp;

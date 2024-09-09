@@ -727,7 +727,9 @@ void IBCodeBlockInit(IBCodeBlock* block){
 	IBStrInit(&block->header);
 	IBStrInit(&block->variables);
 	IBStrInit(&block->varsInit);
+	IBStrInit(&block->codeLeft);
 	IBStrInit(&block->code);
+	IBStrInit(&block->codeRight);
 	IBStrInit(&block->footer);
 	IBNameInfoDBInit(&block->localVariables);
 }
@@ -735,11 +737,13 @@ void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output){
 	IBASSERT0(block);
 	IB_ASSERTMAGICP(block);
 	IBStrAppendFmt(output,
-		"%s%s%s%s%s",
+		"%s%s%s%s%s%s%s",
 		block->header.start,
 		block->variables.start,
 		block->varsInit.start,
+		block->codeLeft.start,
 		block->code.start,
+		block->codeRight.start,
 		block->footer.start);
 }
 void IBCodeBlockFree(IBCodeBlock* block){
@@ -749,7 +753,9 @@ void IBCodeBlockFree(IBCodeBlock* block){
 	IBStrFree(&block->header);
 	IBStrFree(&block->variables);
 	IBStrFree(&block->varsInit);
+	IBStrFree(&block->codeLeft);
 	IBStrFree(&block->code);
+	IBStrFree(&block->codeRight);
 	IBStrFree(&block->footer);
 }
 void IBNameInfoInit(IBNameInfo* info){
@@ -3778,9 +3784,19 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		}
 		if (!fall) break;
 	}
-	/* | PFXOR */ case OP_Or:
+	/* | PFXOR */ case OP_Or: {
+		switch(ibc->NameOp){
+		case OP_Or:{
+
+			break;
+		}
+		}
+	}
 	/* + PFXADD */ case OP_Add: {
 		switch (ibc->NameOp) {
+		case OP_Or:{
+
+		}
 		case OP_EmptyStr: {
 			switch (t->type) {
 			case OP_NeedExpression: {
@@ -4686,39 +4702,6 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			}
 			break;
 		}
-		//case OP_Call: {
-		//	switch (t->type) {
-		//	case OP_SetNeedVal: {
-		//		IBTask* t=NULL;
-		//		IBExpects* exp=NULL;
-		//		IBLayer3PushTask(ibc, OP_SetCall, &exp, &t);
-		//		ExpectsInit(exp, "P", OP_Name);
-		//		break;
-		//	}
-		//	IBCASE_BLOCKWANTCODE
-		//	{
-		//		IBTask* t;
-		//		IBExpects* exp;
-		//		IBObj* o;
-		//		IBLayer3PushObj(ibc, &o);
-		//		ObjSetType(o, OP_CallNeedName);
-		//		IBLayer3PushTask(ibc, OP_CallNeedName, &exp, &t);
-		//		ExpectsInit(exp, "P", OP_Name);
-		//		break;
-		//	}
-		//	}
-		//	/*switch (o->type) {
-		//	case OP_VarWantValue: {
-		//		IBObj* o;
-		//		IBExpects* exp;
-		//		IBLayer3PushObj(ibc, &o);
-		//		ObjSetType(o, OP_CallNeedName);
-		//		IBLayer3PushExpects(ibc, &exp);
-		//		ExpectsInit(exp, "1P", "expected function name", OP_Name);
-		//	}
-		//	}*/
-		//	break;
-		//}
 		case OP_dbgBreak: {
 			/*__debugbreak();*/
 			/*ibc->TaskStack;*/
