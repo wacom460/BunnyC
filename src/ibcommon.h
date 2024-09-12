@@ -4,7 +4,7 @@
 #include "ibmisc.h"
 
 #if defined(__TINYC__) || defined(__GNUC__)
-#define __debugbreak()
+#define __debugbreak() exit(-1)
 #endif
 #define DB __debugbreak();
 

@@ -1807,7 +1807,7 @@ void _IBLayer3PushTask(IBLayer3* ibc, IBOp taskOP, IBExpects** exectsDP,
 		DbgFmt("%s(%d) -> ", IBGetOpName(t->type), (int)t->type);
 		bt = t;
 	}
-	DbgFmt(" %s(%d)\n", IBGetOpName(taskOP), (int)taskOP);
+	DbgFmt("%s(%d)\n", IBGetOpName(taskOP), (int)taskOP);
 	IBVectorPush(&ibc->TaskStack, &t);
 	if(taskDP) (*taskDP) = t;
 	TaskInit(t, taskOP);
