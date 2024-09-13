@@ -4,12 +4,30 @@
 #include "ib_ide.h"
 #include "ibcolor.h"
 
+struct IBVecData {
+	union{
+		IBObj obj;
+		IBStr str;
+		IBTask task;
+		IBOp op;
+		bool boolean;
+		IBExpects expects;
+		IBNameInfoDB niDB;
+		IBNameInfo ni;
+		IBDictKey dictKey;
+		IBDictKeyDef dictKeyDef;
+		IBTypeInfo ti;
+		IBVector vec;
+	};
+};
+
 void IBcompFrontend(int argc, char** argv, int* rv) {
 	if (argc < 2) {
 		printf("Please specify a file\n");
 		*rv = -1;
 		return;
 	}
+	//printf("%d",(int)sizeof(IBVecData));
 	FILE* f = fopen(argv[1], "r");
 	if (f) {
 		IBLayer3 comp;

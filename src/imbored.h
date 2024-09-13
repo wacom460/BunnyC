@@ -501,7 +501,7 @@ IBObj* IBLayer3GetObj(IBLayer3* ibc);
 IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln);
 #define IBLayer3SearchNameInfo(ibc,name)\
 	_IBLayer3SearchNameInfo(ibc,name,__LINE__)
-void IBLayer3PrintVecData(IBVecData* data, IBOp type);
+void IBLayer3PrintVecData(struct IBVecData* data, IBOp type);
 void IBLayer3VecPrint(IBVector* vec);
 IBObj* IBLayer3FindStackObjRev(IBLayer3*ibc,IBOp type);
 IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type);

@@ -35,24 +35,12 @@ char* IBStrAppendCStr(IBStr* str, char* with);
 void IBStrAppendFmt(IBStr* str, char* fmt, ...);
 char* IBStrAppend(IBStr* str, IBStr* with);
 int IBStrStripFront(IBStr* str, char ch);
-typedef union IBVecData {
-	void* ptr;
-	struct IBObj* obj;
-	struct IBTask* task;
-	IBOp* op;
-	bool* boolean;
-	struct IBExpects* expects;
-	struct IBNameInfoDB* niDB;
-	struct IBNameInfo* ni;
-	struct IBDictionary* dict;
-	struct IBDictKey* dictKey;
-	struct IBDictKeyDef* dictKeyDef;
-	struct IBTypeInfo* ti;
-} IBVecData;
+struct IBVecData;
 #define IBVEC_PUSHINFO_MAX (32)
 #define IBVEC_DEFAULT_SLOTCOUNT 16
 #define IBVEC_WARNINGS 1
 typedef struct IBVecPushInfo {
+	struct IBVecData*ptr;
 	char* filePath;
 	int lineNum;
 } IBVecPushInfo;
@@ -67,11 +55,11 @@ typedef struct IBVector {
 	char doNotShrink;
 	IB_DEFMAGIC;
 	//do not expect pointers to stay valid, realloc is called on change
-	IBVecData* data;/*DATA BLOCK*/
+	struct IBVecData* data;/*DATA BLOCK*/
 	IBVecPushInfo PushInfo[IBVEC_PUSHINFO_MAX];
 } IBVector;
 void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count);
-IBVecData* IBVectorGet(IBVector* vec, int idx);
+struct IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
 
 #define IBDBGFILELINEPARAMS	,char*file,int ln
@@ -79,7 +67,7 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
 #define IBDBGFLPI1 ,__FILE__,__LINE__
 
 #define IBVectorIterNext(vec,idx) _IBVectorIterNext(vec,idx,__LINE__)
-void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS);
+void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS);
 #define IBVectorPush(vec, dataDP){\
 	/*int c=(vec)->elemCount - 1;*/\
 	_IBVectorPush((vec), dataDP IBDBGFLPI1);\
@@ -98,8 +86,8 @@ void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS);
 void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS);
 #define IBVectorCopyPushOp(vec,val)\
 	_IBVectorCopyPushOp(vec,val IBDBGFLPI1)
-IBVecData* IBVectorTop(IBVector* vec);
-IBVecData* IBVectorFront(IBVector* vec);
+struct IBVecData* IBVectorTop(IBVector* vec);
+struct IBVecData* IBVectorFront(IBVector* vec);
 #define IBVectorPop(vec, freeFunc)\
 	_IBVectorPop((vec), (void(*)(void*))(freeFunc))
 #define IBVectorClear(vec, freeFunc){\
@@ -113,6 +101,7 @@ void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
 #define IBVectorPopFront(vec,freeFunc)\
 	_IBVectorPopFront(vec,(void(*)(void*))(freeFunc))
 void IBVectorFreeSimple(IBVector* vec);
+void _IBVectorReinitPushInfo(IBVector*vec);
 #define IBVectorFree(vec, freeFunc){\
 	int i;\
 	for(i = 0;i<(vec)->elemCount;i++){\

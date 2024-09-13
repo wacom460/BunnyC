@@ -277,7 +277,7 @@ void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count) {
 	IBASSERT0(vec->data);
 	memset(vec->data, 0, vec->dataSize);
 }
-IBVecData* IBVectorGet(IBVector* vec, int idx) {
+struct IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
 	IBASSERT0(vec->elemCount >= 0);
@@ -286,7 +286,7 @@ IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	IBASSERT0(idx < vec->elemCount);
 	if (vec->elemCount < 1
 		|| idx >= vec->elemCount) return NULL;
-	return (IBVecData*)((char*)vec->data + vec->elemSize * idx);
+	return (struct IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {
 	//DbgFmt("[%d]"__FUNCTION__,lineNum);
@@ -301,8 +301,8 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (void*)((char*)vec->data + (vec->elemSize * ((*idx)++)));
 }
-void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
-	IBVecData* topPtr;
+void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS) {
+	struct IBVecData* topPtr;
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
 	IBASSERT0(vec->elemSize);
@@ -318,18 +318,19 @@ void _IBVectorPush(IBVector* vec, IBVecData** dataDP IBDBGFILELINEPARAMS) {
 		if(ra) vec->data = ra;
 		vec->reallocCount++;
 	}
-	topPtr = (IBVecData*)((char*)vec->data + (vec->elemSize * vec->elemCount));
+	topPtr = (struct IBVecData*)((char*)vec->data + (vec->elemSize * vec->elemCount));
 	memset(topPtr, 0, vec->elemSize);
 	int pil = ClampInt(vec->elemCount, 0, IBVEC_PUSHINFO_MAX - 1);
 	vec->PushInfo[pil].lineNum=ln;
 	vec->PushInfo[pil].filePath=file;
+	_IBVectorReinitPushInfo(vec);
 	vec->elemCount++;
 	if(dataDP) *dataDP = topPtr;
 }
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS) {
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
-	IBVecData* top;
+	struct IBVecData* top;
 	_IBVectorPush(vec, &top IBDBGFPL2);//FIX
 	memcpy(top, elem, vec->elemSize);
 }
@@ -342,7 +343,7 @@ void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS) {
 void _IBVectorCopyPushIBColor(IBVector* vec, IBColor col IBDBGFILELINEPARAMS){
 	_IBVectorCopyPush(vec, &col IBDBGFPL2);
 }
-IBVecData* IBVectorTop(IBVector* vec) {
+struct IBVecData* IBVectorTop(IBVector* vec) {
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
 	IBASSERT0(vec->elemCount >= 0);
@@ -350,7 +351,7 @@ IBVecData* IBVectorTop(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
 	return IBVectorGet(vec, vec->elemCount - 1);
 }
-IBVecData* IBVectorFront(IBVector* vec) {
+struct IBVecData* IBVectorFront(IBVector* vec) {
 	IBASSERT0(vec);
 	if (vec->elemCount <= 0) return NULL;
 	IBASSERT0(vec->data);
@@ -372,6 +373,7 @@ void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*)){
 		if (ra) vec->data = ra;
 		IBASSERT0(vec->data);
 	}
+	_IBVectorReinitPushInfo(vec);
 }
 void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 	size_t newSize;
@@ -393,9 +395,17 @@ void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)){
 			vec->data = ra;
 		}
 	}
+	_IBVectorReinitPushInfo(vec);
 }
 void IBVectorFreeSimple(IBVector* vec) {
 	free(vec->data);
+}
+void _IBVectorReinitPushInfo(IBVector* vec){
+	/*IBASSERT0(vec->slotCount<=IBVEC_PUSHINFO_MAX);*/
+	for(int i=0;i<IBVEC_PUSHINFO_MAX;i++){
+		vec->PushInfo[i].ptr=
+			i<vec->elemCount?IBVectorGet(vec,i):0;
+	}
 }
 void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 	key->type = def.type;
@@ -1162,7 +1172,7 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln){
 	ni=IBNameInfoDBFind(&ibc->GlobalVariables, name);
 	return ni;
 }
-void IBLayer3PrintVecData(IBVecData* data, IBOp type){
+void IBLayer3PrintVecData(struct IBVecData* data, IBOp type){
 	if (!data)return;
 	switch (type) {
 	case OP_Op: {
@@ -1277,7 +1287,7 @@ void IBLayer3PrintVecData(IBVecData* data, IBOp type){
 }
 void IBLayer3VecPrint(IBVector* vec) {
 	int idx;
-	IBVecData* data;
+	struct IBVecData* data;
 
 	assert(vec);
 	switch (vec->type) {
@@ -3673,6 +3683,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	/* . PFXDOT */ case OP_Dot: {
 		switch(t->type){
 		case OP_NeedExpression: {
+			IBVector;
 			IBOp type=OP_Unknown;
 			IBObj* o;
 			IBObj*vneO=IBLayer3FindStackObjRev(ibc,OP_VarNeedExpr);
