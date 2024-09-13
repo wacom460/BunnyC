@@ -23,7 +23,7 @@ _
 flags $ft $f1 $f2 $f3 _
 
 methods $ft
-	blk $test		
+	blk $test
 	_
 _
 

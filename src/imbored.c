@@ -1699,6 +1699,10 @@ void IBLayer3Done(IBLayer3* ibc){
 		assert(o->type==OP_Methods);
 		IBLayer3PopObj(ibc,true,NULL);
 		IBLayer3FinishTask(ibc);
+		ibc->DefiningMethods=0;
+		if(ibc->_methodsStructName)
+			free(ibc->_methodsStructName);
+		ibc->_methodsStructName=0;
 		break;
 	}
 	case OP_EnumWantContent:
@@ -2649,7 +2653,8 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				break;
 			}
 			case OP_StructVar:{
-
+				gotVal=true;
+				IBStrAppendFmt(&t->code.code, "%s",o->name);
 				break;
 			}
 			case OP_Value: {
@@ -3687,6 +3692,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBOp type=OP_Unknown;
 			IBObj* o;
 			IBObj*vneO=IBLayer3FindStackObjRev(ibc,OP_VarNeedExpr);
+			IBTask*e2nt=IBLayer3FindTaskUnderIndex(ibc, -1, OP_ExprToName, 3);
 			IBTypeInfo*st=0;
 			IBTypeInfo*ti=0;
 			if(vneO){
@@ -3694,6 +3700,22 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				if(ti){
 					type=ti->type;
 					IBTypeInfoFindMember(ti,ibc->Str,&st);
+				}
+			}else if(e2nt&&ibc->DefiningMethods){
+				IBObj*no=0;
+				TaskFindWorkingObj(e2nt, OP_ActOnName, &no);
+				assert(no);
+				if(no&&IB_STARTS_WITH_SELFDOT(no->name)){
+					char*rn=IB_SELFDOTLESS_NTSP(no->name);
+					assert(rn&&(*rn));
+					/*IBTask*mt=IBLayer3FindTaskUnderIndex(ibc,-1,OP_MethodsWantContent, 100);
+					assert(mt);*/
+					assert(ibc->_methodsStructName);
+					IBLayer3FindType(ibc,ibc->_methodsStructName,&ti);
+					if(ti){
+						type=ti->type;
+						IBTypeInfoFindMember(ti,rn,&st);
+					}
 				}
 			}
 			if(type==OP_Unknown || !st)
@@ -3854,7 +3876,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				o = IBLayer3FindWorkingObjRev(ibc, OP_ActOnName);
 				assert(o);
 				assert(o->name[0] != '\0');
-				if (methodsNameTypeInfo&&!strncmp(o->name, "self.", 5)) {
+				if (methodsNameTypeInfo&&IB_STARTS_WITH_SELFDOT(o->name)) {
 					IBTypeInfo*subT=0;
 					int sidx=0;
 					while(subT=IBVectorIterNext(&methodsNameTypeInfo->members,&sidx)){
@@ -4266,6 +4288,8 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				SetTaskType(t,OP_MethodsWantContent);
 				IBLayer3ReplaceExpects(ibc,&exp);
 				ExpectsInit(exp,"PPN",OP_Op,OP_Underscore,OP_Func);
+				ibc->DefiningMethods=1;
+				IBOverwriteStr(&ibc->_methodsStructName,ibc->Str);
 			}
 			break;
 		}

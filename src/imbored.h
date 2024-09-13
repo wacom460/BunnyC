@@ -41,6 +41,10 @@ default: {                               \
 	break; \
 }
 
+#define IB_STARTS_WITH_SELFDOT(o)\
+	((strnlen((o), 5)>=5)&&(!strncmp((o),"self.",5)))
+#define IB_SELFDOTLESS_NTSP(o) ((o)+5)
+
 #define IBCASE_0THRU9 case '0': case '1': case '2': case '3': \
 case '4': case '5': case '6': case '7': case '8': case '9':
 
@@ -55,6 +59,9 @@ case 'E': case 'F': case 'G': case 'H': case 'I': case 'J': \
 case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': \
 case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': \
 case 'W': case 'X': case 'Y': case 'Z':
+
+#define IBCASE_AaTHRUZz IBCASE_aTHRUz IBCASE_ATHRUZ
+#define IBCASE_0AaTHRU9Zz IBCASE_AaTHRUZz IBCASE_0THRU9
 
 #define IBCASE_NUMTYPES case OP_u8: case OP_c8: case OP_i8: \
 	case OP_u16: case OP_i16: case OP_u32: case OP_i32: \
@@ -463,6 +470,8 @@ typedef struct IBLayer3 {
 	char Ch;
 	char LastCh;
 	char DefiningStruct;
+	char DefiningMethods;
+	char*_methodsStructName;
 	//char DefiningEnum;
 	bool Imaginary;
 	bool Running;
