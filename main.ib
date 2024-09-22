@@ -38,7 +38,8 @@ blk $b
 	case 1
 		"hello"
 	_
-	%ft $f <- .f1 | .f2 | .f3
+	%ft $f <- 0
+	$f <- .f1 | .f2 | .f3
 	~(if $f & .f2 || $f & .f1
 		"f2 or f1 is set!\n"
 	_

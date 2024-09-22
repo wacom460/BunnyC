@@ -471,6 +471,15 @@ typedef struct IBLayer3 {
 	char LastCh;
 	char DefiningStruct;
 	char DefiningMethods;
+
+	//[DOT PATH]
+	//obj.thing.whatever ->
+	//obj
+	//thing
+	//whatever
+	char DotPathOn;
+	IBVector DotPathVec;//IBStr
+
 	char*_methodsStructName;
 	//char DefiningEnum;
 	bool Imaginary;

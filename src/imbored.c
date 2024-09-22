@@ -1361,7 +1361,9 @@ IBObj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, IBOp type) {
 	}
 	return NULL;
 }
-IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type){
+IBObj*
+IBLayer3FindStackObjUnderTop
+(IBLayer3* ibc, IBOp type) {
 	IBObj* o;
 	int i;
 	if(ibc->ObjStack.elemCount < 2) return NULL;
@@ -1371,7 +1373,9 @@ IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type){
 	}
 	return NULL;
 }
-void IBLayer3Init(IBLayer3* ibc){
+void
+IBLayer3Init
+(IBLayer3* ibc) {
 	IBObj* o=0;
 	IBExpects* exp=0;
 	IBCodeBlock* cb=0;
@@ -1380,7 +1384,11 @@ void IBLayer3Init(IBLayer3* ibc){
 		*u64ti=0,*i64ti=0,*d64ti=0,*stringti=0;
 	memset(ibc,0,sizeof*ibc);
 
-	IBVectorInit(&ibc->TypeRegistry,sizeof(IBTypeInfo), OP_IBTypeInfo, 32);
+	IBVectorInit(&ibc->DotPathVec, sizeof(IBStr), 
+		OP_IBStr, IBVEC_DEFAULT_SLOTCOUNT);
+
+	IBVectorInit(&ibc->TypeRegistry,
+		sizeof(IBTypeInfo), OP_IBTypeInfo, 32);
 	IBVectorPush(&ibc->TypeRegistry,&u8ti);
 	IBVectorPush(&ibc->TypeRegistry,&i8ti);
 	IBVectorPush(&ibc->TypeRegistry,&c8ti);
@@ -1539,6 +1547,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBStrFree(&ibc->CIncludesStr);
 	IBStrFree(&ibc->CurrentLineStr);
 	IBVectorFree(&ibc->TypeRegistry, IBTypeInfoFree);
+	IBVectorFree(&ibc->DotPathVec, IBStrFree);
 	//IBStrFree(&ibc->ArrayIndexExprStr);
 	IBVectorFree(&ibc->ArrayIndexExprsVec, IBStrFree);
 	IBStrFree(&ibc->CCode);
@@ -2339,6 +2348,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch){
 		}
 		ibc->Imaginary = false;
 		ibc->Pfx = OP_Null;
+		ibc->DotPathOn=false;
 		break;
 	}
 	}
@@ -2730,13 +2740,26 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			switch (o->type) {
 			case OP_VarComplete:
 			case OP_VarWantValue: {
+				IBTypeInfo*ti=0;
 				IBStrAppendCh(vstr, '\t', thing ? 1 : tabCount);
 				if (o->var.type == OP_String) {
 					o->var.type = OP_c8;
 					o->var.mod = OP_Pointer;
 				}
 				char* typeStr = o->var.type == OP_Unknown ? o->str : IBGetCEqu(o->var.type);
-				IBStrAppendFmt(vstr, "%s%s %s", typeStr, IBGetCEqu(o->var.mod), o->name);
+				char*typePfx="";
+				IBLayer3FindType(ibc, typeStr, &ti);
+				if(ti){
+					switch(ti->type){
+					case OP_Enum:
+						typePfx="enum E";
+						break;
+					case OP_Struct:
+						typePfx="struct S";
+						break;
+					}
+				}
+				IBStrAppendFmt(vstr, "%s%s%s %s", typePfx, typeStr, IBGetCEqu(o->var.mod), o->name);
 				if (o->var.valSet && !thing) {
 					IBStrAppendCStr(vstr, " = ");
 					switch (o->var.type) {
@@ -3452,6 +3475,7 @@ void IBLayer3Prefix(IBLayer3* ibc){
 	case OP_Op:
 	case OP_Name: {
 		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
+		ibc->DotPathOn=true;
 		/*getchar();*/
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
 	}
