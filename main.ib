@@ -16,7 +16,6 @@ methods $ss
 		$self.lv3 <- 100
 		$self.lv2 <- =-100
 		$self.e <- .h1
-		~($self.e <- ssF.h1)~
 	_
 _
 
@@ -31,20 +30,8 @@ enum $e1 $e1 $e2 $e3 _
 
 blk $b
 	i32 $a 1
-	table $a
-	case 0
-		"hi"
-		fall
-	case 1
-		"hello"
-	_
-	%ft $f <- 0
+	%ft $f
 	$f <- .f1 | .f2 | .f3
-	~(if $f & .f2 || $f & .f1
-		"f2 or f1 is set!\n"~()~
-	_
-	if $f & .f3
-	_)~
 _
 
 blk $main i32 $argc nts^ $argv -> i32

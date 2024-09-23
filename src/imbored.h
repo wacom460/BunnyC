@@ -238,8 +238,38 @@ typedef union IBVal {
 	float f32;
 	double d64;
 } IBVal;
+
+typedef struct {
+	//IBOp infoType; //OP_Builtin,OP_Custom
+	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
+	IBStr name;
+	IBVector members;
+	struct {
+		char isFlags;
+	} Enum;
+	struct {
+		int val;
+	} EnumValue;
+	struct {
+		int flags;
+		char placeholder;
+	} Struct;
+	struct {
+		IBOp privacy;
+		IBOp type;
+	} StructVar;
+	struct {
+		char isMethod;/*methods are sub functions of types*/
+		//todo: store func args info
+	} Function;
+	IB_DEFMAGIC;
+} IBTypeInfo;
+void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name);
+void IBTypeInfoFree(IBTypeInfo* ti);
+void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP);
 typedef struct IBNameInfo {
 	IBOp type;
+	IBTypeInfo*ti;
 	IBOp cast;
 	char* name;
 } IBNameInfo;
@@ -325,6 +355,7 @@ typedef struct IBObj {
 	} arg;
 	struct _IBVarObj {
 		IBOp type;
+		IBTypeInfo*ti;
 		IBOp mod;
 		IBOp privacy;
 		bool valSet;
@@ -408,34 +439,6 @@ typedef struct IBSharedState {
 typedef struct IBExpression {
 	IBCodeBlock cb;
 } IBExpression;
-typedef struct {
-	//IBOp infoType; //OP_Builtin,OP_Custom
-	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
-	IBStr name;
-	IBVector members;
-	struct {
-		char isFlags;
-	} Enum;
-	struct {
-		int val;
-	} EnumValue;
-	struct {
-		int flags;
-		char placeholder;
-	} Struct;
-	struct {
-		IBOp privacy;
-		IBOp type;
-	} StructVar;
-	struct {
-		char isMethod;/*methods are sub functions of types*/
-		//todo: store func args info
-	} Function;
-	IB_DEFMAGIC;
-} IBTypeInfo;
-void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name);
-void IBTypeInfoFree(IBTypeInfo* ti);
-void IBTypeInfoFindMember(IBTypeInfo*ti,char*name,IBTypeInfo**outDP);
 typedef struct IBLayer3 {
 	IBOp Pfx;
 	IBOp Pointer;

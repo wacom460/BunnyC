@@ -3712,12 +3712,11 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 	/* . PFXDOT */ case OP_Dot: {
 		switch(t->type){
 		case OP_NeedExpression: {
-			IBVector;
 			IBOp type=OP_Unknown;
-			IBObj* o;
+			IBObj* o=0;
 			IBObj*vneO=IBLayer3FindStackObjRev(ibc,OP_VarNeedExpr);
 			IBTask*e2nt=IBLayer3FindTaskUnderIndex(ibc, -1, OP_ExprToName, 3);
-			IBTask* etn = IBLayer3FindTaskUnderIndex(ibc, -1, OP_ExprToName, 3);
+			/*IBTask* etn = IBLayer3FindTaskUnderIndex(ibc, -1, OP_ExprToName, 3);*/
 			IBTypeInfo*st=0;
 			IBTypeInfo*ti=0;
 			if(vneO){
@@ -3726,34 +3725,39 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 					type=ti->type;
 					IBTypeInfoFindMember(ti,ibc->Str,&st);
 				}
-			}else if(e2nt&&ibc->DefiningMethods){
+			}else if(e2nt/*&&ibc->DefiningMethods*/){
 				IBObj*no=0;
 				TaskFindWorkingObj(e2nt, OP_ActOnName, &no);
 				assert(no);
-				if(no&&IB_STARTS_WITH_SELFDOT(no->name)){
-					char*rn=IB_SELFDOTLESS_NTSP(no->name);
-					assert(rn&&(*rn));
-					/*IBTask*mt=IBLayer3FindTaskUnderIndex(ibc,-1,OP_MethodsWantContent, 100);
-					assert(mt);*/
-					assert(ibc->_methodsStructName);
-					IBLayer3FindType(ibc,ibc->_methodsStructName,&ti);
-					if(ti){
-						type=ti->type;
-						IBTypeInfoFindMember(ti,rn,&st);
+				if(no){
+					if (IB_STARTS_WITH_SELFDOT(no->name)) {
+						char* rn = IB_SELFDOTLESS_NTSP(no->name);
+						assert(rn && (*rn));
+						/*IBTask*mt=IBLayer3FindTaskUnderIndex(ibc,-1,OP_MethodsWantContent, 100);
+						assert(mt);*/
+						assert(ibc->_methodsStructName);
+						IBLayer3FindType(ibc, ibc->_methodsStructName, &ti);
+						if (ti) {
+							type = ti->type;
+							IBTypeInfoFindMember(ti, rn, &st);
+						}
+					}else{
+						IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, no->name);
+						if(ni->ti){
+							ti=ni->ti;
+							type=ti->type;
+							IBTypeInfoFindMember(ti, ibc->Str, &st);
+						}
 					}
 				}
-			}
-			else if (etn) {
-				IBObj*aon=0;
-				TaskFindWorkingObj(etn, OP_ActOnName, &aon);
-				cb;
-				DbgPuts("");
+				
 			}
 			if(type==OP_Unknown || !st)
 				Err(OP_Error, "context not found");
 			IBLayer3PushObj(ibc, &o);
 			assert(st);
 			if(st)ObjSetType(o, st->type);
+			assert(ti);
 			if(ti)ObjSetStr(o, ti->name.start);
 			ObjSetName(o, ibc->Str);
 			IBLayer3PopObj(ibc, true, &o);
@@ -4282,6 +4286,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBTask* t;
 			IBLayer3PushObj(ibc, &o);
 			o->var.type = ibc->NameOp;
+			IBLayer3FindType(ibc,ibc->Str,&o->var.ti);
 			ObjSetStr(o, ibc->Str);
 			o->var.mod = ibc->Pointer;
 			o->var.valSet = false;
@@ -4580,6 +4585,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 						&ibc->GlobalVariables : &cb->localVariables,
 					ibc->Str, o->var.type, &ni);
 				ni->type = o->var.type;
+				ni->ti=o->var.ti;
 				/*if(rc == OP_AlreadyExists)
 					Err(OP_Error, "name already in use");
 				assert(rc == OP_OK);*/
