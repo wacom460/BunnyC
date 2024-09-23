@@ -3,23 +3,6 @@
 #include <string.h>
 #include <raylib-nuklear.h>
 
-struct A {
-	int a;
-};
-
-struct A a[] =
-{
-	{
-		.a = 1
-	},
-	{
-		.a = 2
-	},
-	{
-		.a = 3
-	}
-};
-
 static struct nk_context* ctx;
 IBIde g_Ide;
 
