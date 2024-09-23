@@ -3717,7 +3717,7 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 			IBObj* o;
 			IBObj*vneO=IBLayer3FindStackObjRev(ibc,OP_VarNeedExpr);
 			IBTask*e2nt=IBLayer3FindTaskUnderIndex(ibc, -1, OP_ExprToName, 3);
-			IBTask* aon = IBLayer3FindTaskUnderIndex(ibc, -1, OP_ActOnName, 3);
+			IBTask* etn = IBLayer3FindTaskUnderIndex(ibc, -1, OP_ExprToName, 3);
 			IBTypeInfo*st=0;
 			IBTypeInfo*ti=0;
 			if(vneO){
@@ -3742,6 +3742,12 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 						IBTypeInfoFindMember(ti,rn,&st);
 					}
 				}
+			}
+			else if (etn) {
+				IBObj*aon=0;
+				TaskFindWorkingObj(etn, OP_ActOnName, &aon);
+				cb;
+				DbgPuts("");
 			}
 			if(type==OP_Unknown || !st)
 				Err(OP_Error, "context not found");
