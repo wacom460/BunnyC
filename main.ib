@@ -1,35 +1,16 @@
-flags $ssF
-	$h1
-	$h2
-_
+flags $ft $f1 $f2 $f3 _
 
 struct $ss
-	i32 $lv1
-	i64 $lv2
-	u8 $lv3
-	%ssF $e
+	%ft $e
 _
 
 methods $ss
 	blk $fm
-		$self.lv1 <- 10
-		$self.lv3 <- 100
-		$self.lv2 <- =-100
-		$self.e <- .h1
+		$self.e <- .f1
 	_
 _
-
-flags $ft $f1 $f2 $f3 _
-
-methods $ft
-	blk $test
-	_
-_
-
-enum $e1 $e1 $e2 $e3 _
 
 blk $b
-	i32 $a 1
 	%ft $f
 	$f <- .f1 | .f2 | .f3
 _

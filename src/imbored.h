@@ -239,9 +239,10 @@ typedef union IBVal {
 	double d64;
 } IBVal;
 
-typedef struct {
+typedef struct IBTypeInfo {
 	//IBOp infoType; //OP_Builtin,OP_Custom
 	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
+	struct IBTypeInfo* structVarType;
 	IBStr name;
 	IBVector members;
 	struct {

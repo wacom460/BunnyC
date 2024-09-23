@@ -2664,7 +2664,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 			}
 			case OP_StructVar:{
 				gotVal=true;
-				IBStrAppendFmt(&t->code.code, "%s",o->name);
+				IBStrAppendFmt(&t->code.code, "%s%s_%s","",o->str,o->name);
 				break;
 			}
 			case OP_Value: {
@@ -3011,6 +3011,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)	{
 				IBTypeInfo*nti=0;
 				IBVectorPush(&ti->members,&nti);
 				IBTypeInfoInit(nti,OP_StructVar,ni->name);
+				nti->structVarType=ni->ti;
 			}
 		}
 		IBLayer3PopCodeBlock(ibc, false, &cb);
@@ -3756,10 +3757,20 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 				Err(OP_Error, "context not found");
 			IBLayer3PushObj(ibc, &o);
 			assert(st);
-			if(st)ObjSetType(o, st->type);
+			if(st){
+				if(st->type==OP_StructVar){
+				}
+				else ObjSetType(o, st->type);
+			}
 			assert(ti);
 			if(ti)ObjSetStr(o, ti->name.start);
 			ObjSetName(o, ibc->Str);
+			if (st&&st->type == OP_StructVar) {
+				IBOp t = st->structVarType->type;
+				assert(st->structVarType);
+				ObjSetType(o, t == OP_Enum ? OP_EnumVal : t);
+				IBOverwriteStr(&o->str, st->structVarType->name.start);
+			}
 			IBLayer3PopObj(ibc, true, &o);
 			break;
 		}
