@@ -1,20 +1,16 @@
-flags $ft $f1 $f2 $f3 _
-
-struct $ss
-	%ft $e
+struct $V2i
+	i32 $x
+	i32 $y
 _
 
-methods $ss
-	blk $fm
-		$self.e <- .f1
+methods $V2i
+	blk $init i32 $x i32 $y
+		$self.x <- $x
+		$self.y <- $y
 	_
 _
 
-blk $b
-	%ft $f
-	$f <- .f1 | .f2 | .f3
-_
-
 blk $main i32 $argc nts^ $argv -> i32
-	!b
+	%V2i $v
+	!v.init 10 10
 _ 0

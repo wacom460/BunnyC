@@ -375,19 +375,19 @@ typedef struct IBObj {
 		bool fallthru;
 	} table;
 } IBObj;
-void _ObjSetType(IBObj* obj, IBOp type);
-#define ObjSetType(obj, type){\
+void _IBObjSetType(IBObj* obj, IBOp type);
+#define IBObjSetType(obj, type){\
 	PLINE;\
-	_ObjSetType(obj, type);\
+	_IBObjSetType(obj, type);\
 }
-void ObjSetMod(IBObj* obj, IBOp mod);
-void _ObjSetName(IBObj* obj, char* name);
-#define ObjSetName(obj, name){\
+void IBObjSetMod(IBObj* obj, IBOp mod);
+void _IBObjSetName(IBObj* obj, char* name);
+#define IBObjSetName(obj, name){\
 	PLINE;\
-	_ObjSetName(obj,name);\
+	_IBObjSetName(obj,name);\
 }
-void ObjSetStr(IBObj* obj, char* Str);
-void ObjCopy(IBObj* dst, IBObj* src);
+void IBObjSetStr(IBObj* obj, char* Str);
+void IBObjCopy(IBObj* dst, IBObj* src);
 void ObjPrint(IBObj* obj);
 void ObjInit(IBObj* o);
 void ObjFree(IBObj* o);
@@ -400,7 +400,7 @@ typedef struct IBExpects {
 	int life;
 	int lineNumInited;
 } IBExpects;
-void _ExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
+void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 /*special fmt chars :
 * 'P': pfx
 * 'N': nameOP
@@ -412,10 +412,10 @@ void _ExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 * 'c': code block macro (adds OP_Op, OP_If, OP_VarType... etc)
 * 'e': expression macro
 */
-#define ExpectsInit(exp, fmt, ...) \
-	_ExpectsInit(__LINE__, exp, fmt, __VA_ARGS__);
-void ExpectsPrint(IBExpects* exp);
-void ExpectsFree(IBExpects* exp);
+#define IBExpectsInit(exp, fmt, ...) \
+	_IBExpectsInit(__LINE__, exp, fmt, __VA_ARGS__);
+void IBExpectsPrint(IBExpects* exp);
+void IBExpectsFree(IBExpects* exp);
 typedef struct IBTaskNeedExpression {
 	IBOp finalVartype;
 } IBTaskNeedExpression;
