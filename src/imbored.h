@@ -113,6 +113,8 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define DbgFmt(x, ...)
 #endif
 
+#define DbgPuts(x) printf("%s",x);
+
 #include "ibop.h"
 
 #define CASE_VALTYPES case OP_u8: \
