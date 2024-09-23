@@ -34,7 +34,7 @@ void IBcompFrontend(int argc, char** argv, int* rv) {
 		IBLayer3Init(&comp);
 		while (comp.Running)
 			IBLayer3Tick(&comp, f);
-		DbgPuts("Exiting");
+		DbgPuts("Exiting\n");
 		//assert(comp.InputStr == NULL);
 		IBLayer3Free(&comp);
 		fclose(f);
