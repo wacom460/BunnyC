@@ -70,7 +70,7 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
 void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS);
 #define IBVectorPush(vec, dataDP){\
 	/*int c=(vec)->elemCount - 1;*/\
-	_IBVectorPush((vec), dataDP IBDBGFLPI1);\
+	_IBVectorPush((vec), (struct IBVecData**)dataDP IBDBGFLPI1);\
 	/*PLINE;\
 	DbgFmt(" VectorPush: %s ", #vec); \
 	IBPushColor(IBFgCYAN); \
