@@ -229,6 +229,8 @@ X(MethodsWantContent)\
 /* || */X(OrOr) \
 /* & */X(And) \
 /* && */X(AndAnd) \
+X(CallMethod) \
+X(CallMethodNeedName) \
 
 #define X(x) OP_##x,
 #ifdef __TINYC__

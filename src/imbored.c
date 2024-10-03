@@ -3959,6 +3959,13 @@ void IBLayer3StrPayload(IBLayer3* ibc){
 		switch (t->type) {
 		IBCASE_BLOCKWANTCODE
 		{
+			if(!*ibc->Str){
+				IBExpects*exp=0;
+				//IBTask*t=0;
+				IBLayer3PushTask(ibc, OP_CallMethodNeedName, &exp, &t);
+				IBExpectsInit(exp,"P",OP_Name);
+				break;
+			}
 			//IBTask* t;
 			//IBLayer3PushTask(ibc, OP_CodeBlockCallFunc, NULL, NULL);
 			IBLayer3PushTask(ibc, OP_CallFunc, NULL, NULL);
