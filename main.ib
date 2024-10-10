@@ -12,5 +12,5 @@ _
 
 blk $main i32 $argc nts^ $argv -> i32
 	%V2i $v
-	! $v .init 10 10
+	! $v init 10 10
 _ 0
