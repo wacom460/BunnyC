@@ -1,16 +1,6 @@
-struct $V2i
-	i32 $x
-	i32 $y
+flags $fucc
+	$a $b
 _
-
-methods $V2i
-	blk $init i32 $x i32 $y
-		$self.x <- $x
-		$self.y <- $y
-	_
+blk $main
+	i32 $i <- 10 + 10
 _
-
-blk $main i32 $argc nts^ $argv -> i32
-	%V2i $v
-	! $v init 10 10
-_ 0

@@ -1,4 +1,5 @@
 #pragma once
+
 #define _IB_OPS_ \
 X(Null) \
 X(False) \

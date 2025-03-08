@@ -19,31 +19,28 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\ext\raylib\core.c" />
-    <ClCompile Include="..\ext\raylib\models.c" />
-    <ClCompile Include="..\ext\raylib\raudio.c" />
-    <ClCompile Include="..\ext\raylib\rglfw.c" />
-    <ClCompile Include="..\ext\raylib\shapes.c" />
-    <ClCompile Include="..\ext\raylib\text.c" />
-    <ClCompile Include="..\ext\raylib\textures.c" />
-    <ClCompile Include="..\ext\raylib\utils.c" />
+    <None Include="..\main.ib" />
+    <None Include="..\run.bat" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\ibcodeblock.c" />
+    <ClCompile Include="..\src\ibdict.c" />
+    <ClCompile Include="..\src\ibexpects.c" />
+    <ClCompile Include="..\src\iblayer3.c" />
     <ClCompile Include="..\src\ibmain.c" />
-    <ClCompile Include="..\src\ib_ide.c" />
+    <ClCompile Include="..\src\ibnameinfo.c" />
+    <ClCompile Include="..\src\ibobj.c" />
+    <ClCompile Include="..\src\ibstr.c" />
+    <ClCompile Include="..\src\ibtask.c" />
+    <ClCompile Include="..\src\ibtypeinfo.c" />
+    <ClCompile Include="..\src\ibvec.c" />
     <ClCompile Include="..\src\imbored.c" />
-    <ClCompile Include="..\src\imp.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\ibcolor.h" />
     <ClInclude Include="..\src\ibcommon.h" />
-    <ClInclude Include="..\src\ibmain.h" />
-    <ClInclude Include="..\src\ibmisc.h" />
     <ClInclude Include="..\src\ibop.h" />
-    <ClInclude Include="..\src\ib_ide.h" />
     <ClInclude Include="..\src\imbored.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\main.ib" />
-    <None Include="..\run.bat" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -140,7 +137,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);GRAPHICS_API_OPENGL_11;PLATFORM_DESKTOP</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>

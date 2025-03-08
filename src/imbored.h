@@ -1,12 +1,18 @@
 #ifndef IMBORED_H_
 #define IMBORED_H_
 #include "ibcommon.h"
-#include "ibmisc.h"
+#include "ibcolor.h"
+
 #include <libtcc.h>
-
-
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <math.h>
 
 #define IBDEBUGPRINTS
+
+#define LE "\n"
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -16,12 +22,16 @@
 #define IBBoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
 #define IBBoolStrChar(b) (b ? "1" : "0")
 
+extern char* SysLibCodeStr;
+
 #ifdef IBDEBUGPRINTS
-void _PrintLine(int l);
-#define PLINE _PrintLine(__LINE__)
+void _PrintLine(char*f, int l);
+#define PLINE _PrintLine(__FILE__, __LINE__)
 #else
 #define PLINE
 #endif
+
+#define IBRUN_MAXARGS 10
 
 #define IBCASE_BLOCKWANTCODE \
 case OP_LoopBlockWantCode: \
@@ -105,15 +115,18 @@ case 'W': case 'X': case 'Y': case 'Z':
 	}\
 }
 
+#define IBassert(x) IBASSERT(x, "")
+
 #ifdef IBDEBUGPRINTS
 #define DbgFmt(x, ...){\
 	printf(x, __VA_ARGS__);\
 }
+#define DbgPuts(x) printf("%s",x);
 #else
 #define DbgFmt(x, ...)
+#define DbgPuts(x)
 #endif
 
-#define DbgPuts(x) printf("%s",x);
 
 #include "ibop.h"
 
@@ -219,6 +232,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...);
 //key = IBDictGet(dict, "0.0.id");
 IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath);
 void IBDictTest();
+
 /* GLOBAL COLOR STACK */
 extern IBVector g_ColorStack; /*IBColor*/
 
@@ -283,7 +297,7 @@ void IBNameInfoDBInit(IBNameInfoDB* db);
 void IBNameInfoDBFree(IBNameInfoDB* db);
 IBOp IBNameInfoDBAdd(struct IBLayer3* ibc, IBNameInfoDB* db, char* name, IBOp type, IBNameInfo** niDP);
 IBOp IBNameInfoDBFindType(IBNameInfoDB* db, char* name);
-IBNameInfoDB* _IBNameInfoDBFind(IBNameInfoDB* db, char* name, int lineNum);
+IBNameInfo* _IBNameInfoDBFind(IBNameInfoDB* db, char* name, int lineNum);
 #define IBNameInfoDBFind(db,name) _IBNameInfoDBFind(db,name,__LINE__)
 typedef struct IBCodeBlock {
 	IBStr header;
@@ -525,8 +539,8 @@ IBObj* IBLayer3GetObj(IBLayer3* ibc);
 IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln);
 #define IBLayer3SearchNameInfo(ibc,name)\
 	_IBLayer3SearchNameInfo(ibc,name,__LINE__)
-void IBLayer3PrintVecData(struct IBVecData* data, IBOp type);
-void IBLayer3VecPrint(IBVector* vec);
+//void IBLayer3PrintVecData(struct IBVecData* data, IBOp type);
+//void IBLayer3VecPrint(IBVector* vec);
 IBObj* IBLayer3FindStackObjRev(IBLayer3*ibc,IBOp type);
 IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type);
 IBObj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, IBOp type);
@@ -592,7 +606,7 @@ void IBLayer3ReplaceExpects(IBLayer3* ibc, IBExpects** expDP);
 bool IBLayer3IsPfxExpected(IBLayer3* ibc, IBOp pfx);
 bool IBLayer3IsNameOpExpected(IBLayer3* ibc, IBOp nameOp);
 /*NO NEWLINES AT END OF STR*/
-void IBLayer3Tick(IBLayer3* ibc, struct FILE* f);
+void IBLayer3Tick(IBLayer3* ibc, FILE* f);
 void IBLayer3InputChar(IBLayer3* ibc, char ch);
 void IBLayer3InputStr(IBLayer3* ibc, char* str);
 void _IBLayer3FinishTask(IBLayer3* ibc);
@@ -627,7 +641,7 @@ IBOp IBStrToBool(IBLayer3* ibc, char* str);
 IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str);
 
 #define SetTaskType(task, tt){\
-	assert(task);\
+	IBassert(task);\
 	PLINE;\
 	DbgFmt(" SetTaskType: %s(%d) -> %s(%d)\n", \
 		IBGetOpName(task->type), \

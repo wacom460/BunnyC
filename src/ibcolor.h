@@ -58,7 +58,7 @@ typedef enum IBColor {
 
 void IBSetColor(IBColor col);
 void IBPushColor(IBColor col);
-void _IBVectorCopyPushIBColor(struct IBVector* vec, IBColor col,char*file,int ln);
+void _IBVectorCopyPushIBColor(struct IBVector* vec, IBColor col IBDBGFILELINEPARAMS);
 #define IBVectorCopyPushIBColor(vec,col)\
 	_IBVectorCopyPushIBColor(vec,col,__FILE__,__LINE__)
 void IBPopColor();

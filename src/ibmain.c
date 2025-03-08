@@ -1,8 +1,4 @@
-#include "ibmain.h"
 #include "imbored.h"
-#include <stdio.h>
-#include "ib_ide.h"
-#include "ibcolor.h"
 
 struct IBVecData {
 	union{
@@ -35,19 +31,14 @@ void IBcompFrontend(int argc, char** argv, int* rv) {
 		while (comp.Running)
 			IBLayer3Tick(&comp, f);
 		DbgPuts("Exiting\n");
-		//assert(comp.InputStr == NULL);
+		//IBassert(comp.InputStr == NULL);
 		IBLayer3Free(&comp);
 		fclose(f);
 		*rv = 0;
 	}
 	else {
-		printf("Error opening file\n");
+		printf("Error opening file %s\n", argv[1]);
 	}
-}
-
-void IBideFrontend(int argc, char** argv, int* rv) {
-	IBIdeStart();
-	*rv = 0;
 }
 
 int
@@ -64,7 +55,6 @@ char**argv;
 	IBDatabaseInit(g_DB);
 
 	IBcompFrontend(argc, argv, &rv);
-	//IBideFrontend(argc, argv, &rv);
 
 	IBVectorFreeSimple(&g_ColorStack);
 

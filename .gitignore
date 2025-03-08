@@ -1,8 +1,4 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
-
-/vs/x64/Debug
+﻿/vs/x64/Debug
 /vs/.vs/
 /vs/.vs/Project1
 /vs/Build/x64/Debug
@@ -12,6 +8,4 @@
 /vs/*.ncb
 /vs/*.suo
 /vs/*.user
-/ext/raylib/*.o
-/ext/raylib/*.a
 /*.exe

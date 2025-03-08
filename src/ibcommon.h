@@ -1,7 +1,35 @@
 #ifndef IBCOMMON_H_
 #define IBCOMMON_H_
 #include "ibop.h"
-#include "ibmisc.h"
+
+#define IBMAGIC (1011933)
+#define IB_ASSERTMAGICP(o)\
+	IBassert((o)->initMagic==IBMAGIC)
+#define IB_ASSERTMAGIC(o)\
+	IBassert((o).initMagic==IBMAGIC)
+#define IB_DEFMAGIC \
+	unsigned int initMagic
+#define IB_SETMAGICP(o)\
+	(o)->initMagic=IBMAGIC
+#define IB_SETMAGIC(o)\
+	(o).initMagic=IBMAGIC
+#define IB_FILE_EXT "ib"
+#ifndef bool
+#define bool char
+#endif
+#ifndef true
+#define true 1
+#endif
+#ifndef false
+#define false 0
+#endif
+#define IB_TRUESTR "true"
+#define IBFALSESTR "false"
+
+#ifdef __TINYC__
+int memcpy_s(void* dest, long long destsz, void* src, long long count);
+long long strnlen(char* s, long long maxlen);
+#endif
 
 #if defined(__TINYC__) || defined(__GNUC__)
 #define __debugbreak() exit(-1)
@@ -10,10 +38,13 @@
 
 #define CLAMP_IMP\
 	return val < min ? min : val > max ? max : val;
+
 #define CLAMP_FUNC(type, name)\
 	type name(type val, type min, type max)
+
 CLAMP_FUNC(int, ClampInt);
 CLAMP_FUNC(long long int, ClampSizeT);
+
 typedef struct IBStr {
 	char* start;
 	char* end; /*ptr of null terminator '\0'*/
@@ -35,12 +66,15 @@ char* IBStrAppendCStr(IBStr* str, char* with);
 void IBStrAppendFmt(IBStr* str, char* fmt, ...);
 char* IBStrAppend(IBStr* str, IBStr* with);
 int IBStrStripFront(IBStr* str, char ch);
+
 struct IBVecData;
+
 #define IBVEC_PUSHINFO_MAX (32)
 #define IBVEC_DEFAULT_SLOTCOUNT 16
 #define IBVEC_WARNINGS 1
+
 typedef struct IBVecPushInfo {
-	struct IBVecData*ptr;
+	struct IBVecData* ptr;
 	char* filePath;
 	int lineNum;
 } IBVecPushInfo;
@@ -50,7 +84,7 @@ typedef struct IBVector {
 	int elemCount;
 	int slotCount;
 	int initialSlotCount;
-	int dataSize;
+	long long dataSize;
 	int reallocCount;
 	char doNotShrink;
 	IB_DEFMAGIC;
@@ -101,7 +135,7 @@ void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
 #define IBVectorPopFront(vec,freeFunc)\
 	_IBVectorPopFront(vec,(void(*)(void*))(freeFunc))
 void IBVectorFreeSimple(IBVector* vec);
-void _IBVectorReinitPushInfo(IBVector*vec);
+void _IBVectorReinitPushInfo(IBVector* vec);
 #define IBVectorFree(vec, freeFunc){\
 	int i;\
 	for(i = 0;i<(vec)->elemCount;i++){\
@@ -110,8 +144,6 @@ void _IBVectorReinitPushInfo(IBVector*vec);
 	IBVectorFreeSimple((vec));\
 }
 
-// ZII :3
-
 #define Assert(x) \
 if(!(x)) {         \
     printf("FAIL: " \
@@ -119,86 +151,5 @@ if(!(x)) {         \
         __FILE__, __LINE__, #x); \
     DB;               \
 }
-
-#define LE "\n"
-#define SPC " "
-#define SET(x, y)\
-	((x) |= (y))
-#define SETIF(e, x, y)\
-    if(e) SET(x, y);
-#define UNSET(x, y)\
-	((x) &= ~(y))
-#define UNSETIF(e,x,y)\
-    if(e)UNSET(x,y);
-#define TOGGLE(x, y)\
-	((x) ^= (y))
-#define TOGGLEIF(e,x,y)\
-    if(e)TOGGLE(x,y);
-#define ISSET(x, y)\
-	((x) & (y))
-#define ISNTSET(x,y)\
-	!ISSET(x,y)
-#define ARRITEMLEN(x)\
-    (sizeof((x)[0]))
-#define ARRLEN(x)\
-    (sizeof((x))\
-	/ ARRITEMLEN((x)))
-#define LOADED_BIT\
-	(1 << 0)
-#define LB LOADED_BIT
-#define LOADED(x)\
-    ((x)->flags & LB)
-#define FLAGBIT(x)\
-	(1 << (x))
-#define FB(x)\
-	FLAGBIT(x)
-
-#define DEFSAVELOAD(TYPE)                   \
-    void TYPE##Save(TYPE* ptr, char* loc);  \
-    bool TYPE##Load(TYPE* ptr, char* loc);
-
-#define IMPSAVELOAD(TYPE, VER)               \
-    void TYPE##Save(TYPE* ptr, char* loc) {  \
-        FILE* file = fopen(loc, "wb");       \
-        Assert(file);                        \
-        if (file) {                          \
-            fwrite(ptr, sizeof(char),        \
-            	sizeof(TYPE), file);         \
-            fclose(file);                    \
-        }                                    \
-    }                                        \
-    bool TYPE##Load(TYPE* ptr, char* loc){   \
-        Assert(ptr->ver<=VER);               \
-        FILE* file = fopen(loc, "rb");       \
-        if (file) {                          \
-            memset(ptr,0,sizeof(TYPE));      \
-            fseek(file, 0, SEEK_END);        \
-            long size=ftell(file);           \
-            Assert(size<=sizeof(TYPE));      \
-            fseek(file, 0, SEEK_SET);        \
-            fread(ptr,                       \
-            	sizeof(TYPE), 1, file);      \
-            fclose(file);                    \
-            return true;\
-        }                                    \
-        return false;\
-    }
-
-#define FORARR(arr)\
-    for(int i=0;i<ARRLEN(arr);++i)
-
-#define FORARRREV(arr)\
-    for(int i=ARRLEN(arr)-1;i>0;--i)
-
-#define FORARRLB(arr) \
-    for(int i=0;(i<ARRLEN(arr)) \
-        && LOADED(&((arr)[i])); \
-        ++i)
-
-#define FORARRNLB(arr)\
-    for(int i=0;(i<ARRLEN(arr))\
-        && (!LOADED(&((arr)[i])));\
-        ++i)
-
 
 #endif
