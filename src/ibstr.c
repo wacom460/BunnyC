@@ -166,6 +166,11 @@ void Val2Str(char* dest, int destSz, IBVal v, IBOp type) {
 	case OP_f32: { snprintf(dest, destSz, "%f", v.f32); break; }
 	case OP_Double:
 	case OP_d64: { snprintf(dest, destSz, "%f", v.d64); break; }
+	case OP_Bool: {
+		snprintf(dest, destSz, "%s", v.boolean > 0 ? "1" : "0");
+		break;
+	}
+	IBCASE_UNIMP_A
 	}
 }
 

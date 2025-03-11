@@ -1,21 +1,19 @@
 #include "imbored.h"
 
-struct IBVecData {
-	union{
-		IBObj obj;
-		IBStr str;
-		IBTask task;
-		IBOp op;
-		bool boolean;
-		IBExpects expects;
-		IBNameInfoDB niDB;
-		IBNameInfo ni;
-		IBDictKey dictKey;
-		IBDictKeyDef dictKeyDef;
-		IBTypeInfo ti;
-		IBVector vec;
-	};
-};
+void removeExt(char* filename) {
+	char* dot = strrchr(filename, '.');
+	if(dot != NULL && dot != filename) {
+		*dot = '\0';
+	}
+}
+
+char* path2Filename(char* path) {
+	char* last_slash = strrchr(path, '/');
+	if(last_slash != NULL) {
+		return last_slash + 1;
+	}
+	return path;
+}
 
 void IBcompFrontend(int argc, char** argv, int* rv) {
 	if (argc < 2) {
@@ -27,7 +25,11 @@ void IBcompFrontend(int argc, char** argv, int* rv) {
 	FILE* f = fopen(argv[1], "r");
 	if (f) {
 		IBLayer3 comp;
-		IBLayer3Init(&comp);
+		IBLayer3Init(&comp);		
+		char* ext = strdup(argv[1]);
+		removeExt(ext);
+		IBStrAppendCStr(&comp.ibFileNameStr, path2Filename(ext));
+		free(ext);
 		while (comp.Running)
 			IBLayer3Tick(&comp, f);
 		DbgPuts("Exiting\n");
@@ -46,7 +48,7 @@ main(argc, argv)
 int argc;
 char**argv;
 {
-	IBDictTest();
+	//IBDictTest();
 	int rv = 1;
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor, 512);
 	g_ColorStack.doNotShrink=1;

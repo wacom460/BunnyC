@@ -1,13 +1,13 @@
 @echo off
 :top
+del compiler.exe
 cls
 "ext/tcc/tcc" ^
 -Isrc ^
 -Iext/inc ^
 -llibtcc ^
 src/*.c ^
--o program.exe
-program main.ib
+-o compiler.exe
+".\compiler.exe" main.ib
 pause >nul
-del program.exe
 goto :top

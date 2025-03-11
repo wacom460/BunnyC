@@ -1,5 +1,5 @@
-#ifndef IMBORED_H_
-#define IMBORED_H_
+#pragma once
+
 #include "ibcommon.h"
 #include "ibcolor.h"
 
@@ -139,6 +139,7 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IBDOutStr "j"
 #define IBDOutNum "k"
 #define IBDOutKey "g"
+
 typedef enum IBDictDataType {
 	IBDictDataType_Unknown = 0,
 	IBDictDataType_RootKey,
@@ -146,9 +147,12 @@ typedef enum IBDictDataType {
 	IBDictDataType_Int,
 	IBDictDataType_String,
 } IBDictDataType;
+
 //char* IBDictDataTypeToString(IBDictDataType type);
+
 #define IBDICTKEY_MAXDATASIZE 256
 #define IBDICTKEY_KEYSIZE 16
+
 typedef struct IBDictKey {
 	IBDictDataType type;
 	IBVector children;
@@ -162,6 +166,7 @@ typedef struct IBDictKey {
 		int num;
 	} val;
 } IBDictKey;
+
 typedef struct IBDictKeyDef {
 	IBDictDataType type;
 	IBDictKey* key;
@@ -170,6 +175,7 @@ typedef struct IBDictKeyDef {
 		int num;
 	};
 } IBDictKeyDef;
+
 void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def);
 void IBDictKeyInitRoot(IBDictKey* key);
 void IBDictKeyFree(IBDictKey* key);
@@ -233,6 +239,7 @@ extern IBVector g_ColorStack; /*IBColor*/
 
 char* StrConcat(char* dest, int count, char* src);
 char StrStartsWith(char* str, char* with);
+
 typedef union IBVal {
 	bool boolean;
 	unsigned char u8;
@@ -274,18 +281,22 @@ typedef struct IBTypeInfo {
 	} Function;
 	IB_DEFMAGIC;
 } IBTypeInfo;
+
 void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name);
 void IBTypeInfoFree(IBTypeInfo* ti);
 void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP);
+
 typedef struct IBNameInfo {
 	IBOp type;
 	IBTypeInfo*ti;
 	IBOp cast;
 	char* name;
 } IBNameInfo;
+
 typedef struct IBNameInfoDB {
 	IBVector pairs;//IBNameInfo
 } IBNameInfoDB;
+
 void IBNameInfoInit(IBNameInfo* info);
 void IBNameInfoFree(IBNameInfo* info);
 void IBNameInfoDBInit(IBNameInfoDB* db);
@@ -294,6 +305,7 @@ IBOp IBNameInfoDBAdd(struct IBLayer3* ibc, IBNameInfoDB* db, char* name, IBOp ty
 IBOp IBNameInfoDBFindType(IBNameInfoDB* db, char* name);
 IBNameInfo* _IBNameInfoDBFind(IBNameInfoDB* db, char* name, int lineNum);
 #define IBNameInfoDBFind(db,name) _IBNameInfoDBFind(db,name,__LINE__)
+
 typedef struct IBCodeBlock {
 	IBStr header;
 	IBStr variables;
@@ -305,9 +317,11 @@ typedef struct IBCodeBlock {
 	IBNameInfoDB localVariables;
 	IB_DEFMAGIC;
 } IBCodeBlock;
+
 void IBCodeBlockInit(IBCodeBlock* block);
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output);
 void IBCodeBlockFree(IBCodeBlock* block);
+
 typedef struct IB_DBObj {
 	IBStr fileName;
 	int fileLine;
@@ -316,17 +330,22 @@ typedef struct IB_DBObj {
 	IBStr name;
 	IBVector children;/*IB_DBObj*/
 } IB_DBObj;
+
 IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn,
 	IBOp objType, IBStr* objName);
 void IB_DBObjFree(IB_DBObj* obj);
+
 typedef struct IBDatabase {
 	IB_DBObj* root;
 } IBDatabase;
+
 extern IBDatabase* g_DB;
+
 void IBDatabaseInit(IBDatabase* db);
 void IBDatabaseFree(IBDatabase* db);
 IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location);
 char* IBGetOpName(IBOp op);
+
 typedef struct IBObj {
 	IBOp type;
 	IBOp modifier;
@@ -384,6 +403,7 @@ typedef struct IBObj {
 		bool fallthru;
 	} table;
 } IBObj;
+
 void _IBObjSetType(IBObj* obj, IBOp type);
 #define IBObjSetType(obj, type){\
 	PLINE;\
@@ -401,6 +421,7 @@ void ObjPrint(IBObj* obj);
 void ObjInit(IBObj* o);
 void ObjFree(IBObj* o);
 void Val2Str(char* dest, int destSz, IBVal v, IBOp type);
+
 typedef struct IBExpects {
 	IBVector pfxs;/*IBOp P */
 	IBVector nameOps;/*IBOp N */
@@ -409,6 +430,7 @@ typedef struct IBExpects {
 	int life;
 	int lineNumInited;
 } IBExpects;
+
 void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 /*special fmt chars :
 * 'P': pfx
@@ -425,9 +447,11 @@ void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 	_IBExpectsInit(__LINE__, exp, fmt, __VA_ARGS__);
 void IBExpectsPrint(IBExpects* exp);
 void IBExpectsFree(IBExpects* exp);
+
 typedef struct IBTaskNeedExpression {
 	IBOp finalVartype;
 } IBTaskNeedExpression;
+
 typedef struct IBTask {
 	IBOp type;
 	IBCodeBlock code;
@@ -436,9 +460,11 @@ typedef struct IBTask {
 	IBVector subTasks;/*IBTask*/
 	IBTaskNeedExpression exprData;
 } IBTask;
+
 void TaskInit(IBTask* t, IBOp type);
 void TaskFree(IBTask* t);
 void TaskFindWorkingObj(IBTask*t,IBOp type, IBObj**outDP);
+
 /*IBSharedState: shared state between
 	multiple IBLayer3 instances*/
 	//TODO: make race condition safe
@@ -446,9 +472,11 @@ typedef struct IBSharedState {
 	//cant define output settings in more than one file...
 	bool outputSettingsDefined;
 } IBSharedState;
+
 typedef struct IBExpression {
 	IBCodeBlock cb;
 } IBExpression;
+
 typedef struct IBLayer3 {
 	IBOp Pfx;
 	IBOp Pointer;
@@ -461,10 +489,13 @@ typedef struct IBLayer3 {
 	int Column;
 	int LineIS; //LINE inputstr
 	int ColumnIS;//COLUMN inputstr
+	IBStr ibFileNameStr; //the MAIN in MAIN.ib
 	IBStr CIncludesStr;
 	IBStr CHeader_Structs;
 	IBStr CHeader_Funcs;
 	IBStr CCode;
+	IBStr HFileStr;
+	IBStr CFileStr;
 	IBStr FinalOutput;
 	IBStr CurrentLineStr;
 	IBStr RunArguments;
@@ -506,6 +537,7 @@ typedef struct IBLayer3 {
 	TCCState* TCC;
 	char Str[IBLayer3STR_MAX];
 } IBLayer3;
+
 #define Err(code, msg) { \
 	int l = ibc->InputStr ? ibc->LineIS : ibc->Line; \
 	int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column; \
@@ -518,11 +550,13 @@ typedef struct IBLayer3 {
 	IBPopColor(); \
 	DB; \
 }
+
 #define ErrF(code, fmt, ...) { \
 	char str[512]; \
 	sprintf_s(str, sizeof(str), fmt, __VA_ARGS__); \
 	Err(code, str); \
 }
+
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
 void IBLayer3RegisterCustomType(IBLayer3*ibc,char*name, 
@@ -656,5 +690,3 @@ char* IBGetPfxName(IBOp op);
 IBOp IBGetOpFromNameList(char* name, IBOp list);
 IBOp IBOPFromPfxCh(char ch);
 void IBOverwriteStr(char** str, char* with);
-
-#endif

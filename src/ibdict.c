@@ -1,4 +1,5 @@
 #include "imbored.h"
+
 void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 	key->type = def.type;
 	switch (def.type) {
@@ -13,11 +14,13 @@ void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 	}
 	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, IBVEC_DEFAULT_SLOTCOUNT);
 }
+
 void IBDictKeyInitRoot(IBDictKey* key) {
 	memset(key, 0, sizeof(IBDictKey));
 	key->type = IBDictDataType_RootKey;
 	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, IBVEC_DEFAULT_SLOTCOUNT);
 }
+
 void IBDictKeyFree(IBDictKey* key) {
 	int idx = 0;
 	IBDictKey* sk = NULL;
@@ -26,6 +29,7 @@ void IBDictKeyFree(IBDictKey* key) {
 		IBDictKeyFree(sk);
 	IBVectorFreeSimple(&key->children);
 }
+
 IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack) {
 	IBDictKeyDef* dp = NULL;
 	IBDictKey* key;
@@ -50,6 +54,7 @@ IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack) {
 	if (key == rootKey) key = NULL;
 	return key;
 }
+
 IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def) {
 	int idx = 0;
 	IBDictKey* sk = NULL;
@@ -71,6 +76,7 @@ IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def) {
 	}
 	return NULL;
 }
+
 void IBDictKeyPrint(IBDictKey* key, int* childDepth) {
 	int idx = 0;
 	int tc = 0;
@@ -105,6 +111,7 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth) {
 	}
 	-- * childDepth;
 }
+
 //void IBDictionaryInit(IBDictionary* dict){
 //	IBDictKeyInit(&dict->rootKey, (IBDictKeyDef)
 //	{
@@ -113,12 +120,15 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth) {
 //			.num = 0
 //	});
 //}
+
 //void IBDictionaryFree(IBDictionary* dict){
 //	IBDictKeyFree(&dict->rootKey);
 //}
+
 //IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
 //	return IBDictKeyFind(&dict->rootKey, keyStack);
 //}
+
 typedef enum {
 	IBDictManipAction_Unknown = 0,
 	IBDictManipAction_DataIn,
@@ -129,6 +139,7 @@ typedef enum {
 	IBDictManipAction_IntOut,
 	IBDictManipAction_KeyPtrOut,
 } IBDictManipAction;
+
 IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...) {
 	va_list args;
 	int i = 0;
@@ -253,6 +264,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...) {
 	va_end(args);
 	return dk;
 }
+
 IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath) {
 	IBVector keyStack;
 	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, IBVEC_DEFAULT_SLOTCOUNT);
@@ -261,6 +273,7 @@ IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath) {
 	IBDictKey* dk = IBDictKeyFind(rootKey, &keyStack);
 	return NULL;
 }
+
 void IBDictTest() {
 	{
 		IBDictKey rk;

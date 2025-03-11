@@ -230,7 +230,7 @@ IBLayer3Init
 	IBObj* o = 0;
 	IBExpects* exp = 0;
 	IBCodeBlock* cb = 0;
-	IBTypeInfo* u8ti = 0, * i8ti = 0, * c8ti = 0, * u16ti = 0,
+	IBTypeInfo* boolti = 0, * u8ti = 0, * i8ti = 0, * c8ti = 0, * u16ti = 0,
 		* i16ti = 0, * u32ti = 0, * i32ti = 0, * f32ti = 0,
 		* u64ti = 0, * i64ti = 0, * d64ti = 0, * stringti = 0;
 	memset(ibc, 0, sizeof * ibc);
@@ -240,6 +240,7 @@ IBLayer3Init
 
 	IBVectorInit(&ibc->TypeRegistry,
 		sizeof(IBTypeInfo), OP_IBTypeInfo, 32);
+	IBVectorPush(&ibc->TypeRegistry, &boolti);
 	IBVectorPush(&ibc->TypeRegistry, &u8ti);
 	IBVectorPush(&ibc->TypeRegistry, &i8ti);
 	IBVectorPush(&ibc->TypeRegistry, &c8ti);
@@ -252,6 +253,7 @@ IBLayer3Init
 	IBVectorPush(&ibc->TypeRegistry, &i64ti);
 	IBVectorPush(&ibc->TypeRegistry, &d64ti);
 	IBVectorPush(&ibc->TypeRegistry, &stringti);
+	IBTypeInfoInit(boolti, OP_Bool, "bool");
 	IBTypeInfoInit(u8ti, OP_u8, "u8");
 	IBTypeInfoInit(i8ti, OP_i8, "i8");
 	IBTypeInfoInit(c8ti, OP_c8, "c8");
@@ -277,8 +279,11 @@ IBLayer3Init
 	IBStrInit(&ibc->CHeader_Funcs);
 	IBStrInit(&ibc->CurrentLineStr);
 	IBStrInit(&ibc->CIncludesStr);
+	IBStrInit(&ibc->ibFileNameStr);
 	IBStrInit(&ibc->CCode);
 	IBStrInit(&ibc->FinalOutput);
+	IBStrInit(&ibc->CFileStr);
+	IBStrInit(&ibc->HFileStr);
 	IBVectorInit(&ibc->ArrayIndexExprsVec, sizeof(IBStr), OP_IBStr, IBVEC_DEFAULT_SLOTCOUNT);
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
@@ -350,31 +355,31 @@ void IBLayer3Free(IBLayer3* ibc) {
 			IBStrLen(&cb->footer))
 		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");*/
 		//IBStrAppendCStr(&ibc->CHeader_Funcs, "\n#endif\n");
+	IBStrAppendFmt(&ibc->CFileStr,
+			"//#include \"%s.h\"\n", ibc->ibFileNameStr.start);
 	if(ibc->IncludeCStdioHeader)
-		IBStrAppendFmt(&ibc->FinalOutput,
+		IBStrAppendFmt(&ibc->CFileStr,
 			"#include <stdio.h>\n");
 	if(ibc->IncludeCStdlibHeader)
-		IBStrAppendFmt(&ibc->FinalOutput,
+		IBStrAppendFmt(&ibc->CFileStr,
 			"#include <stdlib.h>\n");
-	IBStrAppendFmt(&ibc->FinalOutput, "%s\n%s%s%s\n%s",
+	IBStrAppendFmt(&ibc->HFileStr, "#pragma once\n\n%s%s%s%s",
 		ibc->CIncludesStr.start,
 		rootCbFinal.start,
 		ibc->CHeader_Structs.start,
-		ibc->CHeader_Funcs.start,
-		ibc->CCode.start);
+		ibc->CHeader_Funcs.start);
+	IBStrAppendFmt(&ibc->CFileStr, "\n%s", ibc->CCode.start);
+	IBStrAppendFmt(&ibc->FinalOutput, "%s\n%s", ibc->HFileStr.start, ibc->CFileStr.start);
 #ifdef IBDEBUGPRINTS
 	IBPushColor(IBFgWHITE);
 	IBPushColor(IBFgGREEN);
-	DbgPuts(".H file: \n");
+	DbgFmt("%s.h file: \n", ibc->ibFileNameStr.start);
 	IBPopColor();
-	DbgFmt("%s%s%s%s\n", ibc->CIncludesStr.start,
-		rootCbFinal.start,
-		ibc->CHeader_Structs.start,
-		ibc->CHeader_Funcs.start);
+	DbgFmt("%s\n", ibc->HFileStr.start);
 	IBPushColor(IBFgGREEN);
-	DbgPuts(".C file: \n");
+	DbgFmt("%s.c file: \n", ibc->ibFileNameStr.start);
 	IBPopColor();
-	DbgFmt("%s", ibc->CCode.start);
+	DbgFmt("%s", ibc->CFileStr.start);
 #else
 	printf("%s", ibc->FinalOutput.start);
 #endif
@@ -383,7 +388,9 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBPushColor(IBFgMAGENTA);
 	DbgPuts("-> Compilation complete. Press any key <-\n");
 	IBPopColor();
+#ifdef IBDEBUGPRINTS
 	getchar();
+#endif
 	/*if (ibc->SpaceNameStr != NULL) {
 		free(ibc->SpaceNameStr);
 		ibc->SpaceNameStr = NULL;
@@ -401,8 +408,11 @@ void IBLayer3Free(IBLayer3* ibc) {
 	IBStrFree(&ibc->CHeader_Structs);
 	IBStrFree(&ibc->CHeader_Funcs);
 	IBStrFree(&ibc->FinalOutput);
+	IBStrFree(&ibc->CFileStr);
+	IBStrFree(&ibc->HFileStr);
 	IBStrFree(&ibc->RunArguments);
 	IBStrFree(&ibc->CIncludesStr);
+	IBStrFree(&ibc->ibFileNameStr);
 	IBStrFree(&ibc->CurrentLineStr);
 	IBVectorFree(&ibc->TypeRegistry, IBTypeInfoFree);
 	IBVectorFree(&ibc->DotPathVec, IBStrFree);
@@ -1491,6 +1501,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 				}
 				case OP_String: {
 
+					break;
+				}
+				case OP_Bool: {
+					IBStrAppendFmt(&t->code.code, "%s", o->val.boolean > 0 ? "1" : "0");
 					break;
 				}
 							  IBCASE_UNIMPLEMENTED

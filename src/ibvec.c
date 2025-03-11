@@ -1,5 +1,22 @@
 #include "imbored.h"
 
+struct IBVecData {
+	union {
+		IBObj obj;
+		IBStr str;
+		IBTask task;
+		IBOp op;
+		bool boolean;
+		IBExpects expects;
+		IBNameInfoDB niDB;
+		IBNameInfo ni;
+		IBDictKey dictKey;
+		IBDictKeyDef dictKeyDef;
+		IBTypeInfo ti;
+		IBVector vec;
+	};
+};
+
 void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count) {
 	void* m;
 	IBASSERT0(count > 0);

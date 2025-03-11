@@ -106,9 +106,9 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
 
 #define IBVectorIterNext(vec,idx) _IBVectorIterNext(vec,idx,__LINE__)
 void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS);
-#define IBVectorPush(vec, dataDP){\
-	/*int c=(vec)->elemCount - 1;*/\
-	_IBVectorPush((vec), (struct IBVecData**)dataDP IBDBGFLPI1);\
+#define IBVectorPush(vec, dataDP) { \
+	/*int c=(vec)->elemCount - 1;*/ \
+	_IBVectorPush((vec), (struct IBVecData**)dataDP IBDBGFLPI1); \
 	/*PLINE;\
 	DbgFmt(" VectorPush: %s ", #vec); \
 	IBPushColor(IBFgCYAN); \
@@ -116,22 +116,22 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 	IBPopColor();\*/ \
 }
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS);
-#define IBVectorCopyPush(vec,elem)\
+#define IBVectorCopyPush(vec,elem) \
 	_IBVectorCopyPush(vec,elem IBDBGFLPI1)
 void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS);
-#define IBVectorCopyPushBool(vec,val)\
+#define IBVectorCopyPushBool(vec,val) \
 	_IBVectorCopyPushBool(vec,val IBDBGFLPI1)
 void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS);
-#define IBVectorCopyPushOp(vec,val)\
+#define IBVectorCopyPushOp(vec,val) \
 	_IBVectorCopyPushOp(vec,val IBDBGFLPI1)
 struct IBVecData* IBVectorTop(IBVector* vec);
 struct IBVecData* IBVectorFront(IBVector* vec);
-#define IBVectorPop(vec, freeFunc)\
+#define IBVectorPop(vec, freeFunc) \
 	_IBVectorPop((vec), (void(*)(void*))(freeFunc))
-#define IBVectorClear(vec, freeFunc){\
-	while((vec)->elemCount){\
-		IBVectorPop((vec), (void(*)(void*))(freeFunc));\
-	}\
+#define IBVectorClear(vec, freeFunc) { \
+	while((vec)->elemCount) { \
+		IBVectorPop((vec), (void(*)(void*))(freeFunc)); \
+	} \
 }
 
 void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
@@ -140,12 +140,12 @@ void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
 	_IBVectorPopFront(vec,(void(*)(void*))(freeFunc))
 void IBVectorFreeSimple(IBVector* vec);
 void _IBVectorReinitPushInfo(IBVector* vec);
-#define IBVectorFree(vec, freeFunc){\
-	int i;\
-	for(i = 0;i<(vec)->elemCount;i++){\
-		(freeFunc)((void*)IBVectorGet((vec), i));\
-	}\
-	IBVectorFreeSimple((vec));\
+#define IBVectorFree(vec, freeFunc) { \
+	int i; \
+	for(i = 0;i<(vec)->elemCount;i++) { \
+		(freeFunc)((void*)IBVectorGet((vec), i)); \
+	} \
+	IBVectorFreeSimple((vec)); \
 }
 
 #define Assert(x) \

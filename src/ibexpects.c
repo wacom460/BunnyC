@@ -62,6 +62,8 @@ void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...) {
 			IBVectorCopyPushOp(&exp->pfxs, OP_Name);
 			IBVectorCopyPushOp(&exp->pfxs, OP_Exclaim);
 			IBVectorCopyPushOp(&exp->pfxs, OP_Underscore);
+
+			IBVectorCopyPushOp(&exp->nameOps, OP_Bool);
 			IBVectorCopyPushOp(&exp->nameOps, OP_If);
 			IBVectorCopyPushOp(&exp->nameOps, OP_For);
 			IBVectorCopyPushOp(&exp->nameOps, OP_Return);
