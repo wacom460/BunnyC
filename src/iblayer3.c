@@ -2576,37 +2576,48 @@ top:
 		}
 		break;
 	}
+	/* + PFXADD */ case OP_Add:
 	/* * PFXMULTIPLY */ case OP_Multiply:
 	/* / PFXDIVIDE */ case OP_Divide:
 	/* - PFXSUBTRACT */ case OP_Subtract: {
-		bool fall = true;
-		switch (t->type) {
-		case OP_RootTask: {
-			switch (ibc->NameOp) {
-			case OP_Exclaim: {
-				fall = false;
-				IBLayer3Push(ibc, OP_ModeCCompTimeMacroPaste, true);
+		//bool fall = true;
+		switch (ibc->NameOp) {
+		case OP_EmptyStr: {
+			switch (t->type) {
+			case OP_RootTask: {
+				switch (ibc->NameOp) {
+				case OP_Exclaim: {
+					//fall = false;
+					IBLayer3Push(ibc, OP_ModeCCompTimeMacroPaste, true);
+					break;
+				}
+				IBCASE_UNIMP
+				}
+				break;
+			}
+			case OP_NeedExpression: {
+				IBObj* o;
+				IBLayer3PushObj(ibc, &o);
+				IBObjSetType(o, ibc->Pfx);
+				IBLayer3PopObj(ibc, true, &o);
 				break;
 			}
 			IBCASE_UNIMP
 			}
 			break;
 		}
-		default: {
-			switch (ibc->NameOp) {
-			case OP_GreaterThan: {
-				IBExpects* exp;
-				fall = false;
-				SetObjType(o, OP_FuncNeedsRetValType);
-				IBLayer3PushExpects(ibc, &exp);
-				IBExpectsInit(exp, "P", OP_VarType);
-				break;
-			}
-			IBCASE_UNIMP
-			}
+		case OP_GreaterThan: {
+			IBExpects* exp;
+			//fall = false;
+			SetObjType(o, OP_FuncNeedsRetValType);
+			IBLayer3PushExpects(ibc, &exp);
+			IBExpectsInit(exp, "P", OP_VarType);
+			break;
 		}
+		IBCASE_UNIMP
 		}
-		if (!fall) break;
+		//if (!fall) break;
+		break;
 	}
 	/* | PFXOR */ case OP_Or: {
 		switch (ibc->NameOp) {
@@ -2616,27 +2627,27 @@ top:
 		}
 		}
 	}
-	/* + PFXADD */ case OP_Add: {
-		switch (ibc->NameOp) {
-		case OP_Or: {
+	///* + PFXADD */ case OP_Add: {
+	//	switch (ibc->NameOp) {
+	//	case OP_Or: {
 
-		}
-		case OP_EmptyStr: {
-			switch (t->type) {
-			case OP_NeedExpression: {
-				IBObj* o;
-				IBLayer3PushObj(ibc, &o);
-				IBObjSetType(o, ibc->Pfx);
-				IBLayer3PopObj(ibc, true, &o);
-				break;
-			}
-			}
-			break;
-		}
-		IBCASE_UNIMP
-		}
-		break;
-	}
+	//	}
+	//	case OP_EmptyStr: {
+	//		switch (t->type) {
+	//		case OP_NeedExpression: {
+	//			IBObj* o;
+	//			IBLayer3PushObj(ibc, &o);
+	//			IBObjSetType(o, ibc->Pfx);
+	//			IBLayer3PopObj(ibc, true, &o);
+	//			break;
+	//		}
+	//		}
+	//		break;
+	//	}
+	//	IBCASE_UNIMP
+	//	}
+	//	break;
+	//}
 	/* < PFXLESSTHAN */ case OP_LessThan: {
 		switch (t->type) {
 		case OP_VarWantValue: {

@@ -223,9 +223,9 @@ X(CIncNeedFilePath) \
 X(IBStr) \
 X(SingleQuote) \
 X(ModeCCompTimeMacroPaste) \
-X(Methods)\
-X(MethodsNeedName)\
-X(MethodsWantContent)\
+X(Methods) \
+X(MethodsNeedName) \
+X(MethodsWantContent) \
 /* | */X(Or) \
 /* || */X(OrOr) \
 /* & */X(And) \

@@ -2,6 +2,8 @@
 #define IBCOMMON_H_
 #include "ibop.h"
 
+#define LE "\n"
+
 #define IBMAGIC (1011933)
 #define IB_ASSERTMAGICP(o)\
 	IBassert((o)->initMagic==IBMAGIC)
@@ -25,6 +27,8 @@
 #endif
 #define IB_TRUESTR "true"
 #define IBFALSESTR "false"
+
+#define STRING_MULTILINE(...) #__VA_ARGS__
 
 #ifdef __TINYC__
 int memcpy_s(void* dest, long long destsz, void* src, long long count);

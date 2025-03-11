@@ -261,7 +261,7 @@ IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath) {
 	IBDictKey* dk = IBDictKeyFind(rootKey, &keyStack);
 	return NULL;
 }
-TEST_METHOD(IBDictTest) {
+void IBDictTest() {
 	{
 		IBDictKey rk;
 		IBDictKey* out = NULL;

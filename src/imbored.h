@@ -6,13 +6,9 @@
 #include <libtcc.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdarg.h>
-#include <stdlib.h>
 #include <math.h>
 
 #define IBDEBUGPRINTS
-
-#define LE "\n"
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -126,7 +122,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define DbgFmt(x, ...)
 #define DbgPuts(x)
 #endif
-
 
 #include "ibop.h"
 
@@ -654,6 +649,7 @@ typedef struct IBOpNamePair {
 	char name[IBOP_NAME_LEN];
 	IBOp op;
 } IBOpNamePair;
+
 char* IBGetCEqu(IBOp op);
 char* IBGetOpName(IBOp op);
 char* IBGetPfxName(IBOp op);

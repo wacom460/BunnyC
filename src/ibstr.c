@@ -7,17 +7,21 @@ void IBStrInit(IBStr* str) {
 	str->end = str->start;
 	if (str->start) (*str->start) = '\0';
 }
+
 void IBStrInitWithCStr(IBStr* str, char* cstr) {
 	IBStrInit(str);
 	IBStrAppendCStr(str, cstr);
 }
+
 void IBStrInitExt(IBStr* str, char* cstr) {
 	str->start = cstr;
 	str->end = cstr + strlen(cstr);
 }
+
 void IBStrFree(IBStr* str) {
 	free(str->start);
 }
+
 void IBStrClear(IBStr* str) {
 	if (str->start) free(str->start);
 	str->start = NULL;
@@ -28,22 +32,26 @@ void IBStrClear(IBStr* str) {
 		str->end = str->start;
 	}
 }
+
 void IBStrReplaceWithCStr(IBStr* str, char* cstr) {
 	IBStrClear(str);
 	IBStrAppendCStr(str, cstr);
 }
+
 void IBStrInitNTStr(IBStr* str, char* nullTerminated) {
 	IBASSERT0(nullTerminated);
 	IBASSERT0(str);
 	IBOverwriteStr(&str->start, nullTerminated);
 	str->end = str->start + strlen(nullTerminated);
 }
+
 bool IBStrContainsAnyOfChars(IBStr* str, char* chars) {
 	char* p;
 	for (p = str->start; p < str->end; p++)
 		if (strchr(chars, *p)) return true;
 	return false;
 }
+
 long long int IBStrLen(IBStr* str) {
 	size_t len;
 	IBASSERT0(str);
@@ -53,6 +61,7 @@ long long int IBStrLen(IBStr* str) {
 	len = str->end - str->start;
 	return len;
 }
+
 void IBStrAppendCh(IBStr* str, char ch, int count) {
 	char astr[2];
 	if (count < 1) return;
@@ -62,6 +71,7 @@ void IBStrAppendCh(IBStr* str, char ch, int count) {
 	while (count--)
 		IBStrAppendCStr(str, astr);
 }
+
 char* IBStrAppendCStr(IBStr* str, char* with) {
 	void* ra;
 	size_t len;
@@ -83,6 +93,7 @@ char* IBStrAppendCStr(IBStr* str, char* with) {
 	}
 	return NULL;
 }
+
 void IBStrAppendFmt(IBStr* str, char* fmt, ...) {
 	char buf[1024];
 	va_list args;
@@ -91,6 +102,7 @@ void IBStrAppendFmt(IBStr* str, char* fmt, ...) {
 	va_end(args);
 	IBStrAppendCStr(str, buf);
 }
+
 char* IBStrAppend(IBStr* str, IBStr* with) {
 	void* ra;
 	size_t len;
@@ -112,6 +124,7 @@ char* IBStrAppend(IBStr* str, IBStr* with) {
 	}
 	return NULL;
 }
+
 int IBStrStripFront(IBStr* str, char ch) {
 	long long int slen = IBStrLen(str);
 	int in = 0;
@@ -135,6 +148,7 @@ int IBStrStripFront(IBStr* str, char ch) {
 	}
 	return in;
 }
+
 void Val2Str(char* dest, int destSz, IBVal v, IBOp type) {
 
 	switch (type) {
@@ -150,19 +164,23 @@ void Val2Str(char* dest, int destSz, IBVal v, IBOp type) {
 	case OP_d64: { snprintf(dest, destSz, "%f", v.d64); break; }
 	}
 }
+
 char* StrConcat(char* dest, int count, char* src) {
 	return strcat(dest, src);
 }
+
 char StrStartsWith(char* str, char* with) {
 	while (*with)
 		if (*str++ != *with++) return 0;
 	return 1;
 }
+
 IBOp IBStrToBool(IBLayer3* ibc, char* str) {
 	if (!strcmp(str, IB_TRUESTR)) return OP_True;
 	if (!strcmp(str, IBFALSESTR)) return OP_False;
 	return OP_Unknown;
 }
+
 IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str) {
 	int numbers = 0;
 	int letters = 0;
@@ -227,6 +245,7 @@ IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn,
 	}
 	return ret;
 }
+
 void IB_DBObjFree(IB_DBObj* obj) {
 	IBStrFree(&obj->name);
 	IBStrFree(&obj->fileName);

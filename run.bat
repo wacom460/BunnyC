@@ -1,13 +1,13 @@
 @echo off
 :top
-del program.exe
 cls
-"./ext/tcc/tcc.exe" ^
+"ext/tcc/tcc" ^
 -Isrc ^
 -Iext/inc ^
 -llibtcc ^
 src/*.c ^
 -o program.exe
-program.exe main.ib
+program main.ib
 pause >nul
+del program.exe
 goto :top

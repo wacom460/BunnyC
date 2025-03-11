@@ -114,6 +114,11 @@ IBOpNamePair dbgAssertsNP[] = {
 	{"notEmpty", OP_NotEmpty}
 };
 
+char* ml_str_test = STRING_MULTILINE(
+	fuck\n
+	fuck
+);
+
 char* SysLibCodeStr =
 "space $sys" LE
 "pub" LE
@@ -129,16 +134,18 @@ CLAMP_FUNC(long long int, ClampSizeT) { CLAMP_IMP }
 
 IBVector g_ColorStack;
 
-void IBDatabaseInit(IBDatabase* db){
+void IBDatabaseInit(IBDatabase* db) {
 	IBStr fn;
 	IBStr on;
 	IBStrInitExt(&fn, "");
 	IBStrInitExt(&on, "root");
 	db->root = IB_DBObjNew(&fn, 0, 0, OP_RootObj, &on);
 }
+
 void IBDatabaseFree(IBDatabase* db){
 	IB_DBObjFree(db->root);
 }
+
 IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location){
 	return NULL;
 }
@@ -154,6 +161,7 @@ char* IBGetCEqu(IBOp op) {
 	}
 	return "[GetCEqu UNKNOWN!!!!]";
 }
+
 char* IBGetOpName(IBOp op) {
 	int sz;
 	int i;
@@ -164,6 +172,7 @@ char* IBGetOpName(IBOp op) {
 	IBassert(0);
 	return "?";
 }
+
 char* IBGetPfxName(IBOp op) {
 	int sz;
 	int i;
@@ -174,6 +183,7 @@ char* IBGetPfxName(IBOp op) {
 	//IBassert(0);
 	return "?";
 }
+
 IBOp IBGetOpFromNameList(char* name, IBOp list) {
 #define IBListM(_OP, _PAIRS) case _OP: { \
 	int sz; \
@@ -192,6 +202,7 @@ IBOp IBGetOpFromNameList(char* name, IBOp list) {
 	return OP_Unknown;
 #undef IBListM
 }
+
 IBOp IBOPFromPfxCh(char ch) {
 	switch (ch) {
 	IBCASE_aTHRUz
@@ -233,6 +244,7 @@ void IBPushColor(IBColor col) {
 	IBVectorCopyPushIBColor(&g_ColorStack, col);
 	IBSetColor(col);
 }
+
 void IBPopColor() {
 	IBColor* col;
 	_IBVectorPop(&g_ColorStack, NULL);
@@ -241,6 +253,7 @@ void IBPopColor() {
 	if (col) IBSetColor(*col);
 	else IBSetColor(IBFgWHITE);
 }
+
 void IBSetColor(IBColor col) {
 #ifdef _WIN32
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0);

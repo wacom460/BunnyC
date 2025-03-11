@@ -12,6 +12,7 @@ void IBCodeBlockInit(IBCodeBlock* block) {
 	IBStrInit(&block->footer);
 	IBNameInfoDBInit(&block->localVariables);
 }
+
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output) {
 	IBASSERT0(block);
 	IB_ASSERTMAGICP(block);
@@ -25,6 +26,7 @@ void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output) {
 		block->codeRight.start,
 		block->footer.start);
 }
+
 void IBCodeBlockFree(IBCodeBlock* block) {
 	IBASSERT0(block);
 	IB_ASSERTMAGICP(block);

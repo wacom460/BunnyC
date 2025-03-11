@@ -9,12 +9,14 @@ void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name) {
 		OP_IBTypeInfo, IBVEC_DEFAULT_SLOTCOUNT);
 	IB_SETMAGICP(ti);
 }
+
 void IBTypeInfoFree(IBTypeInfo* ti) {
 	IBASSERT0(ti);
 	IB_ASSERTMAGICP(ti);
 	IBVectorFree(&ti->members, IBTypeInfoFree);
 	IBStrFree(&ti->name);
 }
+
 void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP) {
 	IBTypeInfo* nti = 0;
 	int idx = 0;

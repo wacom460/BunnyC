@@ -8,6 +8,7 @@ void TaskInit(IBTask* t, IBOp type) {
 	t->type = type;
 	memset(&t->exprData, 0, sizeof(IBTaskNeedExpression));
 }
+
 void TaskFree(IBTask* t) {
 	IBassert(t);
 	IBCodeBlockFree(&t->code);
@@ -15,6 +16,7 @@ void TaskFree(IBTask* t) {
 	IBVectorFree(&t->expStack, IBExpectsFree);
 	IBVectorFree(&t->working, ObjFree);
 }
+
 void TaskFindWorkingObj(IBTask* t, IBOp type, IBObj** outDP) {
 	IBObj* o = 0;
 	int idx = 0;
@@ -26,6 +28,7 @@ void TaskFindWorkingObj(IBTask* t, IBOp type, IBObj** outDP) {
 		}
 	}
 }
+
 IBExpects* IBTaskGetExpTop(IBTask* t) {
 	IBExpects* ret;
 	IBassert(t);
@@ -33,6 +36,7 @@ IBExpects* IBTaskGetExpTop(IBTask* t) {
 	IBassert(ret);
 	return ret;
 }
+
 IBVector* IBTaskGetExpPfxsTop(IBTask* t) {
 	IBExpects* ret;
 	IBassert(t);
@@ -40,6 +44,7 @@ IBVector* IBTaskGetExpPfxsTop(IBTask* t) {
 	IBassert(ret);
 	return &ret->pfxs;
 }
+
 IBVector* IBTaskGetExpNameOPsTop(IBTask* t) {
 	IBExpects* ret;
 	IBassert(t);

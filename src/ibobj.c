@@ -16,6 +16,7 @@ void ObjInit(IBObj* o) {
 	o->ifO.lvName = NULL;
 	o->ifO.rvName = NULL;
 }
+
 void ObjFree(IBObj* o) {
 	IBassert(o);
 	IBVectorFree(&o->arg.arrIndexExprs, IBStrFree);
@@ -29,25 +30,30 @@ void ObjFree(IBObj* o) {
 	if (o->name) free(o->name);
 	if (o->str) free(o->str);
 }
+
 void _IBObjSetType(IBObj* obj, IBOp type) {
 	DbgFmt(" obj type: %s(%d) -> %s(%d)\n",
 		IBGetOpName(obj->type), (int)obj->type, IBGetOpName(type), (int)type);
 	obj->type = type;
 }
+
 void IBObjSetMod(IBObj* obj, IBOp mod) {
 	DbgFmt("obj mod: %s(%d) -> %s(%d)\n",
 		IBGetOpName(obj->modifier), (int)obj->modifier, IBGetOpName(mod), (int)mod);
 	obj->modifier = mod;
 }
+
 void _IBObjSetName(IBObj* obj, char* name) {
 	IBassert(obj);
 	DbgFmt(" obj name: %s -> %s\n", obj->name, name);
 	IBOverwriteStr(&obj->name, name);
 }
+
 void IBObjSetStr(IBObj* obj, char* Str) {
 	DbgFmt("obj str: %s -> %s\n", obj->str, Str);
 	IBOverwriteStr(&obj->str, Str);
 }
+
 void IBObjCopy(IBObj* dst, IBObj* src) {
 	IBassert(dst && src);
 	memcpy(dst, src, sizeof(IBObj));
@@ -56,6 +62,7 @@ void IBObjCopy(IBObj* dst, IBObj* src) {
 	if (src->name) IBOverwriteStr(&dst->name, src->name);
 	if (src->str) IBOverwriteStr(&dst->str, src->str);
 }
+
 void ObjPrint(IBObj* obj) {
 	IBassert(obj);
 	if (obj) {

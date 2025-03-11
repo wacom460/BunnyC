@@ -1,6 +1,3 @@
-flags $fucc
-	$a $b
-_
-blk $main
-	i32 $i <- 10 + 10
+@blk $main
+	i32 $a <- 10 - 2 + 4 / 10.0
 _

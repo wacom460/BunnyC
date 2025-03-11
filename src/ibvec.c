@@ -19,6 +19,7 @@ void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count) {
 	IBASSERT0(vec->data);
 	memset(vec->data, 0, vec->dataSize);
 }
+
 struct IBVecData* IBVectorGet(IBVector* vec, int idx) {
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
@@ -30,6 +31,7 @@ struct IBVecData* IBVectorGet(IBVector* vec, int idx) {
 		|| idx >= vec->elemCount) return NULL;
 	return (struct IBVecData*)((char*)vec->data + vec->elemSize * idx);
 }
+
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {
 	//DbgFmt("[%d]"__FUNCTION__,lineNum);
 	IBASSERT0(idx);
@@ -43,6 +45,7 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum) {
 	if ((*idx) >= vec->elemCount) return NULL;
 	return (void*)((char*)vec->data + (vec->elemSize * ((*idx)++)));
 }
+
 void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS) {
 	struct IBVecData* topPtr;
 	IBASSERT0(vec);
@@ -69,6 +72,7 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 	vec->elemCount++;
 	if (dataDP) *dataDP = topPtr;
 }
+
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS) {
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
@@ -76,15 +80,19 @@ void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS) {
 	_IBVectorPush(vec, &top IBDBGFPL2);//FIX
 	memcpy(top, elem, vec->elemSize);
 }
+
 void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS) {
 	_IBVectorCopyPush(vec, &val IBDBGFPL2);
 }
+
 void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS) {
 	_IBVectorCopyPush(vec, &val IBDBGFPL2);
 }
+
 void _IBVectorCopyPushIBColor(IBVector* vec, IBColor col IBDBGFILELINEPARAMS) {
 	_IBVectorCopyPush(vec, &col IBDBGFPL2);
 }
+
 struct IBVecData* IBVectorTop(IBVector* vec) {
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
@@ -93,12 +101,14 @@ struct IBVecData* IBVectorTop(IBVector* vec) {
 	if (vec->elemCount <= 0) return NULL;
 	return IBVectorGet(vec, vec->elemCount - 1);
 }
+
 struct IBVecData* IBVectorFront(IBVector* vec) {
 	IBASSERT0(vec);
 	if (vec->elemCount <= 0) return NULL;
 	IBASSERT0(vec->data);
 	return vec->data;
 }
+
 void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*)) {
 	void* ra;
 	IBASSERT0(vec);
@@ -117,6 +127,7 @@ void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*)) {
 	}
 	_IBVectorReinitPushInfo(vec);
 }
+
 void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)) {
 	long long newSize;
 	void* ra;
@@ -139,9 +150,11 @@ void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*)) {
 	}
 	_IBVectorReinitPushInfo(vec);
 }
+
 void IBVectorFreeSimple(IBVector* vec) {
 	free(vec->data);
 }
+
 void _IBVectorReinitPushInfo(IBVector* vec) {
 	/*IBASSERT0(vec->slotCount<=IBVEC_PUSHINFO_MAX);*/
 	for (int i = 0;i < IBVEC_PUSHINFO_MAX;i++) {

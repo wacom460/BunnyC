@@ -46,6 +46,7 @@ main(argc, argv)
 int argc;
 char**argv;
 {
+	IBDictTest();
 	int rv = 1;
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor, 512);
 	g_ColorStack.doNotShrink=1;
