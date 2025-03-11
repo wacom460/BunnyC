@@ -365,9 +365,16 @@ void IBLayer3Free(IBLayer3* ibc) {
 #ifdef IBDEBUGPRINTS
 	IBPushColor(IBFgWHITE);
 	IBPushColor(IBFgGREEN);
-	DbgPuts("C99 output: \n");
+	DbgPuts(".H file: \n");
 	IBPopColor();
-	DbgFmt("%s", ibc->FinalOutput.start);
+	DbgFmt("%s%s%s%s\n", ibc->CIncludesStr.start,
+		rootCbFinal.start,
+		ibc->CHeader_Structs.start,
+		ibc->CHeader_Funcs.start);
+	IBPushColor(IBFgGREEN);
+	DbgPuts(".C file: \n");
+	IBPopColor();
+	DbgFmt("%s", ibc->CCode.start);
 #else
 	printf("%s", ibc->FinalOutput.start);
 #endif
@@ -2034,7 +2041,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 					case OP_i8:
 					case OP_i16:
 					case OP_i32:
-					case OP_i64: {
+					case OP_i64: 
+					case OP_f32:
+					case OP_d64:
+					{
 						char valBuf[32];
 						valBuf[0] = '\0';
 						Val2Str(valBuf, 32, funcObj->func.retVal, funcObj->func.retValType);
@@ -3714,10 +3724,21 @@ top:
 					case OP_i8:
 					case OP_i16:
 					case OP_i32:
-					case OP_i64: {
-						if(valType != OP_Number)
+					case OP_i64: 
+					case OP_f32:
+					case OP_d64:
+					{
+						switch(valType)
+						{
+						case OP_Float:
+						case OP_Double:
+						case OP_Number: 
+							break;
+						default: {
 							Err(OP_YouCantUseThatHere,
 								"wrong return value type for this function");
+						}
+						}
 						break;
 					}
 							   IBCASE_UNIMPLEMENTED
