@@ -196,17 +196,16 @@ IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str) {
 		char c = str[i];
 		switch (c) {
 		case '.': { periods++; break; }
-				IBCASE_0THRU9{ numbers++; break; }
-					IBCASE_aTHRUz
-					IBCASE_ATHRUZ{ letters++; break; }
+		IBCASE_0THRU9 { numbers++; break; }
+		IBCASE_aTHRUz
+		IBCASE_ATHRUZ { letters++; break; }
 		}
 	}
 	lc = str[sl - 1];
 	if (!strcmp(str, IB_TRUESTR)
 		|| !strcmp(str, IBFALSESTR)) return OP_Bool;
-	if (numbers > letters && periods == 1 && letters <= 1) ret = OP_FloatingPoint;
-	if (ret == OP_FloatingPoint && lc == 'f') return OP_Float;
-	else if (ret == OP_FloatingPoint && lc == 'd') return OP_Double;
+	if (numbers > letters && periods == 1 && letters <= 1) ret = OP_Float;
+	if (ret == OP_Float && lc == 'd') return OP_Double;
 	if (letters && numbers) ret = OP_String;
 	else if (numbers) ret = OP_Number;
 	return ret;

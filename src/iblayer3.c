@@ -1,7 +1,7 @@
 #include "imbored.h"
 
 IBObj* IBLayer3GetObj(IBLayer3* ibc) {
-	return (IBObj*)IBVectorTop(&ibc->ObjStack);
+	return (IBObj*) IBVectorTop(&ibc->ObjStack);
 }
 IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln) {
 	int idx;
@@ -12,12 +12,12 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln) {
 	IBassert(name[0]);
 	//DbgFmt("[%d]"__FUNCTION__"(,%s)\n", ln, name);
 	idx = ibc->CodeBlockStack.elemCount - 1;
-	while (idx >= 0) {
-		IBCodeBlock* cb = (IBCodeBlock*)IBVectorGet(&ibc->CodeBlockStack, idx);
+	while(idx >= 0) {
+		IBCodeBlock* cb = (IBCodeBlock*) IBVectorGet(&ibc->CodeBlockStack, idx);
 		IBassert(cb);
 		IB_ASSERTMAGICP(&cb->localVariables.pairs);
 		ni = IBNameInfoDBFind(&cb->localVariables, name);
-		if (ni) return ni;
+		if(ni) return ni;
 		idx--;
 	}
 	ni = IBNameInfoDBFind(&ibc->GlobalVariables, name);
@@ -189,26 +189,26 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln) {
 IBObj* IBLayer3FindStackObjRev(IBLayer3* ibc, IBOp type) {
 	IBassert(ibc);
 	IBassert(type > 0);
-	for (int i = ibc->ObjStack.elemCount - 1; i >= 0; i--) {
-		IBObj* o = (IBObj*)IBVectorGet(&ibc->ObjStack, i);
+	for(int i = ibc->ObjStack.elemCount - 1; i >= 0; i--) {
+		IBObj* o = (IBObj*) IBVectorGet(&ibc->ObjStack, i);
 		IBassert(o);
-		if (o->type == type)return o;
+		if(o->type == type)return o;
 	}
 	return NULL;
 }
 IBObj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, IBOp type) {
 	int i;
-	if (index < 0)index = ibc->ObjStack.elemCount + index;
+	if(index < 0)index = ibc->ObjStack.elemCount + index;
 	IBASSERT0(index >= 0);
-	if (ibc->ObjStack.elemCount < 2)
+	if(ibc->ObjStack.elemCount < 2)
 		Err(OP_Error, "Not enough objects on stack");
-	if (index > ibc->ObjStack.elemCount)
+	if(index > ibc->ObjStack.elemCount)
 		Err(OP_Error, "Index out of bounds");
-	for (i = index - 1; i >= 0;) {
+	for(i = index - 1; i >= 0;) {
 		IBObj* o;
-		o = (IBObj*)IBVectorGet(&ibc->ObjStack, i);
+		o = (IBObj*) IBVectorGet(&ibc->ObjStack, i);
 		i--;
-		if (o->type == type) return o;
+		if(o->type == type) return o;
 	}
 	return NULL;
 }
@@ -217,10 +217,10 @@ IBLayer3FindStackObjUnderTop
 (IBLayer3* ibc, IBOp type) {
 	IBObj* o;
 	int i;
-	if (ibc->ObjStack.elemCount < 2) return NULL;
-	for (i = ibc->ObjStack.elemCount - 1; i >= 0;) {
-		o = (IBObj*)IBVectorGet(&ibc->ObjStack, i--);
-		if (o->type == type) return o;
+	if(ibc->ObjStack.elemCount < 2) return NULL;
+	for(i = ibc->ObjStack.elemCount - 1; i >= 0;) {
+		o = (IBObj*) IBVectorGet(&ibc->ObjStack, i--);
+		if(o->type == type) return o;
 	}
 	return NULL;
 }
@@ -313,20 +313,20 @@ void IBLayer3Free(IBLayer3* ibc) {
 
 	IBassert(ibc);
 	IBStrInit(&rootCbFinal);
-	if (ibc->InputStr) {
+	if(ibc->InputStr) {
 		IBLayer3InputStr(ibc, ibc->InputStr);
 		ibc->InputStr = NULL;
 	}
-	cb = (IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
+	cb = (IBCodeBlock*) IBVectorTop(&ibc->CodeBlockStack);
 	o = IBLayer3GetObj(ibc);
-	if (ibc->StringMode)
+	if(ibc->StringMode)
 		Err(OP_Error, "Reached end of file without closing string");
-	if (ibc->Str[0]) IBLayer3StrPayload(ibc);
-	if (cb->localVariables.pairs.elemCount)
+	if(ibc->Str[0]) IBLayer3StrPayload(ibc);
+	if(cb->localVariables.pairs.elemCount)
 		Err(OP_Error, "root codeblock can't have variables in it!!!");
 	t = IBLayer3GetTask(ibc);
-	if (ibc->TaskStack.elemCount) {
-		switch (t->type) {
+	if(ibc->TaskStack.elemCount) {
+		switch(t->type) {
 		case OP_FuncWantCode:
 		case OP_FuncNeedRetVal:
 			Err(OP_Error, "Reached end of file without closing function");
@@ -340,9 +340,9 @@ void IBLayer3Free(IBLayer3* ibc) {
 		}
 		}
 	}
-	if (t->type != OP_RootTask)Err(OP_ErrDirtyTaskStack,
+	if(t->type != OP_RootTask)Err(OP_ErrDirtyTaskStack,
 		"Reached end of file not at root task");
-	if (ibc->CodeBlockStack.elemCount != 1)
+	if(ibc->CodeBlockStack.elemCount != 1)
 		Err(OP_Error, "dirty codeblock stack");
 	IBCodeBlockFinish(cb, &rootCbFinal);
 	/*if (IBStrLen(&cb->variables) +
@@ -350,10 +350,10 @@ void IBLayer3Free(IBLayer3* ibc) {
 			IBStrLen(&cb->footer))
 		Err(OP_Error, "dirty codeblock. expected root codeblock to be empty");*/
 		//IBStrAppendCStr(&ibc->CHeader_Funcs, "\n#endif\n");
-	if (ibc->IncludeCStdioHeader)
+	if(ibc->IncludeCStdioHeader)
 		IBStrAppendFmt(&ibc->FinalOutput,
 			"#include <stdio.h>\n");
-	if (ibc->IncludeCStdlibHeader)
+	if(ibc->IncludeCStdlibHeader)
 		IBStrAppendFmt(&ibc->FinalOutput,
 			"#include <stdlib.h>\n");
 	IBStrAppendFmt(&ibc->FinalOutput, "%s\n%s%s%s\n%s",
@@ -411,11 +411,11 @@ IBLayer3RegisterCustomType
 	IBASSERT0(name);
 	IBASSERT0(type > 0);
 	IBLayer3FindType(ibc, name, &ti);
-	if (ti) {
+	if(ti) {
 		ErrF(OP_AlreadyExists, "type %s already exists", name);
 		return;
 	}
-	switch (type) {
+	switch(type) {
 	case OP_Enum:
 	case OP_Struct:
 	case OP_Func:
@@ -425,7 +425,7 @@ IBLayer3RegisterCustomType
 	IB_ASSERTMAGIC(ibc->TypeRegistry);
 	IBVectorPush(&ibc->TypeRegistry, &ti);
 	IBTypeInfoInit(ti, type, name);
-	if (outDP) (*outDP) = ti;
+	if(outDP) (*outDP) = ti;
 }
 void
 IBLayer3FindType
@@ -435,24 +435,24 @@ IBLayer3FindType
 	IBASSERT0(ibc);
 	IBASSERT0(name);
 	IBASSERT0(strlen(name) > 0);
-	while (ti = IBVectorIterNext(&ibc->TypeRegistry, &idx)) {
+	while(ti = IBVectorIterNext(&ibc->TypeRegistry, &idx)) {
 		IB_ASSERTMAGICP(ti);
 		IBASSERT0(ti->name.start)
-			if (!strcmp(ti->name.start, name)) break;
+			if(!strcmp(ti->name.start, name)) break;
 	}
-	if (outDP) (*outDP) = ti;
+	if(outDP) (*outDP) = ti;
 }
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, IBOp type, int limit) {
 	int i;
-	if (ibc->TaskStack.elemCount < 2)
+	if(ibc->TaskStack.elemCount < 2)
 		Err(OP_Error, "Not enough tasks on stack");
-	if (index == -1) index = ibc->TaskStack.elemCount - 1;
-	if (index >= ibc->TaskStack.elemCount)
+	if(index == -1) index = ibc->TaskStack.elemCount - 1;
+	if(index >= ibc->TaskStack.elemCount)
 		Err(OP_Error, "Index out of bounds");
-	for (i = index - 1; i >= 0 && limit--;) {
+	for(i = index - 1; i >= 0 && limit--;) {
 		IBTask* t;
-		t = (IBTask*)IBVectorGet(&ibc->TaskStack, i--);
-		if (t->type == type) return t;
+		t = (IBTask*) IBVectorGet(&ibc->TaskStack, i--);
+		if(t->type == type) return t;
 	}
 	return NULL;
 }
@@ -484,7 +484,7 @@ IBLayer3CompileTCC
 	IBASSERT(IBStrLen(&ibc->FinalOutput) > 0,
 		"no code to compile");
 	IBASSERT(tcc_compile_string(ibc->TCC,
-		(const char*)ibc->FinalOutput.start) != -1,
+								(const char*) ibc->FinalOutput.start) != -1,
 		"TCC compile failed!");
 	IBASSERT(tcc_relocate(ibc->TCC, TCC_RELOCATE_AUTO) >= 0, "");
 	Entry = tcc_get_symbol(ibc->TCC, "main");
@@ -493,12 +493,12 @@ IBLayer3CompileTCC
 	memset(argv, 0, sizeof(argv));
 	long long argsLen = IBStrLen(&ibc->RunArguments);
 	//int avc = 0;
-	if (argsLen) {
+	if(argsLen) {
 		IBStr ls;
 		IBStrInit(&ls);
-		for (int i = 0; i < argsLen; ++i) {
+		for(int i = 0; i < argsLen; ++i) {
 			char ch = ibc->RunArguments.start[i];
-			if (ch == ' ') {
+			if(ch == ' ') {
 				IBOverwriteStr(&argv[argc], ls.start);
 				IBStrClear(&ls);
 				++argc;
@@ -506,13 +506,13 @@ IBLayer3CompileTCC
 			}
 			IBStrAppendCh(&ls, ch, 1);
 		}
-		if (IBStrLen(&ls)) {
+		if(IBStrLen(&ls)) {
 			IBOverwriteStr(&argv[argc], ls.start);
 			++argc;
 		}
 		IBStrFree(&ls);
 	}
-	if (Entry) {
+	if(Entry) {
 		int entryRet = 0;
 		DbgPuts("Program output:\n");
 		entryRet = Entry(argc, argv);
@@ -520,8 +520,8 @@ IBLayer3CompileTCC
 		DbgFmt("\n\nmain() returned %d.\n", entryRet);
 		IBPopColor();
 	}
-	for (int i = 0; i < IBRUN_MAXARGS; ++i) {
-		if (argv[i])free(argv[i]);
+	for(int i = 0; i < IBRUN_MAXARGS; ++i) {
+		if(argv[i])free(argv[i]);
 	}
 	tcc_delete(ibc->TCC);
 	ibc->TCC = NULL;
@@ -532,8 +532,8 @@ int IBLayer3GetTabCount(IBLayer3* ibc) {
 void IBLayer3Done(IBLayer3* ibc) {
 	IBTask* t = IBLayer3GetTask(ibc);
 	IBassert(t);
-	if (ibc->TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
-	switch (t->type) {
+	if(ibc->TaskStack.elemCount < 1) Err(OP_ErrNoTask, "");
+	switch(t->type) {
 	case OP_CaseWantCode: {
 		IBLayer3FinishTask(ibc);
 		t = IBLayer3GetTask(ibc);
@@ -558,7 +558,7 @@ void IBLayer3Done(IBLayer3* ibc) {
 		IBLayer3PopObj(ibc, true, NULL);
 		IBLayer3FinishTask(ibc);
 		ibc->DefiningMethods = 0;
-		if (ibc->_methodsStructName)
+		if(ibc->_methodsStructName)
 			free(ibc->_methodsStructName);
 		ibc->_methodsStructName = 0;
 		break;
@@ -583,10 +583,10 @@ void IBLayer3Done(IBLayer3* ibc) {
 		/*t = NULL;*/
 		o = NULL;
 		wo = &t->working;
-		while (o = (IBObj*)IBVectorIterNext(wo, &idx)) {
+		while(o = (IBObj*) IBVectorIterNext(wo, &idx)) {
 			/*TODO: could cache func obj index later*/
-			if (o->type == OP_FuncSigComplete) {
-				if (o->func.retValType != OP_Void) {
+			if(o->type == OP_FuncSigComplete) {
+				if(o->func.retValType != OP_Void) {
 					IBExpects* exp;
 					IBLayer3PushExpects(ibc, &exp);
 					/*if (o->func.retType == OP_c8 && o->func.retTypeMod == OP_Pointer) {
@@ -613,17 +613,17 @@ IBObj* IBLayer3FindWorkingObj(IBLayer3* ibc, IBOp type) {
 	int idx = 0;
 	IBTask* t = IBLayer3GetTask(ibc);
 	IBassert(t);
-	while (o = IBVectorIterNext(&t->working, &idx))
-		if (o->type == type) return o;
+	while(o = IBVectorIterNext(&t->working, &idx))
+		if(o->type == type) return o;
 	return NULL;
 }
 IBObj* IBLayer3FindWorkingObjRev(IBLayer3* ibc, IBOp type) {
 	IBTask* t = IBLayer3GetTask(ibc);
 	IBassert(t);
-	for (int i = t->working.elemCount - 1; i >= 0; i--) {
-		IBObj* o = (IBObj*)IBVectorGet(&t->working, i);
+	for(int i = t->working.elemCount - 1; i >= 0; i--) {
+		IBObj* o = (IBObj*) IBVectorGet(&t->working, i);
 		IBassert(o);
-		if (o->type == type)return o;
+		if(o->type == type)return o;
 	}
 	return NULL;
 }
@@ -632,62 +632,62 @@ IBObj* IBLayer3FindWorkingObjUnderIndex(IBLayer3* ibc, int index, IBOp type)
 	IBTask* t = IBLayer3GetTask(ibc);
 	int i = 0;
 	IBASSERT0(t);
-	if (index < 0)index = t->working.elemCount + index;
+	if(index < 0)index = t->working.elemCount + index;
 	IBASSERT0(index >= 0);
-	if (t->working.elemCount < 2)
+	if(t->working.elemCount < 2)
 		Err(OP_Error, "Not enough objects on stack");
-	if (index > t->working.elemCount)
+	if(index > t->working.elemCount)
 		Err(OP_Error, "Index out of bounds");
-	for (i = index - 1; i >= 0;) {
+	for(i = index - 1; i >= 0;) {
 		IBObj* o = 0;
-		o = (IBObj*)IBVectorGet(&t->working, i);
+		o = (IBObj*) IBVectorGet(&t->working, i);
 		i--;
-		if (o->type == type) return o;
+		if(o->type == type) return o;
 	}
 	return NULL;
 }
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc) {
 	IBassert(ibc->CodeBlockStack.elemCount);
-	return (IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack);
+	return (IBCodeBlock*) IBVectorTop(&ibc->CodeBlockStack);
 }
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP) {
 	IBCodeBlock* cb = 0;
 	DbgPuts(" Push code block\n");
 	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
-	if (cbDP) (*cbDP) = cb;
+	if(cbDP) (*cbDP) = cb;
 }
 void _IBLayer3PopCodeBlock(IBLayer3* ibc, bool copyToParent,
 	IBCodeBlock** cbDP) {
 	IBassert(ibc->CodeBlockStack.elemCount > 1);
 	DbgFmt(" Pop code block. Copy to parent: %s\n", IBBoolStr(copyToParent));
-	if (copyToParent) {
-		if (ibc->CodeBlockStack.elemCount >= 2) {
-			IBCodeBlockFinish((IBCodeBlock*)IBVectorTop(&ibc->CodeBlockStack),
-				&((IBCodeBlock*)IBVectorGet(&ibc->CodeBlockStack,
-					ibc->CodeBlockStack.elemCount - 2))->code);
+	if(copyToParent) {
+		if(ibc->CodeBlockStack.elemCount >= 2) {
+			IBCodeBlockFinish((IBCodeBlock*) IBVectorTop(&ibc->CodeBlockStack),
+				&((IBCodeBlock*) IBVectorGet(&ibc->CodeBlockStack,
+											 ibc->CodeBlockStack.elemCount - 2))->code);
 		}
 		else Err(OP_Error, "COMPILER FAILURE. No parent code block!");
 	}
 	IBVectorPop(&ibc->CodeBlockStack, IBCodeBlockFree);
-	if (cbDP) (*cbDP) = IBLayer3CodeBlocksTop(ibc);
+	if(cbDP) (*cbDP) = IBLayer3CodeBlocksTop(ibc);
 }
 void _IBLayer3PushTask(IBLayer3* ibc, IBOp taskOP, IBExpects** exectsDP,
 	IBTask** taskDP) {
 	IBTask* t = IBLayer3GetTask(ibc), * bt = NULL;
 	DbgPuts(" Push task: ");
-	if (t) {
-		DbgFmt("%s(%d) -> ", IBGetOpName(t->type), (int)t->type);
+	if(t) {
+		DbgFmt("%s(%d) -> ", IBGetOpName(t->type), (int) t->type);
 		bt = t;
 	}
-	DbgFmt("%s(%d)\n", IBGetOpName(taskOP), (int)taskOP);
+	DbgFmt("%s(%d)\n", IBGetOpName(taskOP), (int) taskOP);
 	IBVectorPush(&ibc->TaskStack, &t);
-	if (taskDP) (*taskDP) = t;
+	if(taskDP) (*taskDP) = t;
 	TaskInit(t, taskOP);
 	IBVectorPush(&t->expStack, exectsDP);
-	if (!exectsDP) {
+	if(!exectsDP) {
 		IBExpects* exp = IBTaskGetExpTop(t);
-		switch (taskOP) {
+		switch(taskOP) {
 		case OP_NeedExpression: {
 			IBExpectsInit(exp, "PPPPPPPP", OP_Value, OP_Name, OP_Add,
 				OP_Subtract, OP_Divide, OP_Multiply, OP_Or, OP_Dot);
@@ -707,9 +707,9 @@ void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP, bool popToParent) {
 	IBassert(ibc);
 	t = IBLayer3GetTask(ibc);
 	IBassert(t);
-	DbgFmt(" Pop task %s(%d) ", IBGetOpName(t->type), (int)t->type);
-	if (popToParent) {
-		if (ibc->TaskStack.elemCount >= 2) {
+	DbgFmt(" Pop task %s(%d) ", IBGetOpName(t->type), (int) t->type);
+	if(popToParent) {
+		if(ibc->TaskStack.elemCount >= 2) {
 			memcpy(&copy, t, sizeof(IBTask));
 		}
 		else Err(OP_Error, "COMPILER FAILURE. No parent task!");
@@ -718,18 +718,18 @@ void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP, bool popToParent) {
 	t2 = IBLayer3GetTask(ibc);
 	IBassert(t2);
 	DbgFmt("-> %s(%d) Pop to parent: %s\n",
-		IBGetOpName(t2->type), (int)t2->type, IBBoolStr(popToParent));
-	if (popToParent) {
+		IBGetOpName(t2->type), (int) t2->type, IBBoolStr(popToParent));
+	if(popToParent) {
 		IBassert(t2->type != OP_RootTask);
 		IBVectorCopyPush(&t2->subTasks, &copy);
 	}
-	if (taskDP) (*taskDP) = t2;
+	if(taskDP) (*taskDP) = t2;
 }
 void _IBLayer3PushObj(IBLayer3* ibc, IBObj** o) {
 	IBObj* obj = IBLayer3GetObj(ibc);
 	//IBassert(obj);
 	DbgPuts(" Push obj: ");
-	if (obj && ibc->ObjStack.elemCount) {
+	if(obj && ibc->ObjStack.elemCount) {
 #ifdef IBDEBUGPRINTS
 		ObjPrint(obj);
 		DbgPuts(" -> ");
@@ -741,7 +741,7 @@ void _IBLayer3PushObj(IBLayer3* ibc, IBObj** o) {
 	ObjPrint(obj);
 	DbgPuts("\n");
 #endif
-	if (o) { (*o) = obj; }
+	if(o) { (*o) = obj; }
 }
 void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP) {
 	IBObj* o;
@@ -750,11 +750,11 @@ void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP) {
 	IBassert(t);
 	o = IBLayer3GetObj(ibc);
 	IBassert(o);
-	if (pushToWorking) {
+	if(pushToWorking) {
 		IBObj* newHome;
-		if (o->type == OP_NotSet)Err(OP_Error, "");
+		if(o->type == OP_NotSet)Err(OP_Error, "");
 #ifdef IBDEBUGPRINTS
-		DbgFmt(" To working(%s(%d)): ", IBGetOpName(t->type), (int)t->type);
+		DbgFmt(" To working(%s(%d)): ", IBGetOpName(t->type), (int) t->type);
 #endif
 #ifdef IBDEBUGPRINTS
 		ObjPrint(o);
@@ -763,13 +763,13 @@ void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP) {
 		IBVectorPush(&t->working, &newHome);
 		IBassert(newHome);
 		memcpy(newHome, o, sizeof(IBObj));
-		if (ibc->ObjStack.elemCount < 1) {
+		if(ibc->ObjStack.elemCount < 1) {
 			Err(OP_Error, "no obj in stack");
 		}
-		else if (ibc->ObjStack.elemCount == 1) {
+		else if(ibc->ObjStack.elemCount == 1) {
 			ObjInit(o);
 		}
-		else if (ibc->ObjStack.elemCount > 1) {
+		else if(ibc->ObjStack.elemCount > 1) {
 			IBVectorPop(&ibc->ObjStack, NULL);
 			o = IBLayer3GetObj(ibc);
 		}
@@ -779,11 +779,11 @@ void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP) {
 		DbgPuts("Pop obj: ");
 		ObjPrint(o);
 #endif
-		if (ibc->ObjStack.elemCount == 1) {
+		if(ibc->ObjStack.elemCount == 1) {
 			ObjFree(o);
 			ObjInit(o);
 		}
-		else if (ibc->ObjStack.elemCount > 1) {
+		else if(ibc->ObjStack.elemCount > 1) {
 			printf("ec: %d\n", ibc->ObjStack.elemCount);
 			IBVectorPop(&ibc->ObjStack, ObjFree);
 			o = IBLayer3GetObj(ibc);
@@ -795,7 +795,7 @@ void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP) {
 		DbgPuts("");
 #endif
 	}
-	if (objDP) (*objDP) = o;
+	if(objDP) (*objDP) = o;
 }
 void _IBLayer3Push(IBLayer3* ibc, IBOp mode, bool strAllowSpace) {
 	IBOp cm;
@@ -803,8 +803,8 @@ void _IBLayer3Push(IBLayer3* ibc, IBOp mode, bool strAllowSpace) {
 	cm = IBLayer3GetMode(ibc);
 	ibc->StrAllowSpace = strAllowSpace;
 	IBVectorCopyPushOp(&ibc->ModeStack, mode);
-	DbgFmt(" Push mode: %s(%d) -> %s(%d)\n", IBGetOpName(cm), (int)cm,
-		IBGetOpName(mode), (int)mode);
+	DbgFmt(" Push mode: %s(%d) -> %s(%d)\n", IBGetOpName(cm), (int) cm,
+		IBGetOpName(mode), (int) mode);
 }
 void _IBLayer3Pop(IBLayer3* ibc) {
 	IBOp type = OP_Null;
@@ -819,9 +819,9 @@ void _IBLayer3Pop(IBLayer3* ibc) {
 	mode = IBLayer3GetMode(ibc);
 	IBVectorPop(&ibc->ModeStack, NULL);
 	mode2 = IBLayer3GetMode(ibc);
-	if (t)type = t->type;
-	DbgFmt(" Pop mode: %s(%d) -> %s(%d)\n", IBGetOpName(mode), (int)mode,
-		IBGetOpName(mode2), (int)mode2);
+	if(t)type = t->type;
+	DbgFmt(" Pop mode: %s(%d) -> %s(%d)\n", IBGetOpName(mode), (int) mode,
+		IBGetOpName(mode2), (int) mode2);
 	IBassert(t->expStack.elemCount);
 #ifdef IBDEBUGPRINTS
 	exp = IBTaskGetExpTop(t);
@@ -834,7 +834,7 @@ void IBLayer3PushExpects(IBLayer3* ibc, IBExpects** expDP) {
 	t = IBLayer3GetTask(ibc);
 	IBassert(t);
 	IBassert(expDP);
-	if (expDP) {
+	if(expDP) {
 		IBVectorPush(&t->expStack, &exp);
 		IBassert(exp);
 		(*expDP) = exp;
@@ -844,29 +844,29 @@ void IBLayer3PopExpects(IBLayer3* ibc) {
 	IBTask* t = IBLayer3GetTask(ibc);
 	IBExpects* exp;
 	IBassert(t);
-	exp = (IBExpects*)IBVectorTop(&t->expStack);
+	exp = (IBExpects*) IBVectorTop(&t->expStack);
 	IBassert(exp);
 	IBVector* pfxsIb = &exp->pfxs;
-	if (pfxsIb->elemCount) {
+	if(pfxsIb->elemCount) {
 		IBOp* oi = NULL;
 		int idx = 0;
 
 #ifdef IBDEBUGPRINTS
 		DbgPuts(" Expects POP: { ");
 		idx = 0;
-		while (oi = (IBOp*)IBVectorIterNext(pfxsIb, &idx)) {
+		while(oi = (IBOp*) IBVectorIterNext(pfxsIb, &idx)) {
 			DbgFmt("%s ", IBGetPfxName(*oi));
 		}
 		DbgPuts("} -> { ");
 #endif
 		IBVectorPop(&t->expStack, IBExpectsFree);
-		if (t->expStack.elemCount < 1) Err(OP_Error, "catastrophic failure");
-		pfxsIb = &((IBExpects*)IBVectorTop(&t->expStack))->pfxs;
+		if(t->expStack.elemCount < 1) Err(OP_Error, "catastrophic failure");
+		pfxsIb = &((IBExpects*) IBVectorTop(&t->expStack))->pfxs;
 		IBassert(pfxsIb);
 #ifdef IBDEBUGPRINTS
 		idx = 0;
 		oi = NULL;
-		while (oi = (IBOp*)IBVectorIterNext(pfxsIb, &idx)) {
+		while(oi = (IBOp*) IBVectorIterNext(pfxsIb, &idx)) {
 			DbgFmt("%s ", IBGetPfxName(*oi));
 		}
 		DbgPuts("}\n");
@@ -892,8 +892,8 @@ bool IBLayer3IsPfxExpected(IBLayer3* ibc, IBOp pfx) {
 	int idx;
 	IBTask* t;
 	IBExpects* ap;
-	if (pfx == OP_PfxlessValue) pfx = OP_Value;
-	if (pfx == OP_Letter_azAZ || pfx == OP_Comment) return true;
+	if(pfx == OP_PfxlessValue) pfx = OP_Value;
+	if(pfx == OP_Letter_azAZ || pfx == OP_Comment) return true;
 	t = NULL;
 	ap = NULL;
 	t = IBLayer3GetTask(ibc);
@@ -902,9 +902,9 @@ bool IBLayer3IsPfxExpected(IBLayer3* ibc, IBOp pfx) {
 	idx = 0;
 	oi = NULL;
 	ap = IBTaskGetExpTop(t);
-	if (ap) while (oi = (IBOp*)IBVectorIterNext(&ap->pfxs, &idx)) {
+	if(ap) while(oi = (IBOp*) IBVectorIterNext(&ap->pfxs, &idx)) {
 		IBassert(oi);
-		if (oi && *oi == pfx)
+		if(oi && *oi == pfx)
 			return true;
 	}
 	return false;
@@ -920,9 +920,9 @@ bool IBLayer3IsNameOpExpected(IBLayer3* ibc, IBOp nameOp) {
 	idx = 0;
 	oi = NULL;
 	exp = IBTaskGetExpTop(t);
-	while (oi = (IBOp*)IBVectorIterNext(&exp->nameOps, &idx)) {
+	while(oi = (IBOp*) IBVectorIterNext(&exp->nameOps, &idx)) {
 		IBassert(oi);
-		if (oi && *oi == nameOp)
+		if(oi && *oi == nameOp)
 			return true;
 	}
 	return false;
@@ -930,14 +930,14 @@ bool IBLayer3IsNameOpExpected(IBLayer3* ibc, IBOp nameOp) {
 //wtf
 void IBLayer3Tick(IBLayer3* ibc, FILE* f) {
 	char ch;
-	if (ibc->InputStr) {
+	if(ibc->InputStr) {
 		IBLayer3InputStr(ibc, ibc->InputStr);
 		ibc->InputStr = NULL;
 	}
 	else {
 		IBassert(f);
-		if ((ch = (char)fgetc(f)) != EOF) {
-			if (ch != 0xffffffff)
+		if((ch = (char) fgetc(f)) != EOF) {
+			if(ch != 0xffffffff)
 				IBLayer3InputChar(ibc, ch);
 		}
 		else {
@@ -953,20 +953,20 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 	IBObj* o;
 	bool nl;
 	ibc->Ch = ch;
-	if (ibc->CommentMode == OP_NotSet && ibc->Ch != IBCOMMENT_CHAR)
+	if(ibc->CommentMode == OP_NotSet && ibc->Ch != IBCOMMENT_CHAR)
 		IBStrAppendCh(&ibc->CurrentLineStr, ibc->Ch, 1);
 	nl = false;
 	m = IBLayer3GetMode(ibc);
 	t = IBLayer3GetTask(ibc);
 	o = IBLayer3GetObj(ibc);
-	if (ibc->LastCh == IBCOMMENT_CHAR &&
+	if(ibc->LastCh == IBCOMMENT_CHAR &&
 		ibc->Ch == IBCOMMENT_CHAR_OPEN)
 	{
 		IBLayer3Push(ibc, OP_ModeMultiLineComment, false);
 		ibc->CommentMode = OP_MultiLineComment;
 		ibc->Ch = '\0';
 	}
-	else if (ibc->CommentMode == OP_MultiLineComment &&
+	else if(ibc->CommentMode == OP_MultiLineComment &&
 		ibc->LastCh == IBCOMMENT_CHAR_CLOSE &&
 		ibc->Ch == IBCOMMENT_CHAR)
 	{
@@ -1003,7 +1003,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 	//	DbgFmt(" MULTI COMMENT OFF!\n","");*/
 	//	ibc->CommentMode=OP_NotSet;
 	//}
-	switch (ibc->Ch) {
+	switch(ibc->Ch) {
 	case OP_ParenthesisOpen: {//expression wrapper
 		break;
 	}
@@ -1014,12 +1014,12 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 	case '\n': { /* \n PFXLINEEND */
 		t = IBLayer3GetTask(ibc);
 		nl = true;
-		if (ibc->CommentMode == OP_Comment) {
+		if(ibc->CommentMode == OP_Comment) {
 			IBLayer3Pop(ibc);
 			ibc->CommentMode = OP_NotSet;
 		}
 
-		switch (m) {
+		switch(m) {
 		case OP_ModeStrPass: {
 			IBLayer3StrPayload(ibc);
 			break;
@@ -1027,7 +1027,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 		}
 
 		o = IBLayer3GetObj(ibc);
-		switch (o->type) {
+		switch(o->type) {
 		case OP_CallWantArgs: {
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
@@ -1037,11 +1037,11 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 		t = IBLayer3GetTask(ibc);
 		o = IBLayer3GetObj(ibc);
 		IBassert(t->type > 0);
-		switch (t->type) {
+		switch(t->type) {
 		case OP_NeedExpression: {
 			IBLayer3FinishTask(ibc);
 			t = IBLayer3GetTask(ibc);
-			switch (t->type) {
+			switch(t->type) {
 			case OP_TableCaseNeedExpr: {
 				IBExpects* exp = NULL;
 				IBassert(t->subTasks.elemCount == 1);
@@ -1084,7 +1084,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 		case OP_CallWantArgs: {
 			IBLayer3FinishTask(ibc);
 			t = IBLayer3GetTask(ibc);
-			switch (t->type) {
+			switch(t->type) {
 			case OP_ActOnNameEquals:
 			case OP_CallFunc: {
 				IBLayer3FinishTask(ibc);
@@ -1132,7 +1132,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 			SetObjType(o, OP_FuncSigComplete);
 			PopExpects();
 			IBLayer3PopObj(ibc, true, &o);
-			if (!ibc->Imaginary) {
+			if(!ibc->Imaginary) {
 				IBExpects* exp;
 				//IBCodeBlock *cb;
 				IBLayer3PushExpects(ibc, &exp);
@@ -1166,7 +1166,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 	}
 	}
 	m = IBLayer3GetMode(ibc);
-	if (!nl /*&& ibc->CommentMode == OP_NotSet*/) {
+	if(!nl /*&& ibc->CommentMode == OP_NotSet*/) {
 		//#ifdef IBDEBUGPRINTS
 		//		{
 		//			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
@@ -1176,7 +1176,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 		//				ibc->Ch, ibc->Ch, l, c);
 		//		}
 		//#endif
-		switch (m) {
+		switch(m) {
 		case OP_ModeComment:
 		case OP_ModeMultiLineComment:
 			break;
@@ -1189,19 +1189,19 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 			break;
 		}
 		case OP_ModeArrayIndexExpr: {
-			IBStr* avT = (IBStr*)IBVectorTop(&ibc->ArrayIndexExprsVec);
-			if (ibc->Ch == ']') {
+			IBStr* avT = (IBStr*) IBVectorTop(&ibc->ArrayIndexExprsVec);
+			if(ibc->Ch == ']') {
 				IBObj* o = IBLayer3GetObj(ibc);
 				PLINE;
 				DbgFmt(" Got Array index expr: %s[%s]\n",
 					ibc->Str,
 					avT->start);
-				if (!strncmp(avT->start, "as ", 3)) {
+				if(!strncmp(avT->start, "as ", 3)) {
 					IBOp nameOP = IBGetOpFromNameList(avT->start + 3, OP_NameOps);
-					switch (nameOP) {
+					switch(nameOP) {
 						IBCASE_NUMTYPES
 						{
-							if (ibc->Varcast != OP_Null)
+							if(ibc->Varcast != OP_Null)
 								Err(OP_Error, "");
 							ibc->Varcast = nameOP;
 							break;
@@ -1219,12 +1219,12 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 			break;
 		}
 	}
-	if (!ibc->InputStr) ibc->Column++;
+	if(!ibc->InputStr) ibc->Column++;
 	else ibc->ColumnIS++;
-	if (nl) {
-		if (IBLayer3IsPfxExpected(ibc, OP_LineEnd) && t->expStack.elemCount > 1)
+	if(nl) {
+		if(IBLayer3IsPfxExpected(ibc, OP_LineEnd) && t->expStack.elemCount > 1)
 			PopExpects();
-		if (!ibc->InputStr) {
+		if(!ibc->InputStr) {
 			ibc->Column = 1;
 			ibc->Line++;
 		}
@@ -1241,13 +1241,13 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 }
 void IBLayer3InputStr(IBLayer3* ibc, char* str) {
 	int i;
-	for (i = 0; str[i] != '\0'; i++)
+	for(i = 0; str[i] != '\0'; i++)
 		IBLayer3InputChar(ibc, str[i]);
 }
 IBVal IBLayer3StrToVal(IBLayer3* ibc, char* str, IBOp expectedType) {
 	IBVal ret;
 	ret.i32 = 0;
-	switch (expectedType) {
+	switch(expectedType) {
 	case OP_c8:
 	case OP_i16:
 	case OP_u32:
@@ -1262,7 +1262,7 @@ IBVal IBLayer3StrToVal(IBLayer3* ibc, char* str, IBOp expectedType) {
 	return ret;
 }
 char* IBLayer3GetCPrintfFmtForType(IBLayer3* ibc, IBOp type) {
-	switch (type) {
+	switch(type) {
 	case OP_i32:    return "d";
 	case OP_i64:    return "lld";
 	case OP_u64:    return "llu";
@@ -1285,16 +1285,16 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 	bool pop2Parent = false;
 	t = IBLayer3GetTask(ibc);
 	IBassert(t);
-	DbgFmt(" FinishTask: %s(%d)\n", IBGetOpName(t->type), (int)t->type);
-	if (!ibc->TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
+	DbgFmt(" FinishTask: %s(%d)\n", IBGetOpName(t->type), (int) t->type);
+	if(!ibc->TaskStack.elemCount)Err(OP_ErrNoTask, "task stack EMPTY!");
 	wObjs = &t->working;
 	IBassert(wObjs);
-	if (!wObjs->elemCount) {/*Err(OP_Error, "workingObjs EMPTY!");*/
+	if(!wObjs->elemCount) {/*Err(OP_Error, "workingObjs EMPTY!");*/
 		DbgPuts("Warning: working objs for this task is empty!\n");
 	}
 	cb = IBLayer3CodeBlocksTop(ibc);
 	tabCount = IBLayer3GetTabCount(ibc);
-	switch (t->type) {
+	switch(t->type) {
 	case OP_MethodsWantContent: {
 		IBObj* o = IBLayer3FindWorkingObjRev(ibc, OP_Methods);
 		IBassert(o);
@@ -1304,21 +1304,21 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		IBTypeInfo* ti = 0;
 		int idx = 0;
 		int flagsI = 0;
-		IBObj* o = (IBObj*)IBVectorFront(&t->working);
+		IBObj* o = (IBObj*) IBVectorFront(&t->working);
 		IBObj* eo = o;
 		bool oneFound = false;
 		IBassert(o);
-		if (!eo || !eo->name || *eo->name == '\0')
+		if(!eo || !eo->name || *eo->name == '\0')
 			Err(OP_Error, "enum needs a name");
 		IBLayer3FindType(ibc, eo->name, &ti);
 		IBASSERT0(!ti);
-		if (ti) ErrF(OP_AlreadyExists, "type %s already exists", eo->name);
+		if(ti) ErrF(OP_AlreadyExists, "type %s already exists", eo->name);
 		IBLayer3RegisterCustomType(ibc, eo->name, OP_Enum, &ti);
 		ti->Enum.isFlags = eo->enumO.flags;
 		IBStrAppendFmt(&t->code.header, "enum E%s {\n", eo->name);
 		IBStrAppendFmt(&t->code.footer, "};\n\n", eo->name);
-		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
-			switch (o->type) {
+		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx)) {
+			switch(o->type) {
 			case OP_Enum: break;
 			case OP_EnumName: {
 				IBTypeInfo* nti = 0;
@@ -1326,11 +1326,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 				IBTypeInfoInit(nti, OP_EnumVal, o->name);
 				oneFound = true;
 				IBStrAppendFmt(&t->code.code, "\tE%s_%s", eo->name, o->name);
-				if (eo->enumO.flags) {
+				if(eo->enumO.flags) {
 					nti->EnumValue.val = flagsI;
 					IBStrAppendFmt(&t->code.code, " = %d", flagsI);
 					flagsI *= 2;
-					if (flagsI == 0) flagsI = 2;
+					if(flagsI == 0) flagsI = 2;
 				}
 				else {
 					nti->EnumValue.val = ti->members.elemCount - 1;
@@ -1341,7 +1341,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 							IBCASE_UNIMP
 			}
 		}
-		if (!oneFound) Err(OP_Error, "need at least one case in enum");
+		if(!oneFound) Err(OP_Error, "need at least one case in enum");
 		IBCodeBlockFinish(&t->code, &ibc->CHeader_Structs);
 		break;
 	}
@@ -1351,13 +1351,13 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		IBObj* to = IBLayer3FindWorkingObj(ibc, OP_TableCase);
 		IBassert(to);
 		IBassert(t->subTasks.elemCount == 1);
-		st = (IBTask*)IBVectorGet(&t->subTasks, 0);
+		st = (IBTask*) IBVectorGet(&t->subTasks, 0);
 		IBassert(st);
 		IBStrInit(&fo);
 		IBCodeBlockFinish(&st->code, &fo);
 		IBStrAppendCh(&cb->header, '\t', tabCount - 2);
 		IBStrAppendFmt(&cb->header, "case %s: {\n", fo.start);
-		if (to->table.fallthru == false) {
+		if(to->table.fallthru == false) {
 			IBStrAppendCh(&cb->footer, '\t', tabCount - 1);
 			IBStrAppendCStr(&cb->footer, "break;\n");
 		}
@@ -1371,7 +1371,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		IBStr fo;
 		IBTask* st;
 		IBassert(t->subTasks.elemCount == 1);
-		st = (IBTask*)IBVectorGet(&t->subTasks, 0);
+		st = (IBTask*) IBVectorGet(&t->subTasks, 0);
 		IBStrInit(&fo);
 		IBCodeBlockFinish(&st->code, &fo);
 		IBStrAppendCh(&cb->header, '\t', tabCount - 1);
@@ -1389,16 +1389,16 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 	case OP_ActOnNameEquals: {
 		IBTask* st;
 		IBStr fc;
-		IBObj* o = (IBObj*)IBVectorGet(wObjs, 0);
+		IBObj* o = (IBObj*) IBVectorGet(wObjs, 0);
 		IBassert(t->subTasks.elemCount == 1);
-		st = (IBTask*)IBVectorGet(&t->subTasks, 0);
+		st = (IBTask*) IBVectorGet(&t->subTasks, 0);
 		IBassert(st);
 		IBassert(o);
 		IBassert(o->type == OP_ActOnName);
 		IBStrInit(&fc);
 		IBCodeBlockFinish(&st->code, &fc);
 		IBStrAppendCh(&cb->code, '\t', tabCount);
-		if (!strncmp(o->name, "self.", 5)) {
+		if(!strncmp(o->name, "self.", 5)) {
 			IBStrAppendFmt(&cb->code, "self->%s = %s;\n", o->name + 5, fc.start);
 		}
 		else {
@@ -1411,16 +1411,16 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		IBObj* o = NULL;
 		bool onOp = false;
 		bool gotVal = false;
-		if (wObjs->elemCount < 1)Err(OP_Error, "empty expression!");
+		if(wObjs->elemCount < 1)Err(OP_Error, "empty expression!");
 		pop2Parent = true;
-		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
-			switch (o->type) {
+		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx)) {
+			switch(o->type) {
 			case OP_Or:
 			case OP_Multiply:
 			case OP_Divide:
 			case OP_Subtract:
 			case OP_Add: {
-				if (!gotVal)Err(OP_Error, "missing op lval in expression");
+				if(!gotVal)Err(OP_Error, "missing op lval in expression");
 				onOp = true;
 				gotVal = false;
 				IBStrAppendFmt(&t->code.code, " %s ", IBGetCEqu(o->type));
@@ -1430,11 +1430,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 				IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, o->name);
 				IBOp ceq = o->modifier == OP_Pointer ? OP_Ref
 					: OP_None;
-				if (!ni) {
+				if(!ni) {
 					ErrF(OP_NotFound, "%s wasn't found", o->name);
 				}
 				else {
-					switch (ni->type) {
+					switch(ni->type) {
 						CASE_VALTYPES
 						{
 							gotVal = true;
@@ -1444,7 +1444,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 					}
 				}
 				IBStrAppendFmt(&t->code.code, "%s%s", IBGetCEqu(ceq), o->name);
-				if (onOp) {
+				if(onOp) {
 					IBStrAppendFmt(&t->code.header, "%s", "(");
 					IBStrAppendFmt(&t->code.code, "%s", ")");
 				}
@@ -1454,7 +1454,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 			case OP_EnumVal: {
 				gotVal = true;
 				IBStrAppendFmt(&t->code.code, "E%s_%s", o->str, o->name);
-				if (onOp) {
+				if(onOp) {
 					IBStrAppendFmt(&t->code.header, "%s", "(");
 					IBStrAppendFmt(&t->code.code, "%s", ")");
 				}
@@ -1468,7 +1468,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 			}
 			case OP_Value: {
 				gotVal = true;
-				switch (o->valType) {
+				switch(o->valType) {
 				case OP_Double: {
 					IBStrAppendFmt(&t->code.code, "%f", o->val.d64);
 					break;
@@ -1477,12 +1477,14 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 					IBStrAppendFmt(&t->code.code, "%f", o->val.f32);
 					break;
 				}
-				case OP_Value: {
+				//case OP_Value:
+				case OP_Number: {
 					IBStrAppendFmt(&t->code.code, "%d", o->val.i32);
 					break;
 				}
+							  IBCASE_UNIMP
 				}
-				if (onOp) {
+				if(onOp) {
 					IBStrAppendFmt(&t->code.header, "%s", "(");
 					IBStrAppendFmt(&t->code.code, "%s", ")");
 				}
@@ -1492,7 +1494,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 						 IBCASE_UNIMP
 			}
 		}
-		if (onOp) Err(OP_Error, "missing op rval in expression");
+		if(onOp) Err(OP_Error, "missing op rval in expression");
 		break;
 	}
 	case OP_VarNeedExpr: {
@@ -1501,7 +1503,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		//IBObj* o = IBVectorGet(wObjs, 0);
 		//IBassert(o);
 		IBassert(t->subTasks.elemCount == 1);
-		st = (IBTask*)IBVectorGet(&t->subTasks, 0);
+		st = (IBTask*) IBVectorGet(&t->subTasks, 0);
 		IBassert(st);
 
 		IBassert(st->type == OP_NeedExpression);
@@ -1529,27 +1531,27 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		IBTask* parent =
 			IBLayer3FindTaskUnderIndex(ibc, -1, OP_StructWantContent, 1);
 		//IBassert(parent);
-		if (parent && parent->type == OP_StructWantContent) {
+		if(parent && parent->type == OP_StructWantContent) {
 			thing = true;
 			pop2Parent = true;
 		}
 		IBStr* vstr = thing ? &parent->code.code
 			: &IBLayer3CodeBlocksTop(ibc)->variables;
-		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
-			switch (o->type) {
+		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx)) {
+			switch(o->type) {
 			case OP_VarComplete:
 			case OP_VarWantValue: {
 				IBTypeInfo* ti = 0;
 				IBStrAppendCh(vstr, '\t', thing ? 1 : tabCount);
-				if (o->var.type == OP_String) {
+				if(o->var.type == OP_String) {
 					o->var.type = OP_c8;
 					o->var.mod = OP_Pointer;
 				}
 				char* typeStr = o->var.type == OP_Unknown ? o->str : IBGetCEqu(o->var.type);
 				char* typePfx = "";
 				IBLayer3FindType(ibc, typeStr, &ti);
-				if (ti) {
-					switch (ti->type) {
+				if(ti) {
+					switch(ti->type) {
 					case OP_Enum:
 						typePfx = "enum E";
 						break;
@@ -1559,9 +1561,9 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 					}
 				}
 				IBStrAppendFmt(vstr, "%s%s%s %s", typePfx, typeStr, IBGetCEqu(o->var.mod), o->name);
-				if (o->var.valSet && !thing) {
+				if(o->var.valSet && !thing) {
 					IBStrAppendCStr(vstr, " = ");
-					switch (o->var.type) {
+					switch(o->var.type) {
 					case OP_i8:
 					case OP_i16:
 					case OP_i64:
@@ -1582,7 +1584,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 						break;
 					}
 					case OP_c8: {
-						if (o->var.mod == OP_Pointer) {
+						if(o->var.mod == OP_Pointer) {
 							IBStrAppendFmt(vstr, "\"%s\"", o->var.valStrLiteral);
 						}
 						else {
@@ -1623,7 +1625,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 
 		}*/
 		IBassert(t->subTasks.elemCount == 1);
-		st = (IBTask*)IBVectorGet(&t->subTasks, 0);
+		st = (IBTask*) IBVectorGet(&t->subTasks, 0);
 		IBassert(st);
 		IBStrAppendCh(&cb->code, '\t', tabCount);
 		IBCodeBlockFinish(&st->code, &cb->code);
@@ -1631,15 +1633,15 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		break;
 	}
 	case OP_CallWantArgs: {
-		IBObj* o = (IBObj*)IBVectorGet(wObjs, 0);
+		IBObj* o = (IBObj*) IBVectorGet(wObjs, 0);
 		int idx = 0;
 		IBassert(o->type == OP_Call);
 		//IBStrAppendCh(&t->code.code, '\t', tabCount);
 		IBStrAppendFmt(&t->code.code, "%s", o->str);
 		IBStrAppendCStr(&t->code.code, "(");
-		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
-			if (o->type != OP_Arg) continue;
-			switch (o->valType) {
+		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx)) {
+			if(o->type != OP_Arg) continue;
+			switch(o->valType) {
 			case OP_Value: {
 				IBStrAppendFmt(&t->code.code, "%llu", o->val.i64);
 				break;
@@ -1654,7 +1656,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 			}
 						IBCASE_UNIMP
 			}
-			if (idx <= wObjs->elemCount - 1) {
+			if(idx <= wObjs->elemCount - 1) {
 				IBStrAppendCStr(&t->code.code, ", ");
 			}
 		}
@@ -1665,11 +1667,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 	case OP_BlockReturnNeedValue: {
 		IBObj* o = 0;
 		IBLayer3PopObj(ibc, true, &o);
-		o = (IBObj*)IBVectorTop(wObjs);
+		o = (IBObj*) IBVectorTop(wObjs);
 		IBStrAppendCh(&cb->code, '\t', tabCount);
 		IBStrAppendFmt(&cb->code, "return ");
 		IBassert(o->type == OP_BlockReturnNeedValue);
-		switch (o->valType) {
+		switch(o->valType) {
 		case OP_Value: {
 			IBStrAppendFmt(&cb->code, "%llu", o->val.i64);
 			break;
@@ -1689,19 +1691,19 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 	case OP_IfBlockWantCode: {
 		IBObj* o = 0, * m = 0;
 		int idx = 0;
-		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx)) {
-			if (o->type == OP_IfFinished) {
+		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx)) {
+			if(o->type == OP_IfFinished) {
 				m = o;
 				break;
 			}
 		}
 		IBassert(m);
-		if (ibc->LastNameOp != OP_ElseIf) {
+		if(ibc->LastNameOp != OP_ElseIf) {
 			IBStrAppendCh(&cb->header, '\t', tabCount - 1);
 			ibc->LastNameOp = OP_Null;
 		}
 		IBStrAppendFmt(&cb->header, "if (");
-		switch (m->ifO.lvTYPE) {
+		switch(m->ifO.lvTYPE) {
 		case OP_Value: {
 			char buf[64];
 			buf[0] = '\0';
@@ -1714,7 +1716,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 			break;
 		}
 		IBStrAppendFmt(&cb->header, "%s ", IBGetCEqu(m->ifO.midOp));
-		switch (m->ifO.rvTYPE) {
+		switch(m->ifO.rvTYPE) {
 		case OP_Value: {
 			char buf[64];
 			buf[0] = '\0';
@@ -1729,7 +1731,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		IBStrAppendFmt(&cb->header, ") ");
 	}
 	case OP_LoopBlockWantCode: {
-		if (t->type == OP_LoopBlockWantCode) {
+		if(t->type == OP_LoopBlockWantCode) {
 			IBStrAppendCh(&cb->header, '\t', tabCount - 1);
 			IBStrAppendCStr(&cb->header, "while(1) ");
 		}
@@ -1776,15 +1778,15 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		//}
 		IBCodeBlockFinish(&t->code, &body);
 		idx = 0;
-		while (o = IBVectorIterNext(wObjs, &idx)) {
-			switch (o->type) {
+		while(o = IBVectorIterNext(wObjs, &idx)) {
+			switch(o->type) {
 			case OP_Struct: {
 				IBassert(o->name);
 				IBassert(*o->name);
 
 				IBLayer3FindType(ibc, o->name, &ti);
 				IBASSERT0(!ti);
-				if (ti) ErrF(OP_AlreadyExists, "type %s already exists", o->name);
+				if(ti) ErrF(OP_AlreadyExists, "type %s already exists", o->name);
 				IBLayer3RegisterCustomType(ibc, o->name, OP_Struct, &ti);
 
 				IBStrAppendFmt(&header, "struct S%s {\n", o->name);
@@ -1806,7 +1808,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		{
 			int idx = 0;
 			IBNameInfo* ni = 0;
-			while (ni = (IBNameInfo*)IBVectorIterNext(&cb->localVariables.pairs, &idx)) {
+			while(ni = (IBNameInfo*) IBVectorIterNext(&cb->localVariables.pairs, &idx)) {
 				IBTypeInfo* nti = 0;
 				IBVectorPush(&ti->members, &nti);
 				IBTypeInfoInit(nti, OP_StructVar, ni->name);
@@ -1819,10 +1821,10 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 	case OP_SpaceHasName: {
 		IBObj* o = NULL;
 		int idx = 0;
-		while (o = (IBObj*)IBVectorIterNext(wObjs, &idx))
-			if (o->type == OP_Space) break;
+		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx))
+			if(o->type == OP_Space) break;
 		IBassert(o);
-		if (o)
+		if(o)
 			IBStrReplaceWithCStr(&ibc->CurSpace, o->name);
 		break;
 	}
@@ -1852,22 +1854,22 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		IBStrInit(&cFuncCode);
 		idx = 0;
 		funcObj = NULL;
-		for (i = 0; i < wObjs->elemCount; ++i) {
-			o = (IBObj*)IBVectorGet(wObjs, i);
-			switch (o->type) {
+		for(i = 0; i < wObjs->elemCount; ++i) {
+			o = (IBObj*) IBVectorGet(wObjs, i);
+			switch(o->type) {
 			case OP_FuncArgComplete: {/*multiple allowed*/
 				IBOp at;
 				at = o->arg.type;
 				argc++;
-				if (at == OP_Null)Err(OP_Error, "arg type NULL");
+				if(at == OP_Null)Err(OP_Error, "arg type NULL");
 
-				if (cFuncArgs.start[0] != '\0') {
+				if(cFuncArgs.start[0] != '\0') {
 					IBStrAppendCStr(&cFuncArgs, ", ");
 				}
 				IBStrAppendCStr(&cFuncArgs, IBGetCEqu(o->arg.type));
 				IBStrAppendCStr(&cFuncArgs, IBGetCEqu(o->arg.mod));
 				IBStrAppendCStr(&cFuncArgs, " ");
-				if (!o->name)Err(OP_Error, "arg name NULL");
+				if(!o->name)Err(OP_Error, "arg name NULL");
 				IBStrAppendCStr(&cFuncArgs, o->name);
 				break;
 			}
@@ -1878,33 +1880,33 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 				IBOp mod;
 				funcObj = o;
 				mod = o->modifier;
-				if (mod != OP_NotSet) {
+				if(mod != OP_NotSet) {
 					IBStrAppendCStr(&cFuncModsTypeName, IBGetCEqu(mod));
 					IBStrAppendCStr(&cFuncModsTypeName, " ");
 				}
 				IBStrAppendCStr(&cFuncModsTypeName, IBGetCEqu(o->func.retValType));
 				IBStrAppendCStr(&cFuncModsTypeName, IBGetCEqu(o->func.retTypeMod));
 				IBStrAppendCStr(&cFuncModsTypeName, " ");
-				if (!o->name)Err(OP_Error, "func name NULL");
+				if(!o->name)Err(OP_Error, "func name NULL");
 				IBTypeInfo* mti = 0;
 				char mtiC = '\0';
-				if (o->name) {
-					if (o->func.thingTask)//stupid
+				if(o->name) {
+					if(o->func.thingTask)//stupid
 					{
 						IBObj* wo;
 						int idx;
 						idx = 0;
 						wo = IBLayer3FindStackObjUnderTop(ibc, OP_Struct);
-						if (wo) {
+						if(wo) {
 							IBStrAppendFmt(&cFuncModsTypeName, "S%s_", wo->name);
 							thingObj = wo;
 						}
 					}
 					IBObj* mo = IBLayer3FindStackObjRev(ibc, OP_Methods);
-					if (mo) {
+					if(mo) {
 						IBLayer3FindType(ibc, mo->name, &mti);
 						IBassert(mti);
-						switch (mti->type) {
+						switch(mti->type) {
 						case OP_Enum: {
 							IBStrAppendCh(&cFuncModsTypeName, 'E', 1);
 							mtiC = 'E';
@@ -1929,12 +1931,12 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 					ti->Function.isMethod = ibc->DefiningStruct;
 				}
 				IBStrAppendCStr(&cFuncModsTypeName, "(");
-				if (thingObj) {
+				if(thingObj) {
 					IBStrAppendFmt(&cFuncArgsThing,
 						"struct S%s* self", thingObj->name);
 				}
-				if (mti) {
-					switch (mtiC) {
+				if(mti) {
+					switch(mtiC) {
 					case 'E': {
 						IBStrAppendFmt(&cFuncArgsThing,
 							"enum %c%s* self", mtiC, mti->name.start);
@@ -1978,7 +1980,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 			}
 			}
 		}*/
-		if (ibc->Imaginary) {
+		if(ibc->Imaginary) {
 			//DbgFmt("[@ext @func]","");
 			IBStrAppendCStr(&cFuncArgsEnd, ");\n\n");
 			IBLayer3PopCodeBlock(ibc, false, &cb);
@@ -1996,12 +1998,12 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 			IBLayer3PopCodeBlock(ibc, false, &cb);
 			//no longer valid bcuz u can define methods in structs
 			//IBassert(ibc->CodeBlockStack.elemCount == 1);
-			if (!funcObj) {
+			if(!funcObj) {
 				Err(OP_Error, "funcObj NULL");
 			}
-			else if (funcObj->func.retValType != OP_Void) {
+			else if(funcObj->func.retValType != OP_Void) {
 				IBStrAppendCStr(&cFuncCode, "\treturn ");
-				switch (funcObj->func.retValVarcast) {
+				switch(funcObj->func.retValVarcast) {
 					IBCASE_NUMTYPES
 					{
 						IBStrAppendFmt(&cFuncCode,"(%s) ",
@@ -2011,7 +2013,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 				case OP_Null:break;
 					IBCASE_UNIMP
 				}
-				switch (funcObj->func.retTYPE) {
+				switch(funcObj->func.retTYPE) {
 				case OP_String: {
 					IBStrAppendFmt(&cFuncCode, "\"%s\"", funcObj->func.retValStr);
 					break;
@@ -2020,7 +2022,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 					//IBassert(funcObj->func.retValType==OP_i32);
 					//IBStrAppendFmt(&cFuncCode, "%d",
 					//	funcObj->func.retVal.i32);//for now
-					switch (funcObj->func.retValType) {
+					switch(funcObj->func.retValType) {
 					case OP_u8:
 					case OP_u16:
 					case OP_u32:
@@ -2050,18 +2052,18 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 			}
 			IBStrAppendCStr(&cFuncCode, "}\n\n");
 		}
-		if (funcObj && strcmp(funcObj->name, "main"))
+		if(funcObj && strcmp(funcObj->name, "main"))
 		{
 			IBStrAppendCStr(&ibc->CHeader_Funcs, cFuncModsTypeName.start);
 			IBStrAppendCStr(&ibc->CHeader_Funcs, cFuncArgsThing.start);
-			if (argc && IBStrLen(&cFuncArgsThing)) IBStrAppendCStr(&ibc->CHeader_Funcs, ", ");
+			if(argc && IBStrLen(&cFuncArgsThing)) IBStrAppendCStr(&ibc->CHeader_Funcs, ", ");
 			IBStrAppendCStr(&ibc->CHeader_Funcs, cFuncArgs.start);
 			IBStrAppendCStr(&ibc->CHeader_Funcs, ");\n");
 		}
-		if (!ibc->Imaginary) {
+		if(!ibc->Imaginary) {
 			IBStrAppendCStr(&ibc->CCode, cFuncModsTypeName.start);
 			IBStrAppendCStr(&ibc->CCode, cFuncArgsThing.start);
-			if (argc && IBStrLen(&cFuncArgsThing)) IBStrAppendCStr(&ibc->CCode, ", ");
+			if(argc && IBStrLen(&cFuncArgsThing)) IBStrAppendCStr(&ibc->CCode, ", ");
 			IBStrAppendCStr(&ibc->CCode, cFuncArgs.start);
 			IBStrAppendCStr(&ibc->CCode, cFuncArgsEnd.start);
 			IBStrAppendCStr(&ibc->CCode, cFuncCode.start);
@@ -2078,34 +2080,34 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		IBObj* fmtObj;
 		int varIdx;
 		int i;
-		if (t && wObjs->elemCount) {
-			fmtObj = (IBObj*)wObjs->data;
+		if(t && wObjs->elemCount) {
+			fmtObj = (IBObj*) wObjs->data;
 			IBStrAppendCh(&cb->code, '\t', tabCount);
 			IBStrAppendCStr(&cb->code, "printf(\"");
 			ibc->IncludeCStdioHeader = true;
 			firstPercent = false;
 			varIdx = 1;
-			for (i = 0; i < (int)strlen(fmtObj->str); ++i) {
+			for(i = 0; i < (int) strlen(fmtObj->str); ++i) {
 				char c;
 				c = fmtObj->str[i];
-				switch (c) {
+				switch(c) {
 				case '%': {
-					if (!firstPercent) {
+					if(!firstPercent) {
 						IBStrAppendCStr(&cb->code, "%");
 						firstPercent = true;
 					}
 					else {
 						IBObj* vo;
 						IBOp voT;
-						vo = (IBObj*)IBVectorGet(wObjs, varIdx);
+						vo = (IBObj*) IBVectorGet(wObjs, varIdx);
 						/*printf("cfmt vidx:%d\n",varIdx);*/
 						IBassert(vo);
 						voT = vo->type;
 						/*if(voT==OP_String)DB*/
-						switch (voT) {
+						switch(voT) {
 						case OP_Name: {
 							IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, vo->name);
-							if (!ni)
+							if(!ni)
 								Err(OP_Error, "Name not found");
 							IBassert(ni);
 							IBStrAppendCStr(&cb->code,
@@ -2144,23 +2146,23 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 				}
 			}
 			IBStrAppendCStr(&cb->code, "\"");
-			if (wObjs->elemCount > 1) {
+			if(wObjs->elemCount > 1) {
 				IBStrAppendCStr(&cb->code, ", ");
 			}
-			for (i = 1; i < wObjs->elemCount; ++i) {
+			for(i = 1; i < wObjs->elemCount; ++i) {
 				IBObj* o;
-				o = (IBObj*)IBVectorGet(wObjs, i);
-				switch (o->type) {
+				o = (IBObj*) IBVectorGet(wObjs, i);
+				switch(o->type) {
 				case OP_Name: {
 					IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, o->name);
-					if (ni->type == OP_Bool)
+					if(ni->type == OP_Bool)
 						IBStrAppendFmt(&cb->code, "%s ? \"true\" : \"false\"", o->name);
 					else {
 						IBStr* ibs = NULL;
 						int idx = 0;
 
 						IBStrAppendCStr(&cb->code, o->name);
-						while (ibs = IBVectorIterNext(&o->arg.arrIndexExprs, &idx)) {
+						while(ibs = IBVectorIterNext(&o->arg.arrIndexExprs, &idx)) {
 							IBStrAppendFmt(&cb->code, "[%s]",
 								ibs->start);
 						}
@@ -2181,7 +2183,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 					break;
 				}
 				}
-				if (i < wObjs->elemCount - 1) {
+				if(i < wObjs->elemCount - 1) {
 					IBStrAppendCStr(&cb->code, ", ");
 				}
 			}
@@ -2207,12 +2209,12 @@ void IBLayer3Prefix(IBLayer3* ibc) {
 	//	ExpectsInit(exp, "P0", OP_Op, 1);
 	//}
 	ibc->Pfx = IBOPFromPfxCh(ibc->Ch);
-	if (ibc->Pfx == OP_SpaceChar
+	if(ibc->Pfx == OP_SpaceChar
 		|| ibc->Pfx == OP_TabChar) return;
-	if (ibc->Pfx == OP_Unknown)
+	if(ibc->Pfx == OP_Unknown)
 		Err(OP_ErrUnknownPfx, "catastrophic err");
 	obj = IBLayer3GetObj(ibc);
-	if (ibc->Pfx != OP_Unknown
+	if(ibc->Pfx != OP_Unknown
 		&& (!t || expTop->pfxs.elemCount)
 		&& !IBLayer3IsPfxExpected(ibc, ibc->Pfx))
 		Err(OP_ErrUnexpectedNextPfx, "");
@@ -2222,10 +2224,10 @@ void IBLayer3Prefix(IBLayer3* ibc) {
 	IBPopColor();
 	DbgPuts(": ");
 	IBPushColor(IBBgBROWN);
-	DbgFmt("%s(%d)", IBGetPfxName(ibc->Pfx), (int)ibc->Pfx);
+	DbgFmt("%s(%d)", IBGetPfxName(ibc->Pfx), (int) ibc->Pfx);
 	IBPopColor();
 	DbgPuts("\n");
-	switch (ibc->Pfx) {
+	switch(ibc->Pfx) {
 	case OP_PfxlessValue: {
 		char chBuf[2];
 		chBuf[0] = ibc->Ch;
@@ -2235,7 +2237,7 @@ void IBLayer3Prefix(IBLayer3* ibc) {
 		break;
 	}
 	}
-	switch (ibc->Pfx) {
+	switch(ibc->Pfx) {
 	case OP_SingleQuote: /* ' */
 	case OP_String: { /* " */
 		ibc->StringMode = true;
@@ -2284,8 +2286,8 @@ void IBLayer3Prefix(IBLayer3* ibc) {
 	case OP_Comment:
 		break;
 	}
-	if (ibc->Pfx == OP_Op) {
-		if (expTop && expTop->life && --expTop->life <= 0) {
+	if(ibc->Pfx == OP_Op) {
+		if(expTop && expTop->life && --expTop->life <= 0) {
 			IBVectorPop(&t->expStack, IBExpectsFree);
 		}
 	}
@@ -2294,8 +2296,8 @@ void IBLayer3Str(IBLayer3* ibc) {
 	char chBuf[2];
 	chBuf[0] = ibc->Ch;
 	chBuf[1] = '\0';
-	if (ibc->StringMode) {
-		switch (ibc->Ch) {
+	if(ibc->StringMode) {
+		switch(ibc->Ch) {
 		case '\''://'
 		case '\"'://"
 		{
@@ -2306,9 +2308,9 @@ void IBLayer3Str(IBLayer3* ibc) {
 		}
 	}
 	else {
-		switch (ibc->Pfx) {
+		switch(ibc->Pfx) {
 		case OP_Name: {
-			switch (ibc->Ch) {
+			switch(ibc->Ch) {
 			case '[': {
 				//IBStrClear(&ibc->ArrayIndexExprStr);
 				IBStr* aT = NULL;
@@ -2318,7 +2320,7 @@ void IBLayer3Str(IBLayer3* ibc) {
 				return;
 			}
 			case ']': {
-				if (IBLayer3GetMode(ibc) == OP_ModeArrayIndexExpr)
+				if(IBLayer3GetMode(ibc) == OP_ModeArrayIndexExpr)
 					IBLayer3Pop(ibc);
 				return;
 			}
@@ -2344,18 +2346,18 @@ void IBLayer3Str(IBLayer3* ibc) {
 						break;
 					}*/
 		}
-		switch (ibc->Ch) {
+		switch(ibc->Ch) {
 		case '\t': return;
 		case ' ': {
-			if (ibc->StrAllowSpace) break;
+			if(ibc->StrAllowSpace) break;
 			else {
 				IBLayer3StrPayload(ibc);
 				return;
 			}
 		}
 		case '^': {
-			if (*(bool*)IBVectorTop(&ibc->StrReadPtrsStack)) {
-				switch (ibc->Pointer) {
+			if(*(bool*) IBVectorTop(&ibc->StrReadPtrsStack)) {
+				switch(ibc->Pointer) {
 				case OP_NotSet:
 					DbgPuts("Got pointer\n");
 					ibc->Pointer = OP_Pointer;
@@ -2380,17 +2382,17 @@ void IBLayer3Str(IBLayer3* ibc) {
 	StrConcat(ibc->Str, IBLayer3STR_MAX, chBuf);
 }
 IBTask* IBLayer3GetTask(IBLayer3* ibc) {
-	IBTask* ret = (IBTask*)IBVectorTop(&ibc->TaskStack);
+	IBTask* ret = (IBTask*) IBVectorTop(&ibc->TaskStack);
 	//if (!ret)Err(OP_Error, "no task in stack");
-	if (ret) {
+	if(ret) {
 		IBassert(ret->type >= 0);
 	}
 	return ret;
 }
 IBOp IBLayer3GetMode(IBLayer3* ibc) {
 	IBOp ret = OP_Null;
-	IBOp* p = (IBOp*)IBVectorTop(&ibc->ModeStack);
-	if (p)ret = *p;
+	IBOp* p = (IBOp*) IBVectorTop(&ibc->ModeStack);
+	if(p)ret = *p;
 	return ret;
 }
 void IBLayer3StrPayload(IBLayer3* ibc) {
@@ -2404,13 +2406,13 @@ void IBLayer3StrPayload(IBLayer3* ibc) {
 	strVal.i64 = 0;
 	t = IBLayer3GetTask(ibc);
 	o = IBLayer3GetObj(ibc);
-	if (ibc->TaskStack.elemCount >= 2) {
-		tParent = (IBTask*)IBVectorGet(&ibc->TaskStack, ibc->TaskStack.elemCount - 2);
+	if(ibc->TaskStack.elemCount >= 2) {
+		tParent = (IBTask*) IBVectorGet(&ibc->TaskStack, ibc->TaskStack.elemCount - 2);
 	}
-	switch (valType) {
+	switch(valType) {
 	case OP_Bool: {
 		IBOp boolCheck = IBStrToBool(ibc, ibc->Str);
-		switch (boolCheck) {
+		switch(boolCheck) {
 		case OP_True: {
 			strVal.boolean = true;
 			break;
@@ -2433,7 +2435,7 @@ void IBLayer3StrPayload(IBLayer3* ibc) {
 		break;
 	}
 	case OP_Float: {
-		strVal.f32 = (float)atof(ibc->Str);
+		strVal.f32 = (float) atof(ibc->Str);
 		break;
 	}
 				 //IBCASE_UNIMP
@@ -2453,9 +2455,9 @@ void IBLayer3StrPayload(IBLayer3* ibc) {
 	IBPopColor();
 	DbgPuts("\n");
 top:
-	switch (ibc->Pfx) {
+	switch(ibc->Pfx) {
 	/* . PFXDOT */ case OP_Dot: {
-		switch (t->type) {
+		switch(t->type) {
 		case OP_NeedExpression: {
 			IBOp type = OP_Unknown;
 			IBObj* o = 0;
@@ -2464,33 +2466,33 @@ top:
 			/*IBTask* etn = IBLayer3FindTaskUnderIndex(ibc, -1, OP_ExprToName, 3);*/
 			IBTypeInfo* st = 0;
 			IBTypeInfo* ti = 0;
-			if (vneO) {
+			if(vneO) {
 				IBLayer3FindType(ibc, vneO->str, &ti);
-				if (ti) {
+				if(ti) {
 					type = ti->type;
 					IBTypeInfoFindMember(ti, ibc->Str, &st);
 				}
 			}
-			else if (e2nt/*&&ibc->DefiningMethods*/) {
+			else if(e2nt/*&&ibc->DefiningMethods*/) {
 				IBObj* no = 0;
 				TaskFindWorkingObj(e2nt, OP_ActOnName, &no);
 				IBassert(no);
-				if (no) {
-					if (IB_STARTS_WITH_SELFDOT(no->name)) {
+				if(no) {
+					if(IB_STARTS_WITH_SELFDOT(no->name)) {
 						char* rn = IB_SELFDOTLESS_NTSP(no->name);
 						IBassert(rn && (*rn));
 						/*IBTask*mt=IBLayer3FindTaskUnderIndex(ibc,-1,OP_MethodsWantContent, 100);
 						IBassert(mt);*/
 						IBassert(ibc->_methodsStructName);
 						IBLayer3FindType(ibc, ibc->_methodsStructName, &ti);
-						if (ti) {
+						if(ti) {
 							type = ti->type;
 							IBTypeInfoFindMember(ti, rn, &st);
 						}
 					}
 					else {
 						IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, no->name);
-						if (ni->ti) {
+						if(ni->ti) {
 							ti = ni->ti;
 							type = ti->type;
 							IBTypeInfoFindMember(ti, ibc->Str, &st);
@@ -2499,19 +2501,19 @@ top:
 				}
 
 			}
-			if (type == OP_Unknown || !st)
+			if(type == OP_Unknown || !st)
 				Err(OP_Error, "context not found");
 			IBLayer3PushObj(ibc, &o);
 			IBassert(st);
-			if (st) {
-				if (st->type == OP_StructVar) {
+			if(st) {
+				if(st->type == OP_StructVar) {
 				}
 				else IBObjSetType(o, st->type);
 			}
 			IBassert(ti);
-			if (ti)IBObjSetStr(o, ti->name.start);
+			if(ti)IBObjSetStr(o, ti->name.start);
 			IBObjSetName(o, ibc->Str);
-			if (st && st->type == OP_StructVar) {
+			if(st && st->type == OP_StructVar) {
 				IBOp t = st->structVarType->type;
 				IBassert(st->structVarType);
 				IBObjSetType(o, t == OP_Enum ? OP_EnumVal : t);
@@ -2520,12 +2522,12 @@ top:
 			IBLayer3PopObj(ibc, true, &o);
 			break;
 		}
-		IBCASE_UNIMP
+							  IBCASE_UNIMP
 		}
 		break;
 	}
 	/* ' PFXSINGLEQUOTE */ case OP_SingleQuote: {
-		switch (t->type) {
+		switch(t->type) {
 		case OP_VarWantValue: {
 			o->var.val.c8 = ibc->Str[0];
 			o->var.valSet = true;
@@ -2540,12 +2542,12 @@ top:
 		IBLayer3FindType(ibc, ibc->Str, &ti);
 		//IBOp dataType = IBGetOpFromNameList(ibc->Str, OP_DataTypes);
 		//if (dataType != OP_Unknown)
-		if (ti) {
+		if(ti) {
 			ibc->Pfx = OP_VarType;
 			DbgPuts("infered vartype\n");
 			goto top;
 		}
-		else if (!strcmp(ibc->Str, IBFALSESTR) ||
+		else if(!strcmp(ibc->Str, IBFALSESTR) ||
 			!strcmp(ibc->Str, IB_TRUESTR)) {
 			ibc->Pfx = OP_Value;
 			DbgPuts("infered bool Value\n");
@@ -2553,7 +2555,7 @@ top:
 		}
 		else {
 			IBOp nameOp = IBGetOpFromNameList(ibc->Str, OP_NameOps);
-			switch (nameOp) {
+			switch(nameOp) {
 			case OP_Unknown:
 			case OP_Void:
 				break;
@@ -2567,7 +2569,7 @@ top:
 		Err(OP_Error, "Couldn't infer this input");
 	}
 	/* _ PFXUNDERSCORE */ case OP_Underscore: {
-		switch (ibc->NameOp) {
+		switch(ibc->NameOp) {
 		case OP_EmptyStr: {
 			IBLayer3Done(ibc);
 			break;
@@ -2581,17 +2583,17 @@ top:
 	/* / PFXDIVIDE */ case OP_Divide:
 	/* - PFXSUBTRACT */ case OP_Subtract: {
 		//bool fall = true;
-		switch (ibc->NameOp) {
+		switch(ibc->NameOp) {
 		case OP_EmptyStr: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_RootTask: {
-				switch (ibc->NameOp) {
+				switch(ibc->NameOp) {
 				case OP_Exclaim: {
 					//fall = false;
 					IBLayer3Push(ibc, OP_ModeCCompTimeMacroPaste, true);
 					break;
 				}
-				IBCASE_UNIMP
+							   IBCASE_UNIMP
 				}
 				break;
 			}
@@ -2602,7 +2604,7 @@ top:
 				IBLayer3PopObj(ibc, true, &o);
 				break;
 			}
-			IBCASE_UNIMP
+								  IBCASE_UNIMP
 			}
 			break;
 		}
@@ -2614,13 +2616,13 @@ top:
 			IBExpectsInit(exp, "P", OP_VarType);
 			break;
 		}
-		IBCASE_UNIMP
+						   IBCASE_UNIMP
 		}
 		//if (!fall) break;
 		break;
 	}
 	/* | PFXOR */ case OP_Or: {
-		switch (ibc->NameOp) {
+		switch(ibc->NameOp) {
 		case OP_Or: {
 
 			break;
@@ -2649,9 +2651,9 @@ top:
 	//	break;
 	//}
 	/* < PFXLESSTHAN */ case OP_LessThan: {
-		switch (t->type) {
+		switch(t->type) {
 		case OP_VarWantValue: {
-			switch (ibc->NameOp) {
+			switch(ibc->NameOp) {
 			case OP_Subtract: {
 				o = IBLayer3GetObj(ibc);
 				SetTaskType(t, OP_VarNeedExpr);
@@ -2659,18 +2661,18 @@ top:
 				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
 				break;
 			}
-			IBCASE_UNIMP
+							IBCASE_UNIMP
 			}
 			break;
 		}
 		case OP_ActOnName: {
-			switch (ibc->NameOp)
+			switch(ibc->NameOp)
 			{
 			case OP_Subtract: {
 				IBObj* o;
 				IBObj* methodsCtxO = IBLayer3FindStackObjRev(ibc, OP_Methods);
 				IBTypeInfo* methodsNameTypeInfo = 0, * foundSub = 0;
-				if (methodsCtxO) {
+				if(methodsCtxO) {
 					IBLayer3FindType(ibc, methodsCtxO->name, &methodsNameTypeInfo);
 				}
 				IBNameInfo* ni;
@@ -2678,28 +2680,28 @@ top:
 				o = IBLayer3FindWorkingObjRev(ibc, OP_ActOnName);
 				IBassert(o);
 				IBassert(o->name[0] != '\0');
-				if (methodsNameTypeInfo && IB_STARTS_WITH_SELFDOT(o->name)) {
+				if(methodsNameTypeInfo && IB_STARTS_WITH_SELFDOT(o->name)) {
 					IBTypeInfo* subT = 0;
 					int sidx = 0;
-					while (subT = IBVectorIterNext(&methodsNameTypeInfo->members, &sidx)) {
-						if (!strcmp(subT->name.start, o->name + 5)) {
+					while(subT = IBVectorIterNext(&methodsNameTypeInfo->members, &sidx)) {
+						if(!strcmp(subT->name.start, o->name + 5)) {
 							foundSub = subT;
 							break;
 						}
 					}
 				}
 				ni = IBLayer3SearchNameInfo(ibc, o->name);
-				if (!ni && !foundSub) {
+				if(!ni && !foundSub) {
 					ErrF(OP_NotFound, "%s wasn't found", o->name);
 				}
 				//IBassert(ni);
 				//IBassert(type != OP_NotFound);
 				SetTaskType(t, OP_ExprToName);
 				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
-				if (foundSub) {
+				if(foundSub) {
 					t->exprData.finalVartype = foundSub->StructVar.type;
 				}
-				else if (ni) {
+				else if(ni) {
 					t->exprData.finalVartype = ni->type;
 				}
 				break;
@@ -2708,47 +2710,47 @@ top:
 			}
 			break;
 		}
-		IBCASE_UNIMP
+						 IBCASE_UNIMP
 		}
 		break;
 	}
 	/* ! PFXEXCLAIM */ case OP_Exclaim: {
-		switch (t->type) {
-		IBCASE_BLOCKWANTCODE
-		{
-			if (!*ibc->Str) {
-				IBExpects* exp = 0;
-				//IBTask*t=0;
-				IBLayer3PushTask(ibc, OP_CallMethodNeedName, &exp, &t);
-				IBExpectsInit(exp,"P",OP_Name);
+		switch(t->type) {
+			IBCASE_BLOCKWANTCODE
+			{
+				if(!*ibc->Str) {
+					IBExpects* exp = 0;
+					//IBTask*t=0;
+					IBLayer3PushTask(ibc, OP_CallMethodNeedName, &exp, &t);
+					IBExpectsInit(exp,"P",OP_Name);
+					break;
+				}
+			//IBTask* t;
+			//IBLayer3PushTask(ibc, OP_CodeBlockCallFunc, NULL, NULL);
+			IBLayer3PushTask(ibc, OP_CallFunc, NULL, NULL);
+			//break;
+			}
+		case OP_ActOnNameEquals: {
+				IBExpects* exp;
+				IBObj* o;
+				//IBTask* t;
+				IBLayer3PushObj(ibc, &o);
+				IBObjSetStr(o, ibc->Str);
+				IBObjSetType(o, OP_Call);
+				IBLayer3PushTask(ibc, OP_CallWantArgs, &exp, &t);
+				IBLayer3PopObj(ibc, true, &o);
+				IBLayer3PushObj(ibc, &o);
+				SetObjType(o, OP_ArgNeedValue);
+				IBExpectsInit(exp, "PPPP",
+					OP_Name, OP_Value, OP_String, OP_LineEnd);
 				break;
 			}
-		//IBTask* t;
-		//IBLayer3PushTask(ibc, OP_CodeBlockCallFunc, NULL, NULL);
-		IBLayer3PushTask(ibc, OP_CallFunc, NULL, NULL);
-		//break;
-		}
-		case OP_ActOnNameEquals: {
-			IBExpects* exp;
-			IBObj* o;
-			//IBTask* t;
-			IBLayer3PushObj(ibc, &o);
-			IBObjSetStr(o, ibc->Str);
-			IBObjSetType(o, OP_Call);
-			IBLayer3PushTask(ibc, OP_CallWantArgs, &exp, &t);
-			IBLayer3PopObj(ibc, true, &o);
-			IBLayer3PushObj(ibc, &o);
-			SetObjType(o, OP_ArgNeedValue);
-			IBExpectsInit(exp, "PPPP",
-				OP_Name, OP_Value, OP_String, OP_LineEnd);
-			break;
-		}
-		IBCASE_UNIMP
+			IBCASE_UNIMP
 		}
 		break;
 	}
 	/* " PFXSTRING */ case OP_String: {
-		switch (t->type) {
+		switch(t->type) {
 		case OP_VarWantValue: {
 			IBOverwriteStr(&o->var.valStrLiteral, ibc->Str);
 			o->var.valSet = true;
@@ -2769,8 +2771,8 @@ top:
 			IBObj* o;
 			int idx;
 			idx = 0;
-			while (o = (IBObj*)IBVectorIterNext(&t->working, &idx)) {
-				if (o->type == OP_FuncSigComplete) {
+			while(o = (IBObj*) IBVectorIterNext(&t->working, &idx)) {
+				if(o->type == OP_FuncSigComplete) {
 					DbgPuts("Finishing func got ret value\n");
 					IBOverwriteStr(&o->func.retValStr, ibc->Str);
 					o->func.retValType = OP_String;
@@ -2785,7 +2787,7 @@ top:
 			break;
 		}
 		case OP_BlockReturnNeedValue: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_BlockReturnNeedValue: {
 				IBObjSetStr(o, ibc->Str);
 				o->valType = OP_String;
@@ -2796,7 +2798,7 @@ top:
 			break;
 		}
 		case OP_dbgAssertWantArgs: {
-			switch (IBGetOpFromNameList(ibc->Str, OP_dbgAssert)) {
+			switch(IBGetOpFromNameList(ibc->Str, OP_dbgAssert)) {
 			case OP_TaskType: {
 				break;
 			}
@@ -2830,9 +2832,10 @@ top:
 		break;
 	}
 	/* = PFXVALUE */ case OP_Value: {
-		switch (t->type) {
+		switch(t->type) {
 		case OP_ForNeedStartInitVal: {
-			switch (t->type) {
+			switch(t->type) {
+
 				IBCASE_UNIMP
 			}
 			break;
@@ -2841,13 +2844,13 @@ top:
 			IBObj* o = NULL;
 			IBLayer3PushObj(ibc, &o);
 			IBObjSetType(o, OP_Value);
-			o->valType = OP_Value;
+			o->valType = valType;
 			o->val = strVal;
 			IBLayer3PopObj(ibc, true, &o);
 			break;
 		}
 		case OP_ActOnName: {
-			switch (ibc->NameOp) {
+			switch(ibc->NameOp) {
 			case OP_EmptyStr: {
 				IBExpects* exp;
 				SetTaskType(t, OP_ActOnNameEquals);
@@ -2860,23 +2863,23 @@ top:
 			break;
 		}
 		case OP_VarWantValue: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_VarWantValue: {
 				o->var.val = strVal;
 				o->var.valSet = true;
-				switch (o->var.type) {
+				switch(o->var.type) {
 				case OP_Bool: {
-					if (valType != OP_Bool)
+					if(valType != OP_Bool)
 						Err(OP_YouCantUseThatHere, "wrong value for bool variable");
 					break;
 				}
 				case OP_f32: {
-					if (valType != OP_Float)
+					if(valType != OP_Float)
 						Err(OP_YouCantUseThatHere, "wrong value for float variable");
 					break;
 				}
 				case OP_d64: {
-					if (valType != OP_Double)
+					if(valType != OP_Double)
 						Err(OP_YouCantUseThatHere, "wrong value for double variable");
 					break;
 				}
@@ -2894,7 +2897,7 @@ top:
 				case OP_i16:
 				case OP_i64:
 				case OP_i32: {
-					if (valType != OP_Number)
+					if(valType != OP_Number)
 						Err(OP_YouCantUseThatHere, "wrong value for number variable");
 					break;
 				}
@@ -2910,7 +2913,7 @@ top:
 			break;
 		}
 		case OP_BlockReturnNeedValue: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_BlockReturnNeedValue: {
 				o->val = strVal;
 				o->valType = OP_Value;
@@ -2921,7 +2924,7 @@ top:
 			break;
 		}
 		case OP_CallWantArgs: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_ArgNeedValue: {
 				o->val = strVal;
 				IBObjSetType(o, OP_Arg);
@@ -2935,7 +2938,7 @@ top:
 			break;
 		}
 		case OP_BuildingIf: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_IfNeedLVal: {
 				o->ifO.lvVal = strVal;
 				o->ifO.lvTYPE = OP_Value;
@@ -2973,10 +2976,10 @@ top:
 			IBObj* o;
 			int idx;
 			idx = 0;
-			while (o = (IBObj*)IBVectorIterNext(&t->working, &idx)) {
-				if (o->type == OP_FuncSigComplete) {
+			while(o = (IBObj*) IBVectorIterNext(&t->working, &idx)) {
+				if(o->type == OP_FuncSigComplete) {
 					IBOp valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
-					switch (o->func.retValType) {
+					switch(o->func.retValType) {
 					case OP_c8: {
 
 					}
@@ -2988,7 +2991,7 @@ top:
 					case OP_i16:
 					case OP_i32:
 					case OP_i64: {
-						if (valType != OP_Number)
+						if(valType != OP_Number)
 							Err(OP_YouCantUseThatHere,
 								"wrong return value type for this function");
 						break;
@@ -3013,11 +3016,11 @@ top:
 	/* % PFXVARTYPE */ case OP_VarType: {
 		IBTypeInfo* ti = 0;
 		IBLayer3FindType(ibc, ibc->Str, &ti);
-		if (!ti)
+		if(!ti)
 			ErrF(OP_NotFound, "type %s doesn't exist", ibc->Str);
-		switch (t->type) {
+		switch(t->type) {
 		case OP_FuncHasName: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_FuncHasName: {
 				IBObj* o;
 				IBExpects* exp;
@@ -3025,7 +3028,7 @@ top:
 				SetObjType(o, OP_FuncArgNameless);
 				o->arg.type = ibc->NameOp;
 				o->arg.mod = ibc->Pointer;
-				if (o->arg.type == OP_c8 && o->arg.mod == OP_Pointer)
+				if(o->arg.type == OP_c8 && o->arg.mod == OP_Pointer)
 					o->arg.type = OP_String;
 				IBLayer3PushExpects(ibc, &exp);
 				IBExpectsInit(exp, "1P", "expected func arg name", OP_Name);
@@ -3034,9 +3037,9 @@ top:
 			case OP_FuncNeedsRetValType: {
 				o->func.retValType = ibc->NameOp;
 				o->func.retTypeMod = ibc->Pointer;
-				if (o->func.retValType == OP_Unknown)
+				if(o->func.retValType == OP_Unknown)
 					Err(OP_Error, "unknown return type");
-				if (o->func.retValType == OP_String) {
+				if(o->func.retValType == OP_String) {
 					o->func.retValType = OP_c8;
 					o->func.retTypeMod = OP_Pointer;
 				}
@@ -3074,17 +3077,17 @@ top:
 		break;
 	}
 	/* $ PFXNAME */ case OP_Name: {
-		switch (ibc->Str[0]) {
-			IBCASE_0THRU9{
+		switch(ibc->Str[0]) {
+			IBCASE_0THRU9 {
 				Err(OP_YouCantUseThatHere,
 					"can't use number as first character of name!");
 			}
 		}
-		switch (t->type) {
+		switch(t->type) {
 		case OP_MethodsNeedName: {
 			IBTypeInfo* ti = 0;
 			IBLayer3FindType(ibc, ibc->Str, &ti);
-			if (!ti) {
+			if(!ti) {
 				ErrF(OP_NotFound, "%s isnt found\n", ibc->Str);
 			}
 			else {
@@ -3109,7 +3112,7 @@ top:
 			IBExpects* exp = NULL;
 			IBOp ar = IBNameInfoDBAdd(ibc, &cb->localVariables, ibc->Str, OP_Name, &ni);
 			//should never happen
-			if (ar == OP_AlreadyExists)
+			if(ar == OP_AlreadyExists)
 				ErrF(OP_AlreadyExists, "name %s already in use", ibc->Str);
 			IBassert(ni);
 			IBassert(o->type == OP_For);
@@ -3155,7 +3158,7 @@ top:
 			break;
 		}
 		case OP_FuncHasName: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_FuncArgNameless: {
 				SetObjType(o, OP_FuncArgComplete);
 				PopExpects();
@@ -3169,7 +3172,7 @@ top:
 			break;
 		}
 		case OP_FuncNeedName: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_Func: {
 				IBExpects* exp;
 				SetObjType(o, OP_FuncHasName);
@@ -3187,14 +3190,14 @@ top:
 			IBObj* o;
 			int idx;
 			idx = 0;
-			while (o = (IBObj*)IBVectorIterNext(&t->working, &idx)) {
-				if (o->type == OP_FuncSigComplete) {
+			while(o = (IBObj*) IBVectorIterNext(&t->working, &idx)) {
+				if(o->type == OP_FuncSigComplete) {
 					//IBOp nameType = IBNameInfoDBFindType(&ibc->NameTypeCtx, ibc->Str);
 					IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, ibc->Str);
 					IBassert(ni);
-					if (ni->type == OP_NotFound)
+					if(ni->type == OP_NotFound)
 						Err(OP_NotFound, "variable name not found");
-					if (o->func.retValType != ni->type && o->func.retValType != ibc->Varcast)
+					if(o->func.retValType != ni->type && o->func.retValType != ibc->Varcast)
 						Err(OP_Error, "variable doesn't match function return type\n");
 					DbgPuts("Finishing func got ret value as name\n");
 					IBOverwriteStr(&o->func.retStr, ibc->Str);
@@ -3209,7 +3212,7 @@ top:
 			break;
 		}
 		case OP_CallWantArgs: {
-			if (o->type == OP_ArgNeedValue) {
+			if(o->type == OP_ArgNeedValue) {
 				IBObjSetStr(o, ibc->Str);
 				IBObjSetType(o, OP_Arg);
 				o->valType = OP_Name;
@@ -3221,7 +3224,7 @@ top:
 			break;
 		}
 		case OP_BlockReturnNeedValue: {
-			switch (o->type) {
+			switch(o->type) {
 			case OP_BlockReturnNeedValue: {
 				IBObjSetStr(o, ibc->Str);
 				o->valType = OP_Name;
@@ -3233,11 +3236,11 @@ top:
 		}
 		case OP_BuildingIf: {
 			IBExpects* exp = NULL;
-			switch (o->type) {
+			switch(o->type) {
 			case OP_IfNeedLVal: {
 				IBOverwriteStr(&o->ifO.lvName, ibc->Str);
 				IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, o->ifO.lvName);
-				if (!ni) {
+				if(!ni) {
 					ErrF(OP_NotFound, "%s wasn't found", o->ifO.lvName);
 				}
 				IBassert(ni);
@@ -3254,7 +3257,7 @@ top:
 				IBExpects* exp;
 				IBOverwriteStr(&o->ifO.rvName, ibc->Str);
 				IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, o->ifO.rvName);
-				if (!ni) {
+				if(!ni) {
 					ErrF(OP_NotFound, "%s wasn't found", o->ifO.rvName);
 				}
 				IBassert(ni);
@@ -3281,7 +3284,7 @@ top:
 		case OP_UseNeedStr: {
 			IBOp lib;
 			lib = ibc->NameOp;
-			switch (lib) {
+			switch(lib) {
 			case OP_UseStrSysLib: {
 				IBPushColor(IBFgIntensity | IBFgYELLOW | IBBgBROWN);
 				DbgPuts("Inputting system lib code to compiler\n");
@@ -3321,7 +3324,7 @@ top:
 			IBLayer3PushObj(ibc, &o);
 			IBObjSetName(o, ibc->Str);
 			IBObjSetType(o, OP_Name);
-			while (at = IBVectorIterNext(&ibc->ArrayIndexExprsVec, &idx)) {
+			while(at = IBVectorIterNext(&ibc->ArrayIndexExprsVec, &idx)) {
 				IBStr* ss = 0;
 				IBVectorPush(&o->arg.arrIndexExprs, &ss);
 				IBStrInit(ss);
@@ -3330,7 +3333,7 @@ top:
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
 		}
-								 IBCASE_BLOCKWANTCODE{
+								 IBCASE_BLOCKWANTCODE {
 									 IBTask * t = NULL;
 									 IBExpects* exp = NULL;
 									 IBObj* o = NULL;
@@ -3351,7 +3354,7 @@ top:
 									 break;
 								 }
 		case OP_VarNeedName: {
-									 switch (o->type) {
+									 switch(o->type) {
 									 case OP_VarNeedName: {
 										 IBExpects* exp;
 										 IBNameInfo* ni = NULL;
@@ -3384,8 +3387,8 @@ top:
 	/* @ PFXOP */ case OP_Op: {
 		bool expected;
 		expected = IBLayer3IsNameOpExpected(ibc, ibc->NameOp);
-		if (!expected)Err(OP_ErrUnexpectedNameOP, "unexpected nameOP");
-		switch (ibc->NameOp) {
+		if(!expected)Err(OP_ErrUnexpectedNameOP, "unexpected nameOP");
+		switch(ibc->NameOp) {
 		case OP_CInclude: {
 			IBTask* t = NULL;
 			IBExpects* exp = NULL;
@@ -3405,7 +3408,7 @@ top:
 			break;
 		}
 		case OP_Repr: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_StructWantRepr: {
 				IBExpects* exp;
 				//SetTaskType(t, OP_StructWantContent);
@@ -3418,7 +3421,7 @@ top:
 			break;
 		}
 		case OP_Flags: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_RootTask: {
 				IBExpects* ap;
 				IBLayer3PushObj(ibc, &o);
@@ -3433,7 +3436,7 @@ top:
 			break;
 		}
 		case OP_Enum: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_RootTask: {
 				IBExpects* ap;
 				IBLayer3PushObj(ibc, &o);
@@ -3448,7 +3451,7 @@ top:
 			break;
 		}
 		case OP_Space: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_RootTask: {
 				IBExpects* ap;
 				IBLayer3PushTask(ibc, OP_SpaceNeedName, &ap, NULL);
@@ -3467,7 +3470,7 @@ top:
 			break;
 		}
 		case OP_Struct: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_RootTask: {
 				IBExpects* ap;
 				//onion
@@ -3504,7 +3507,7 @@ top:
 			break;
 		}
 		case OP_Fall: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_CaseWantCode: {
 				IBObj* o = IBLayer3FindWorkingObj(ibc, OP_TableCase);
 				IBassert(o);
@@ -3515,7 +3518,7 @@ top:
 			break;
 		}
 		case OP_Case: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_CaseWantCode: {
 				IBTask* t = NULL;
 				IBLayer3FinishTask(ibc);
@@ -3540,7 +3543,7 @@ top:
 			break;
 		}
 		case OP_Table: {
-			switch (t->type) {
+			switch(t->type) {
 				IBCASE_BLOCKWANTCODE
 				{
 					IBTask * t = NULL;
@@ -3565,9 +3568,9 @@ top:
 			break;
 		}
 		case OP_Return: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_FuncHasName: {
-				switch (o->type) {
+				switch(o->type) {
 				case OP_FuncHasName: {
 					IBExpects* exp;
 					SetObjType(o, OP_FuncNeedsRetValType);
@@ -3651,10 +3654,10 @@ top:
 		case OP_GreaterThan: //@gt
 		case OP_NotEquals: //@neq
 		case OP_Equals: { //@eq
-			switch (t->type) {
+			switch(t->type) {
 			case OP_BuildingIf: {
 				IBExpects* exp;
-				switch (o->type) {
+				switch(o->type) {
 				case OP_IfNeedMidOP: {
 					o->ifO.midOp = ibc->NameOp;
 					IBObjSetType(o, OP_IfNeedRVal);
@@ -3673,7 +3676,7 @@ top:
 			break;
 		}
 		case OP_Else: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_IfBlockWantCode: {
 				IBTask* t;
 				IBExpects* exp;
@@ -3690,7 +3693,7 @@ top:
 			break;
 		}
 		case OP_ElseIf: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_IfBlockWantCode: {
 				IBLayer3FinishTask(ibc);
 				ibc->LastNameOp = ibc->NameOp;
@@ -3704,14 +3707,14 @@ top:
 			}
 		}
 		case OP_If: {
-			switch (t->type) {
+			switch(t->type) {
 			case OP_ElseIf: {
 				cb = IBLayer3CodeBlocksTop(ibc);
 				IBStrAppendCh(&cb->code, '\t', tabCount - 1);
 				IBStrAppendCStr(&cb->code, "else ");
 				IBLayer3PopTask(ibc, &t, false);
 			}
-						  IBCASE_BLOCKWANTCODE{
+						  IBCASE_BLOCKWANTCODE {
 							  IBTask * nt;
 							  IBExpects* nexp;
 							  IBObj* o;
@@ -3730,7 +3733,7 @@ top:
 			break;
 		}
 		case OP_Loop: {
-			switch (t->type) {
+			switch(t->type) {
 				IBCASE_BLOCKWANTCODE
 				{
 					IBExpects * exp;
@@ -3760,7 +3763,7 @@ top:
 				IBCASE_UNIMP
 			}
 			*/
-			switch (t->type) {
+			switch(t->type) {
 				IBCASE_BLOCKWANTCODE
 				{
 					IBObj * o;
@@ -3782,7 +3785,7 @@ top:
 		}
 		break;
 	}
-	IBCASE_UNIMP
+							IBCASE_UNIMP
 	}
 	ibc->Str[0] = '\0';
 #ifdef IBDEBUGPRINTS
@@ -3793,8 +3796,8 @@ top:
 	printf("\n");
 #endif
 	IBLayer3Pop(ibc);
-	if (ibc->StrReadPtrsStack.elemCount > 1) {
-		if (*(bool*)IBVectorTop(&ibc->StrReadPtrsStack))
+	if(ibc->StrReadPtrsStack.elemCount > 1) {
+		if(*(bool*) IBVectorTop(&ibc->StrReadPtrsStack))
 			ibc->Pointer = OP_NotSet;
 		IBVectorPop(&ibc->StrReadPtrsStack, NULL);
 	}
@@ -3824,7 +3827,7 @@ top:
 #endif
 }
 void IBLayer3ExplainErr(IBLayer3* ibc, IBOp code) {
-	switch (code) {
+	switch(code) {
 	case OP_TCC_Error: {
 		printf("Fatal internal compiler error");
 		break;
@@ -3872,15 +3875,15 @@ void IBLayer3ExplainErr(IBLayer3* ibc, IBOp code) {
 		int idx;
 		t = IBLayer3GetTask(ibc);
 		ap = IBTaskGetExpTop(t);
-		if (ap && t) {
+		if(ap && t) {
 			IBassert(ap->pfxs.elemCount);
 			printf("Err: \"%s\" Unexpected next prefix %s. "
 				"Pfx idx:%d\nEnforced at line %d. Allowed:",
 				ap->pfxErr, IBGetPfxName(ibc->Pfx),
 				ap->pfxs.elemCount - 1, ap->lineNumInited);
 			idx = 0;
-			while (oi = (IBOp*)IBVectorIterNext(&ap->pfxs, &idx)) {
-				printf("%s(%d),", IBGetPfxName(*oi), (int)*oi);
+			while(oi = (IBOp*) IBVectorIterNext(&ap->pfxs, &idx)) {
+				printf("%s(%d),", IBGetPfxName(*oi), (int) *oi);
 			}
 		}
 		else {

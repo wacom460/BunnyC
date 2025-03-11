@@ -1,3 +1,3 @@
-@blk $main
+blk $main
 	i32 $a <- 10 - 2 + 4 / 10.0
 _

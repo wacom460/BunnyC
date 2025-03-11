@@ -5,16 +5,16 @@
 #define LE "\n"
 
 #define IBMAGIC (1011933)
-#define IB_ASSERTMAGICP(o)\
-	IBassert((o)->initMagic==IBMAGIC)
-#define IB_ASSERTMAGIC(o)\
-	IBassert((o).initMagic==IBMAGIC)
+#define IB_ASSERTMAGICP(o) \
+	IBassert((o)->initMagic == IBMAGIC)
+#define IB_ASSERTMAGIC(o) \
+	IBassert((o).initMagic == IBMAGIC)
 #define IB_DEFMAGIC \
 	unsigned int initMagic
-#define IB_SETMAGICP(o)\
-	(o)->initMagic=IBMAGIC
-#define IB_SETMAGIC(o)\
-	(o).initMagic=IBMAGIC
+#define IB_SETMAGICP(o) \
+	(o)->initMagic = IBMAGIC
+#define IB_SETMAGIC(o) \
+	(o).initMagic = IBMAGIC
 #define IB_FILE_EXT "ib"
 #ifndef bool
 #define bool char
