@@ -347,11 +347,11 @@ typedef struct IBObj {
 	} func;
 	struct _IBIfObj {
 		IBOp lvTYPE;
-		IBOp lvDataType;
+		//IBOp lvDataType;
 		IBOp lvMod;
 		IBOp midOp;
 		IBOp rvTYPE;
-		IBOp rvDataType;
+		//IBOp rvDataType;
 		IBOp rvMod;
 		IBVal lvVal;
 		IBVal rvVal;

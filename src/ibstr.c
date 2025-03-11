@@ -152,6 +152,8 @@ int IBStrStripFront(IBStr* str, char ch) {
 void Val2Str(char* dest, int destSz, IBVal v, IBOp type) {
 
 	switch (type) {
+	case OP_Number:
+	case OP_Value:
 	case OP_u8: { snprintf(dest, destSz, "%u", v.u8);  break; }
 	case OP_c8: { snprintf(dest, destSz, "%c", v.c8);  break; }
 	case OP_i16: { snprintf(dest, destSz, "%d", v.i16); break; }
@@ -160,7 +162,9 @@ void Val2Str(char* dest, int destSz, IBVal v, IBOp type) {
 	case OP_i64: { snprintf(dest, destSz, "%lld", v.i64); break; }
 	case OP_u32: { snprintf(dest, destSz, "%u", v.u32); break; }
 	case OP_u64: { snprintf(dest, destSz, "%llu", v.u64); break; }
+	case OP_Float:
 	case OP_f32: { snprintf(dest, destSz, "%f", v.f32); break; }
+	case OP_Double:
 	case OP_d64: { snprintf(dest, destSz, "%f", v.d64); break; }
 	}
 }

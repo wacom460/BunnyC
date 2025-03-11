@@ -1708,29 +1708,29 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		}
 		IBStrAppendFmt(&cb->header, "if (");
 		switch(m->ifO.lvTYPE) {
-		case OP_Value: {
-			char buf[64];
-			buf[0] = '\0';
-			Val2Str(buf, 64, m->ifO.lvVal, m->ifO.lvDataType);
-			IBStrAppendFmt(&cb->header, "%s ", buf);
-			break;
-		}
 		case OP_Name:
 			IBStrAppendFmt(&cb->header, "%s ", m->ifO.lvName);
 			break;
+		default: {
+			char buf[64];
+			buf[0] = '\0';
+			Val2Str(buf, 64, m->ifO.lvVal, m->ifO.lvTYPE);
+			IBStrAppendFmt(&cb->header, "%s ", buf);
+			break;
+		}
 		}
 		IBStrAppendFmt(&cb->header, "%s ", IBGetCEqu(m->ifO.midOp));
 		switch(m->ifO.rvTYPE) {
-		case OP_Value: {
-			char buf[64];
-			buf[0] = '\0';
-			Val2Str(buf, 64, m->ifO.rvVal, m->ifO.rvDataType);
-			IBStrAppendFmt(&cb->header, "%s", buf);
-			break;
-		}
 		case OP_Name:
 			IBStrAppendFmt(&cb->header, "%s", m->ifO.rvName);
 			break;
+		default: {
+			char buf[64];
+			buf[0] = '\0';
+			Val2Str(buf, 64, m->ifO.rvVal, m->ifO.rvTYPE);
+			IBStrAppendFmt(&cb->header, "%s", buf);
+			break;
+		}
 		}
 		IBStrAppendFmt(&cb->header, ") ");
 	}
@@ -3651,8 +3651,8 @@ top:
 			switch(o->type) {
 			case OP_IfNeedLVal: {
 				o->ifO.lvVal = strVal;
-				o->ifO.lvTYPE = OP_Value;
-				o->ifO.lvDataType = OP_i32;
+				o->ifO.lvTYPE = valType;
+				//o->ifO.lvDataType = OP_i32;
 				SetObjType(o, OP_IfNeedMidOP);
 				break;
 			}
@@ -3673,8 +3673,8 @@ top:
 			case OP_IfNeedRVal: {
 				IBExpects* exp;
 				o->ifO.rvVal = strVal;
-				o->ifO.rvTYPE = OP_Value;
-				o->ifO.rvDataType = OP_i32;
+				o->ifO.rvTYPE = valType;
+				//o->ifO.rvDataType = OP_i32;
 				SetObjType(o, OP_IfFinished);
 				SetTaskType(t, OP_IfFinished);
 				IBLayer3ReplaceExpects(ibc, &exp);
