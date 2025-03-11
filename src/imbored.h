@@ -36,7 +36,7 @@ case OP_BlockWantCode:     \
 case OP_IfBlockWantCode:   \
 case OP_FuncWantCode:
 
-#define IBCASE_UNIMP                       \
+#define IBCASE_UNIMPLEMENTED                       \
 default: {                               \
 	Err(OP_Error, "Unimplemented case"); \
 	break;                               \

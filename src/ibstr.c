@@ -204,8 +204,10 @@ IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str) {
 	lc = str[sl - 1];
 	if (!strcmp(str, IB_TRUESTR)
 		|| !strcmp(str, IBFALSESTR)) return OP_Bool;
-	if (numbers > letters && periods == 1 && letters <= 1) ret = OP_Float;
-	if (ret == OP_Float && lc == 'd') return OP_Double;
+	/*if (numbers > letters && periods == 1 && letters <= 1) ret = OP_Double;
+	if(ret == OP_Double && lc == 'f') return OP_Float;
+	else return ret;*/
+	if(numbers > letters && periods == 1 && letters <= 1) return OP_Double;
 	if (letters && numbers) ret = OP_String;
 	else if (numbers) ret = OP_Number;
 	return ret;

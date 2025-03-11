@@ -57,7 +57,7 @@ IBOpNamePair PairNameOps[] = {
 	{"as", OP_As},{">", OP_GreaterThan},{"output", OP_Output},
 	{"enum", OP_Enum},{"flags", OP_Flags},{"nts", OP_String},
 	{"arguments",OP_RunArguments},{"include", OP_CInclude},
-	{"!", OP_Exclaim},{"methods", OP_Methods},
+	{"!", OP_Exclaim},{"methods", OP_Methods},{"=", OP_Equals}
 };
 IBOpNamePair PairDataTypeOPs[] = {
 	{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},{"i64", OP_i64},
@@ -79,7 +79,7 @@ IBOpNamePair pfxNames[] = {
 	{"CurlyBraceClose( } )", OP_CurlyBraceClose},
 	{"BracketOpen( [ )", OP_BracketOpen},
 	{"BracketClose( ] )", OP_BracketClose},
-	{"Dot(.)", OP_Dot},{"LessThan(<)", OP_LessThan},
+	{"Dot(.)", OP_Dot},{"LessThan(<)", OP_LessThan},{"Equals(=)", OP_Equals},
 	{"GreaterThan(>)", OP_GreaterThan},
 	{"Comma(,)", OP_Comma}, {"Subtract(-)", OP_Subtract},
 	{"Add(+)", OP_Add},{"Divide(/)", OP_Divide},
