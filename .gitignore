@@ -1,12 +1,11 @@
-﻿/vs/x64/Debug
+﻿/.vs
+/vs/x64/
 /vs/.vs/
-/vs/.vs/Project1
-/vs/Build/x64/Debug
 /vs/Build/
-/vs/Debug
-/vs/enc_temp_folder
+/vs/Debug/
+/vs/Release/
+/vs/enc_temp_folder/
 /vs/*.ncb
 /vs/*.suo
 /vs/*.user
 /*.exe
-/*.ib
