@@ -1,6 +1,7 @@
 #include "imbored.h"
 
-void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...) {
+void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...)
+{
 	va_list args;
 	IBOp pfx;
 	IBOp nameOp;
@@ -77,7 +78,9 @@ void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...) {
 	//DbgFmt("}\n","");
 	va_end(args);
 }
-void IBExpectsPrint(IBExpects* ap) {
+
+void IBExpectsPrint(IBExpects* ap)
+{
 	IBOp* oi;
 	int idx;
 	idx = 0;
@@ -98,7 +101,9 @@ void IBExpectsPrint(IBExpects* ap) {
 		printf("@%s(%d) ", IBGetOpName(*oi), (int)*oi);
 	printf("}\n");
 }
-void IBExpectsFree(IBExpects* ap) {
+
+void IBExpectsFree(IBExpects* ap)
+{
 	IBassert(ap);
 	IBVectorFreeSimple(&ap->pfxs);
 	IBVectorFreeSimple(&ap->nameOps);

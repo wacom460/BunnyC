@@ -1,6 +1,7 @@
 #include "imbored.h"
 
-void IBStrInit(IBStr* str) {
+void IBStrInit(IBStr* str)
+{
 	IBASSERT0(str);
 	str->start = (char*)malloc(1);
 	IBASSERT0(str->start);
@@ -8,21 +9,25 @@ void IBStrInit(IBStr* str) {
 	if (str->start) (*str->start) = '\0';
 }
 
-void IBStrInitWithCStr(IBStr* str, char* cstr) {
+void IBStrInitWithCStr(IBStr* str, char* cstr)
+{
 	IBStrInit(str);
 	IBStrAppendCStr(str, cstr);
 }
 
-void IBStrInitExt(IBStr* str, char* cstr) {
+void IBStrInitExt(IBStr* str, char* cstr)
+{
 	str->start = cstr;
 	str->end = cstr + strlen(cstr);
 }
 
-void IBStrFree(IBStr* str) {
+void IBStrFree(IBStr* str)
+{
 	free(str->start);
 }
 
-void IBStrClear(IBStr* str) {
+void IBStrClear(IBStr* str)
+{
 	if (str->start) free(str->start);
 	str->start = NULL;
 	str->start = malloc(1);
@@ -33,26 +38,30 @@ void IBStrClear(IBStr* str) {
 	}
 }
 
-void IBStrReplaceWithCStr(IBStr* str, char* cstr) {
+void IBStrReplaceWithCStr(IBStr* str, char* cstr)
+{
 	IBStrClear(str);
 	IBStrAppendCStr(str, cstr);
 }
 
-void IBStrInitNTStr(IBStr* str, char* nullTerminated) {
+void IBStrInitNTStr(IBStr* str, char* nullTerminated)
+{
 	IBASSERT0(nullTerminated);
 	IBASSERT0(str);
 	IBOverwriteStr(&str->start, nullTerminated);
 	str->end = str->start + strlen(nullTerminated);
 }
 
-bool IBStrContainsAnyOfChars(IBStr* str, char* chars) {
+bool IBStrContainsAnyOfChars(IBStr* str, char* chars)
+{
 	char* p;
 	for (p = str->start; p < str->end; p++)
 		if (strchr(chars, *p)) return true;
 	return false;
 }
 
-long long int IBStrLen(IBStr* str) {
+long long int IBStrLen(IBStr* str)
+{
 	size_t len;
 	IBASSERT0(str);
 	IBASSERT0(str->end);
@@ -62,7 +71,8 @@ long long int IBStrLen(IBStr* str) {
 	return len;
 }
 
-void IBStrAppendCh(IBStr* str, char ch, int count) {
+void IBStrAppendCh(IBStr* str, char ch, int count)
+{
 	char astr[2];
 	if (count < 1) return;
 	IBASSERT0(str);
@@ -72,7 +82,8 @@ void IBStrAppendCh(IBStr* str, char ch, int count) {
 		IBStrAppendCStr(str, astr);
 }
 
-char* IBStrAppendCStr(IBStr* str, char* with) {
+char* IBStrAppendCStr(IBStr* str, char* with)
+{
 	void* ra;
 	size_t len;
 	size_t withLen;
@@ -94,7 +105,8 @@ char* IBStrAppendCStr(IBStr* str, char* with) {
 	return NULL;
 }
 
-void IBStrAppendFmt(IBStr* str, char* fmt, ...) {
+void IBStrAppendFmt(IBStr* str, char* fmt, ...)
+{
 	char buf[1024];
 	va_list args;
 	va_start(args, fmt);
@@ -103,7 +115,8 @@ void IBStrAppendFmt(IBStr* str, char* fmt, ...) {
 	IBStrAppendCStr(str, buf);
 }
 
-char* IBStrAppend(IBStr* str, IBStr* with) {
+char* IBStrAppend(IBStr* str, IBStr* with)
+{
 	void* ra;
 	size_t len;
 	size_t withLen;
@@ -125,7 +138,8 @@ char* IBStrAppend(IBStr* str, IBStr* with) {
 	return NULL;
 }
 
-int IBStrStripFront(IBStr* str, char ch) {
+int IBStrStripFront(IBStr* str, char ch)
+{
 	long long int slen = IBStrLen(str);
 	int in = 0;
 	char* rep = NULL;
@@ -174,7 +188,8 @@ void IBStrSplitBy(IBStr* str, char splitByCh, IBVector* toVec)
 	}
 }
 
-void Val2Str(char* dest, int destSz, IBVal v, IBOp type) {
+void Val2Str(char* dest, int destSz, IBVal v, IBOp type)
+{
 
 	switch (type) {
 	case OP_Number:
@@ -199,23 +214,27 @@ void Val2Str(char* dest, int destSz, IBVal v, IBOp type) {
 	}
 }
 
-char* StrConcat(char* dest, int count, char* src) {
+char* StrConcat(char* dest, int count, char* src)
+{
 	return strcat(dest, src);
 }
 
-char StrStartsWith(char* str, char* with) {
+char StrStartsWith(char* str, char* with)
+{
 	while (*with)
 		if (*str++ != *with++) return 0;
 	return 1;
 }
 
-IBOp IBStrToBool(IBLayer3* ibc, char* str) {
+IBOp IBStrToBool(IBLayer3* ibc, char* str)
+{
 	if (!strcmp(str, IB_TRUESTR)) return OP_True;
 	if (!strcmp(str, IBFALSESTR)) return OP_False;
 	return OP_Unknown;
 }
 
-IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str) {
+IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str)
+{
 	int numbers = 0;
 	int letters = 0;
 	int periods = 0;
@@ -247,7 +266,8 @@ IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str) {
 	return ret;
 }
 
-void IBOverwriteStr(char** str, char* with) {
+void IBOverwriteStr(char** str, char* with)
+{
 	IBassert(str);
 	IBassert(with);
 	if (!with) {

@@ -1,13 +1,15 @@
 #include "imbored.h"
 
-void removeExt(char* filename) {
+void removeExt(char* filename)
+{
 	char* dot = strrchr(filename, '.');
 	if(dot != NULL && dot != filename) {
 		*dot = '\0';
 	}
 }
 
-char* path2Filename(char* path) {
+char* path2Filename(char* path)
+{
 	char* last_slash = strrchr(path, '/');
 	if(last_slash != NULL) {
 		return last_slash + 1;
@@ -15,7 +17,8 @@ char* path2Filename(char* path) {
 	return path;
 }
 
-void IBcompFrontend(int argc, char** argv, int* rv) {
+void IBcompFrontend(int argc, char** argv, int* rv)
+{
 	if (argc < 2) {
 		printf("Please specify a file\n");
 		*rv = -1;

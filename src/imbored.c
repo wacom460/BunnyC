@@ -5,7 +5,8 @@
 #endif
 
 #ifdef IBDEBUGPRINTS
-void _PrintLine(char* f, int l) {
+void _PrintLine(char* f, int l)
+{
 	if (f) {
 		char* rf = f;
 		for(size_t i = strlen(f); i >= 0; i--) {
@@ -127,7 +128,8 @@ CLAMP_FUNC(long long int, ClampSizeT) { CLAMP_IMP }
 
 IBVector g_ColorStack;
 
-char* IBGetCEqu(IBOp op) {
+char* IBGetCEqu(IBOp op)
+{
 	int sz;
 	int i;
 	IBassert(op != OP_Unknown);
@@ -139,7 +141,8 @@ char* IBGetCEqu(IBOp op) {
 	return "[GetCEqu UNKNOWN!!!!]";
 }
 
-char* IBGetOpName(IBOp op) {
+char* IBGetOpName(IBOp op)
+{
 	int sz;
 	int i;
 	sz=sizeof(opNamesAR) / sizeof(opNamesAR[0]);
@@ -150,7 +153,8 @@ char* IBGetOpName(IBOp op) {
 	return "?";
 }
 
-char* IBGetPfxName(IBOp op) {
+char* IBGetPfxName(IBOp op)
+{
 	int sz;
 	int i;
 	sz=sizeof(pfxNames) / sizeof(pfxNames[0]);
@@ -161,7 +165,8 @@ char* IBGetPfxName(IBOp op) {
 	return "?";
 }
 
-IBOp IBGetOpFromNameList(char* name, IBOp list) {
+IBOp IBGetOpFromNameList(char* name, IBOp list)
+{
 #define IBListM(_OP, _PAIRS) case _OP: { \
 	int sz; \
 	int i; \
@@ -180,7 +185,8 @@ IBOp IBGetOpFromNameList(char* name, IBOp list) {
 #undef IBListM
 }
 
-IBOp IBOPFromPfxCh(char ch) {
+IBOp IBOPFromPfxCh(char ch)
+{
 	switch (ch) {
 	IBCASE_aTHRUz
 	IBCASE_ATHRUZ return OP_Letter_azAZ;
@@ -217,12 +223,14 @@ IBOp IBOPFromPfxCh(char ch) {
 	}
 }
 
-void IBPushColor(IBColor col) {
+void IBPushColor(IBColor col)
+{
 	IBVectorCopyPushIBColor(&g_ColorStack, col);
 	IBSetColor(col);
 }
 
-void IBPopColor() {
+void IBPopColor()
+{
 	IBColor* col;
 	_IBVectorPop(&g_ColorStack, NULL);
 	//IBassert(g_ColorStack.elemCount);
@@ -231,7 +239,8 @@ void IBPopColor() {
 	else IBSetColor(IBFgWHITE);
 }
 
-void IBSetColor(IBColor col) {
+void IBSetColor(IBColor col)
+{
 #ifdef _WIN32
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0);
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), col);

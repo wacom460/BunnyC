@@ -1,6 +1,7 @@
 #include "imbored.h"
 
-void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
+void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def)
+{
 	key->type = def.type;
 	switch (def.type) {
 	case IBDictDataType_Int: {
@@ -15,13 +16,15 @@ void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def) {
 	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, IBVEC_DEFAULT_SLOTCOUNT);
 }
 
-void IBDictKeyInitRoot(IBDictKey* key) {
+void IBDictKeyInitRoot(IBDictKey* key)
+{
 	memset(key, 0, sizeof(IBDictKey));
 	key->type = IBDictDataType_RootKey;
 	IBVectorInit(&key->children, sizeof(IBDictKey), OP_IBDictKey, IBVEC_DEFAULT_SLOTCOUNT);
 }
 
-void IBDictKeyFree(IBDictKey* key) {
+void IBDictKeyFree(IBDictKey* key)
+{
 	int idx = 0;
 	IBDictKey* sk = NULL;
 	IBassert(key);
@@ -30,7 +33,8 @@ void IBDictKeyFree(IBDictKey* key) {
 	IBVectorFreeSimple(&key->children);
 }
 
-IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack) {
+IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack)
+{
 	IBDictKeyDef* dp = NULL;
 	IBDictKey* key;
 	int idx = 0;
@@ -55,7 +59,8 @@ IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack) {
 	return key;
 }
 
-IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def) {
+IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def)
+{
 	int idx = 0;
 	IBDictKey* sk = NULL;
 	IBassert(key);
@@ -77,7 +82,8 @@ IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def) {
 	return NULL;
 }
 
-void IBDictKeyPrint(IBDictKey* key, int* childDepth) {
+void IBDictKeyPrint(IBDictKey* key, int* childDepth)
+{
 	int idx = 0;
 	int tc = 0;
 	IBDictKey* sk = NULL;
@@ -112,23 +118,6 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth) {
 	-- * childDepth;
 }
 
-//void IBDictionaryInit(IBDictionary* dict){
-//	IBDictKeyInit(&dict->rootKey, (IBDictKeyDef)
-//	{
-//		.type = IBDictDataType_RootKey,
-//			.key = NULL,
-//			.num = 0
-//	});
-//}
-
-//void IBDictionaryFree(IBDictionary* dict){
-//	IBDictKeyFree(&dict->rootKey);
-//}
-
-//IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack){
-//	return IBDictKeyFind(&dict->rootKey, keyStack);
-//}
-
 typedef enum {
 	IBDictManipAction_Unknown = 0,
 	IBDictManipAction_DataIn,
@@ -140,7 +129,8 @@ typedef enum {
 	IBDictManipAction_KeyPtrOut,
 } IBDictManipAction;
 
-IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...) {
+IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...)
+{
 	va_list args;
 	int i = 0;
 	IBDictKey* dk = NULL;
@@ -265,7 +255,8 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...) {
 	return dk;
 }
 
-IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath) {
+IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath)
+{
 	IBVector keyStack;
 	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, IBVEC_DEFAULT_SLOTCOUNT);
 	IBDictKeyDef* kd;
@@ -274,7 +265,8 @@ IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath) {
 	return NULL;
 }
 
-void IBDictTest() {
+void IBDictTest()
+{
 	{
 		IBDictKey rk;
 		IBDictKey* out = NULL;

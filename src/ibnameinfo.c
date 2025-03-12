@@ -1,19 +1,22 @@
 #include "imbored.h"
 
-void IBNameInfoInit(IBNameInfo* info) {
+void IBNameInfoInit(IBNameInfo* info)
+{
 	info->type = OP_NotSet;
 	info->cast = OP_NotSet;
 	info->name = NULL;
 	IBVectorInit(&info->members, sizeof(IBNameInfo), OP_NameInfo, IBVEC_DEFAULT_SLOTCOUNT);
 }
 
-void IBNameInfoFree(IBNameInfo* info) {
+void IBNameInfoFree(IBNameInfo* info)
+{
 	IBASSERT0(info);
 	IBVectorFree(&info->members, IBNameInfoFree);
 	free(info->name);
 }
 
-IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp type, IBNameInfo** niDP) {
+IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp type, IBNameInfo** niDP)
+{
 	IBNameInfo* info = NULL, * found = NULL;
 	IBassert(ibc);
 	IBASSERT0(ni);
@@ -32,7 +35,8 @@ IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp 
 	return OP_OK;
 }
 
-IBOp IBNameInfoFindType(IBNameInfo* ni, char* name) {
+IBOp IBNameInfoFindType(IBNameInfo* ni, char* name)
+{
 	IBNameInfo* pair=0;
 	int idx=0;
 	while (pair = IBVectorIterNext(&ni->members, &idx)) {
@@ -42,7 +46,8 @@ IBOp IBNameInfoFindType(IBNameInfo* ni, char* name) {
 	return OP_NotFound;
 }
 
-IBNameInfo* _IBNameInfoFindMember(IBNameInfo* ni, char* name, int lineNum) {
+IBNameInfo* _IBNameInfoFindMember(IBNameInfo* ni, char* name, int lineNum)
+{
 	IBNameInfo* pair = NULL;
 	int idx = 0;
 	IBassert(ni);

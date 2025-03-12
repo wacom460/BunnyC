@@ -1,6 +1,7 @@
 #include "imbored.h"
 
-void IBCodeBlockInit(IBCodeBlock* block) {
+void IBCodeBlockInit(IBCodeBlock* block)
+{
 	IBASSERT0(block);
 	IB_SETMAGICP(block);
 	IBStrInit(&block->header);
@@ -13,7 +14,8 @@ void IBCodeBlockInit(IBCodeBlock* block) {
 	IBNameInfoInit(&block->localVariables);
 }
 
-void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output) {
+void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output)
+{
 	IBASSERT0(block);
 	IB_ASSERTMAGICP(block);
 	IBStrAppendFmt(output,
@@ -27,7 +29,8 @@ void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output) {
 		block->footer.start);
 }
 
-void IBCodeBlockFree(IBCodeBlock* block) {
+void IBCodeBlockFree(IBCodeBlock* block)
+{
 	IBASSERT0(block);
 	IB_ASSERTMAGICP(block);
 	IBNameInfoFree(&block->localVariables);
