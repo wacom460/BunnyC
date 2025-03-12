@@ -79,7 +79,7 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IBCOMMENT_CHAR_CLOSE (')')
 #define IBLayer3STR_MAX 64
 
-#define IB_WARN_ON_REALLOC 0
+#define IB_WARN_ON_REALLOC 1
 
 #if IB_WARN_ON_REALLOC
 #define IBREALLOCWARNING\

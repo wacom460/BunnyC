@@ -1004,10 +1004,11 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 			IBassert(o->type == OP_VarWantValue);
 			if(ibc->DefiningStruct && ibc->DefiningStructTypeInfo)
 			{
-				IBTypeInfo*ti=0;
+				IBTypeInfo* ti = 0;
 				IBVectorPush(&ibc->DefiningStructTypeInfo->members, &ti);
 				IBTypeInfoInit(ti, OP_StructVar, o->name);
-				DB;
+				ti->StructVar.type = o->var.type;
+				ti->StructVar.privacy = o->var.privacy;
 			}
 			IBLayer3PopObj(ibc, true, &o);
 			IBLayer3FinishTask(ibc);

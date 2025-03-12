@@ -74,7 +74,6 @@ struct IBVecData;
 
 #define IBVEC_PUSHINFO_MAX (32)
 #define IBVEC_DEFAULT_SLOTCOUNT 16
-#define IBVEC_WARNINGS 1
 
 typedef struct IBVecPushInfo {
 	struct IBVecData* ptr;
