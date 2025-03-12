@@ -16,6 +16,7 @@
 #define IB_SETMAGIC(o) \
 	(o).initMagic = IBMAGIC
 #define IB_FILE_EXT "ib"
+
 #ifndef bool
 #define bool char
 #endif
@@ -59,6 +60,8 @@ void IBStrInitWithCStr(IBStr* str, char* cstr);
 //you cannot use IBStrFree on a IBStr init'd with this
 void IBStrInitExt(IBStr* str, char* cstr);
 
+typedef struct IBVector IBVector;
+
 void IBStrFree(IBStr* str);
 void IBStrClear(IBStr* str);
 void IBStrReplaceWithCStr(IBStr* str, char* cstr);
@@ -70,6 +73,7 @@ char* IBStrAppendCStr(IBStr* str, char* with);
 void IBStrAppendFmt(IBStr* str, char* fmt, ...);
 char* IBStrAppend(IBStr* str, IBStr* with);
 int IBStrStripFront(IBStr* str, char ch);
+void IBStrSplitBy(IBStr* str, char ch, IBVector* toVec);
 
 struct IBVecData;
 
@@ -82,6 +86,7 @@ typedef struct IBVecPushInfo {
 	char* filePath;
 	int lineNum;
 } IBVecPushInfo;
+
 typedef struct IBVector {
 	long long int elemSize;
 	IBOp type;
@@ -96,6 +101,7 @@ typedef struct IBVector {
 	struct IBVecData* data;/*DATA BLOCK*/
 	IBVecPushInfo PushInfo[IBVEC_PUSHINFO_MAX];
 } IBVector;
+
 void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count);
 struct IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);

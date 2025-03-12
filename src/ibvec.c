@@ -85,8 +85,8 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 	int pil = ClampInt(vec->elemCount, 0, IBVEC_PUSHINFO_MAX - 1);
 	vec->PushInfo[pil].lineNum = ln;
 	vec->PushInfo[pil].filePath = file;
-	_IBVectorReinitPushInfo(vec);
 	vec->elemCount++;
+	_IBVectorReinitPushInfo(vec);
 	if (dataDP) *dataDP = topPtr;
 }
 

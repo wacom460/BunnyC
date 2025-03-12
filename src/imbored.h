@@ -36,7 +36,7 @@ case OP_BlockWantCode:     \
 case OP_IfBlockWantCode:   \
 case OP_FuncWantCode:
 
-#define IBCASE_UNIMPLEMENTED                       \
+#define IBCASE_UNIMPLEMENTED \
 default: {                               \
 	Err(OP_Error, "Unimplemented case"); \
 	break;                               \
@@ -48,7 +48,7 @@ default: {                               \
 }
 
 #define IB_STARTS_WITH_SELFDOT(o)\
-	((strnlen((o), 5)>=5)&&(!strncmp((o),"self.",5)))
+	((strnlen((o), 5)>=5) && (!strncmp((o),"self.",5)))
 #define IB_SELFDOTLESS_NTSP(o) ((o)+5)
 
 #define IBCASE_0THRU9 case '0': case '1': case '2': case '3': \
@@ -464,14 +464,6 @@ typedef struct IBTask {
 void TaskInit(IBTask* t, IBOp type);
 void TaskFree(IBTask* t);
 void TaskFindWorkingObj(IBTask*t,IBOp type, IBObj**outDP);
-
-/*IBSharedState: shared state between
-	multiple IBLayer3 instances*/
-	//TODO: make race condition safe
-typedef struct IBSharedState {
-	//cant define output settings in more than one file...
-	bool outputSettingsDefined;
-} IBSharedState;
 
 typedef struct IBExpression {
 	IBCodeBlock cb;

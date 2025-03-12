@@ -149,6 +149,31 @@ int IBStrStripFront(IBStr* str, char ch) {
 	return in;
 }
 
+void IBStrSplitBy(IBStr* str, char splitByCh, IBVector* toVec)
+{
+	if(!str || !str->start || !str->end || !toVec || toVec->type != OP_IBStr) return;
+	long long len = IBStrLen(str);
+	IBStr* cur = 0;
+	for(long long i = 0; i < len; ++i)
+	{
+		if(!cur) {
+			IBVectorPush(toVec, &cur);
+			IBStrInit(cur);
+		}
+
+		char ch = str->start[i];
+
+		if(ch == splitByCh)
+		{
+			cur = 0;
+		}
+		else {
+			IBStrAppendCh(cur, ch, 1);
+			DbgFmt("%c\n", ch);
+		}
+	}
+}
+
 void Val2Str(char* dest, int destSz, IBVal v, IBOp type) {
 
 	switch (type) {

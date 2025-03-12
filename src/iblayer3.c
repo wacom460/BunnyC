@@ -1483,6 +1483,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 				IBStrAppendFmt(&t->code.code, "%s%s_%s", "", o->str, o->name);
 				break;
 			}
+			//lots of overlap with Val2Str...
 			case OP_Value: {
 				gotVal = true;
 				switch(o->valType) {
@@ -1507,7 +1508,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 					IBStrAppendFmt(&t->code.code, "%s", o->val.boolean > 0 ? "1" : "0");
 					break;
 				}
-							  IBCASE_UNIMPLEMENTED
+				IBCASE_UNIMPLEMENTED
 				}
 				if(onOp) {
 					IBStrAppendFmt(&t->code.header, "%s", "(");
@@ -2432,6 +2433,16 @@ void IBLayer3StrPayload(IBLayer3* ibc) {
 	IBObj* o;
 	IBOp valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
 	strVal.i64 = 0;
+	if(ibc->DotPathOn)
+	{
+		IBStr dpStr;
+		IBStrInitWithCStr(&dpStr, ibc->Str);
+		IBVectorClear(&ibc->DotPathVec, IBStrFree);
+		//if(!strcmp(ibc->Str, "f.name")) DB;
+		IBStrSplitBy(&dpStr, '.', &ibc->DotPathVec);
+		IBStrFree(&dpStr);
+		//DB;
+	}
 	t = IBLayer3GetTask(ibc);
 	o = IBLayer3GetObj(ibc);
 	if(ibc->TaskStack.elemCount >= 2) {
@@ -3139,11 +3150,12 @@ top:
 										 IBNameInfo* ni = NULL;
 										 IBOp rc = 0;
 										 IBObjSetName(o, ibc->Str);
+										 IBOp realType = o->var.type == OP_Unknown && o->var.ti ? o->var.ti->type : o->var.type;
 										 rc = IBNameInfoDBAdd(ibc,
 											 (tParent && tParent->type == OP_RootTask) ?
 											 &ibc->GlobalVariables : &cb->localVariables,
-											 ibc->Str, o->var.type, &ni);
-										 ni->type = o->var.type;
+											 ibc->Str, realType, &ni);
+										 ni->type = realType;
 										 ni->ti = o->var.ti;
 										 /*if(rc == OP_AlreadyExists)
 											 Err(OP_Error, "name already in use");
