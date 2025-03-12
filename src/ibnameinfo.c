@@ -29,6 +29,7 @@ IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp 
 	}
 	IBVectorPush(&ni->members, &info);
 	IBassert(info);
+	IBNameInfoInit(info);
 	info->type = type;
 	info->name = strdup(name);
 	if (niDP) (*niDP) = info;
