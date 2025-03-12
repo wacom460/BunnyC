@@ -1,6 +1,7 @@
 #include "imbored.h"
 
-void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name) {
+void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name)
+{
 	IBASSERT0(ti);
 	memset(ti, 0, sizeof * ti);
 	IBStrInitWithCStr(&ti->name, name);
@@ -10,14 +11,16 @@ void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name) {
 	IB_SETMAGICP(ti);
 }
 
-void IBTypeInfoFree(IBTypeInfo* ti) {
+void IBTypeInfoFree(IBTypeInfo* ti)
+{
 	IBASSERT0(ti);
 	IB_ASSERTMAGICP(ti);
 	IBVectorFree(&ti->members, IBTypeInfoFree);
 	IBStrFree(&ti->name);
 }
 
-void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP) {
+void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP)
+{
 	IBTypeInfo* nti = 0;
 	int idx = 0;
 	IBASSERT0(ti);

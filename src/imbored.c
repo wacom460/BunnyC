@@ -28,8 +28,6 @@ void _PrintLine(char* f, int l) {
 }
 #endif
 
-IBDatabase* g_DB;
-
 #define X(a) {#a, OP_##a},
 IBOpNamePair opNamesAR[] = {
 	_IB_OPS_
@@ -114,11 +112,6 @@ IBOpNamePair dbgAssertsNP[] = {
 	{"notEmpty", OP_NotEmpty}
 };
 
-char* ml_str_test = STRING_MULTILINE(
-	fuck\n
-	fuck
-);
-
 char* SysLibCodeStr =
 "space $sys" LE
 "pub" LE
@@ -133,22 +126,6 @@ CLAMP_FUNC(int, ClampInt) { CLAMP_IMP }
 CLAMP_FUNC(long long int, ClampSizeT) { CLAMP_IMP }
 
 IBVector g_ColorStack;
-
-void IBDatabaseInit(IBDatabase* db) {
-	IBStr fn;
-	IBStr on;
-	IBStrInitExt(&fn, "");
-	IBStrInitExt(&on, "root");
-	db->root = IB_DBObjNew(&fn, 0, 0, OP_RootObj, &on);
-}
-
-void IBDatabaseFree(IBDatabase* db){
-	IB_DBObjFree(db->root);
-}
-
-IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location){
-	return NULL;
-}
 
 char* IBGetCEqu(IBOp op) {
 	int sz;

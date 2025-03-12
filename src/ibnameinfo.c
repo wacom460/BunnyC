@@ -13,15 +13,6 @@ void IBNameInfoFree(IBNameInfo* info) {
 	free(info->name);
 }
 
-//void IBNameInfoDBInit(IBNameInfoDB* db) {
-//	IBVectorInit(&db->pairs, sizeof(IBNameInfo), OP_NameInfo, IBVEC_DEFAULT_SLOTCOUNT);
-//}
-//
-//void IBNameInfoDBFree(IBNameInfoDB* db) {
-//	IBASSERT0(db);
-//	IBVectorFree(&db->pairs, IBNameInfoFree);
-//}
-
 IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp type, IBNameInfo** niDP) {
 	IBNameInfo* info = NULL, * found = NULL;
 	IBassert(ibc);

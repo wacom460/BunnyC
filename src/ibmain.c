@@ -43,24 +43,17 @@ void IBcompFrontend(int argc, char** argv, int* rv) {
 	}
 }
 
-int
-main(argc, argv)
-int argc;
-char**argv;
+int main(int argc, char** argv)
 {
 	//IBDictTest();
 	int rv = 1;
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor, 512);
 	g_ColorStack.doNotShrink=1;
 	IBPushColor(IBFgWHITE);
-	IBDatabase db;
-	g_DB = &db;
-	IBDatabaseInit(g_DB);
 
 	IBcompFrontend(argc, argv, &rv);
 
 	IBVectorFreeSimple(&g_ColorStack);
 
-	IBDatabaseFree(g_DB);
 	return rv;
 }

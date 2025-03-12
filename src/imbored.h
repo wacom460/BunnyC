@@ -92,7 +92,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 	nptr = realloc(ptr,sz);\
 	IBREALLOCWARNING
 
-
 #define IBASSERT0(x) { \
 	if(!(x)) { \
 		printf("[%d]Assertion failed!!! %s\n", __LINE__, #x); \
@@ -294,18 +293,13 @@ typedef struct IBNameInfo {
 	IBVector members; //IBNameInfo
 } IBNameInfo;
 
-//typedef struct IBNameInfoDB {
-//	IBVector pairs;//IBNameInfo
-//} IBNameInfoDB;
-
 void IBNameInfoInit(IBNameInfo* info);
 void IBNameInfoFree(IBNameInfo* info);
-//void IBNameInfoDBInit(IBNameInfoDB* db);
-//void IBNameInfoDBFree(IBNameInfoDB* db);
 IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp type, IBNameInfo** niDP);
 IBOp IBNameInfoFindType(IBNameInfo* ni, char* name);
 IBNameInfo* _IBNameInfoFindMember(IBNameInfo* ni, char* name, int lineNum);
-#define IBNameInfoFindMember(ni,name) _IBNameInfoFindMember(ni,name,__LINE__)
+#define IBNameInfoFindMember(ni, name) \
+	_IBNameInfoFindMember(ni, name, __LINE__)
 
 typedef struct IBCodeBlock {
 	IBStr header;
@@ -323,28 +317,6 @@ void IBCodeBlockInit(IBCodeBlock* block);
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output);
 void IBCodeBlockFree(IBCodeBlock* block);
 
-typedef struct IB_DBObj {
-	IBStr fileName;
-	int fileLine;
-	int fileColumn;
-	IBOp type;
-	IBStr name;
-	IBVector children;/*IB_DBObj*/
-} IB_DBObj;
-
-IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn,
-	IBOp objType, IBStr* objName);
-void IB_DBObjFree(IB_DBObj* obj);
-
-typedef struct IBDatabase {
-	IB_DBObj* root;
-} IBDatabase;
-
-extern IBDatabase* g_DB;
-
-void IBDatabaseInit(IBDatabase* db);
-void IBDatabaseFree(IBDatabase* db);
-IB_DBObj* IBDatabaseFind(IBDatabase* db, IBStr location);
 char* IBGetOpName(IBOp op);
 
 typedef struct IBObj {
@@ -509,6 +481,7 @@ typedef struct IBLayer3 {
 	char Ch;
 	char LastCh;
 	char DefiningStruct;
+	IBTypeInfo* DefiningStructTypeInfo;
 	char DefiningMethods;
 
 	//[DOT PATH]

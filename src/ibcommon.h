@@ -29,8 +29,6 @@
 #define IB_TRUESTR "true"
 #define IBFALSESTR "false"
 
-#define STRING_MULTILINE(...) #__VA_ARGS__
-
 #ifdef __TINYC__
 int memcpy_s(void* dest, long long destsz, void* src, long long count);
 long long strnlen(char* s, long long maxlen);

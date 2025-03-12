@@ -1,6 +1,7 @@
 #include "imbored.h"
 
-void TaskInit(IBTask* t, IBOp type) {
+void TaskInit(IBTask* t, IBOp type)
+{
 	IBVectorInit(&t->working, sizeof(IBObj), OP_Obj, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&t->expStack, sizeof(IBExpects), OP_Expects, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&t->subTasks, sizeof(IBTask), OP_Task, IBVEC_DEFAULT_SLOTCOUNT);
@@ -9,7 +10,8 @@ void TaskInit(IBTask* t, IBOp type) {
 	memset(&t->exprData, 0, sizeof(IBTaskNeedExpression));
 }
 
-void TaskFree(IBTask* t) {
+void TaskFree(IBTask* t)
+{
 	IBassert(t);
 	IBCodeBlockFree(&t->code);
 	IBVectorFree(&t->subTasks, TaskFree);
@@ -17,7 +19,8 @@ void TaskFree(IBTask* t) {
 	IBVectorFree(&t->working, ObjFree);
 }
 
-void TaskFindWorkingObj(IBTask* t, IBOp type, IBObj** outDP) {
+void TaskFindWorkingObj(IBTask* t, IBOp type, IBObj** outDP)
+{
 	IBObj* o = 0;
 	int idx = 0;
 	IBassert(t);
@@ -29,7 +32,8 @@ void TaskFindWorkingObj(IBTask* t, IBOp type, IBObj** outDP) {
 	}
 }
 
-IBExpects* IBTaskGetExpTop(IBTask* t) {
+IBExpects* IBTaskGetExpTop(IBTask* t)
+{
 	IBExpects* ret;
 	IBassert(t);
 	ret = (IBExpects*)IBVectorTop(&t->expStack);
@@ -37,7 +41,8 @@ IBExpects* IBTaskGetExpTop(IBTask* t) {
 	return ret;
 }
 
-IBVector* IBTaskGetExpPfxsTop(IBTask* t) {
+IBVector* IBTaskGetExpPfxsTop(IBTask* t)
+{
 	IBExpects* ret;
 	IBassert(t);
 	ret = (IBExpects*)IBVectorTop(&t->expStack);
@@ -45,7 +50,8 @@ IBVector* IBTaskGetExpPfxsTop(IBTask* t) {
 	return &ret->pfxs;
 }
 
-IBVector* IBTaskGetExpNameOPsTop(IBTask* t) {
+IBVector* IBTaskGetExpNameOPsTop(IBTask* t)
+{
 	IBExpects* ret;
 	IBassert(t);
 	ret = (IBExpects*)IBVectorTop(&t->expStack);

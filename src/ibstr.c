@@ -259,31 +259,3 @@ void IBOverwriteStr(char** str, char* with) {
 	*str = strdup(with);
 	IBassert(*str);
 }
-
-IB_DBObj* IB_DBObjNew(IBStr* fileName, int fileLine, int fileColumn,
-	IBOp objType, IBStr* objName) {
-	IB_DBObj* ret = NULL;
-	ret = malloc(sizeof * ret);
-	IBassert(ret);
-	if (ret) {
-		bool cic = false;
-		IBStrInit(&ret->fileName);
-		IBStrAppend(&ret->fileName, fileName);
-		ret->fileLine = fileLine;
-		ret->fileColumn = fileColumn;
-		ret->type = objType;
-		IBStrInit(&ret->name);
-		IBStrAppend(&ret->name, objName);
-		cic = IBStrContainsAnyOfChars(&ret->name, IB_IllegalDbObjNameChars);
-		IBassert(!cic);
-		IBVectorInit(&ret->children, sizeof(IB_DBObj), OP_DBObj, IBVEC_DEFAULT_SLOTCOUNT);
-	}
-	return ret;
-}
-
-void IB_DBObjFree(IB_DBObj* obj) {
-	IBStrFree(&obj->name);
-	IBStrFree(&obj->fileName);
-	IBVectorFree(&obj->children, IB_DBObjFree);
-	free(obj);
-}
