@@ -29,8 +29,7 @@ void _PrintLine(char*f, int l);
 
 #define IBRUN_MAXARGS 10
 
-#define IBCASE_BLOCKWANTCODE \
-case OP_LoopBlockWantCode: \
+#define IBCASE_BLOCKWANTCODE case OP_LoopBlockWantCode: \
 case OP_CaseWantCode:      \
 case OP_BlockWantCode:     \
 case OP_IfBlockWantCode:   \
@@ -79,7 +78,7 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IBCOMMENT_CHAR_CLOSE (')')
 #define IBLayer3STR_MAX 64
 
-#define IB_WARN_ON_REALLOC 1
+#define IB_WARN_ON_REALLOC 0
 
 #if IB_WARN_ON_REALLOC
 #define IBREALLOCWARNING\

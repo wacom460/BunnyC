@@ -1,3 +1,8 @@
 struct $entity
 	i32 $id
 _
+
+blk $main -> i32
+	entity $e
+	"%%" $e.id
+_ 0

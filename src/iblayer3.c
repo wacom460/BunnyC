@@ -14,10 +14,11 @@ IBNameInfo* IBLayer3TryFindNameInfoInStructVar(IBLayer3* ibc, IBNameInfo* ni)
 		if(sni && sni->ti && sni->ti->members.elemCount) {
 			for(int i = 1; i < ibc->DotPathVec.elemCount; i++) {
 				IBStr* ds = (IBStr*) IBVectorGet(&ibc->DotPathVec, i);
-				IBNameInfo* mvNi = (IBNameInfo*) IBVectorGet(&sni->members, i - 1);
-				if(!strcmp(ds->start, mvNi->name)) {
+				IBTypeInfo* mvTi = (IBTypeInfo*) IBVectorGet(&sni->ti->members, i - 1);
+				if(!strcmp(ds->start, mvTi->name.start)) {
 					DB;
 				}
+				DB;
 			}
 		}
 	}
@@ -3076,16 +3077,22 @@ top:
 					parentTaskType ?
 					&ibc->GlobalVariables : &cb->localVariables,
 					ibc->Str, realType, &ni);
-				switch(parentTaskType)
+				ni->type = realType;
+				ni->ti = ti;
+				/*switch(parentTaskType)
 				{
 				IBCASE_BLOCKWANTCODE
 				{
-					DB;
+					IBTypeInfo* mvTi = 0;
+					int mvIdx = 0;
+					while(mvTi = IBVectorIterNext(&ti->members, &mvIdx))
+					{
+						
+						DB;
+					}				
 					break;
 				}
-				}
-				ni->type = realType;
-				ni->ti = o->var.ti;
+				}*/
 				/*if(rc == OP_AlreadyExists)
 					Err(OP_Error, "name already in use");
 				IBassert(rc == OP_OK);*/
