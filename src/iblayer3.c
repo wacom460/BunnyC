@@ -1096,7 +1096,6 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 		ibc->Imaginary = false;
 		ibc->Pfx = OP_Null;
 		ibc->DotPathOn = false;
-		IBVectorClear(&ibc->DotPathVec, IBStrFree);
 		break;
 	}
 	}
@@ -1463,8 +1462,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		IBStrAppendCh(&cb->variables, '\t', tabCount);
 		IBObj* vo = 0;
 		TaskFindWorkingObj(t, OP_VarNeedExpr, &vo);
-		IBassert(vo);
-		IBLayer3FindType(ibc, vo->str, &ti);
+		IBObj* aonWo = 0;
+		/*TaskFindWorkingObj(t, OP_ActOnName, &aonWo);
+		IBassert(vo);*/
+		char* vn = vo->str != NULL ? vo->str/* : aonWo != NULL ? aonWo->name*/ : NULL;
+		IBLayer3FindType(ibc, vn, &ti);
 		IBassert(ti);
 		IBStr stf;
 		IBStrInit(&stf);
@@ -2220,20 +2222,21 @@ void IBLayer3Prefix(IBLayer3* ibc)
 	case OP_Subtract:
 	case OP_Multiply:
 	case OP_Divide:
-	case OP_Dot://context aware
+	case OP_Dot: //context aware
 	case OP_Caret:
 	case OP_Underscore:
 	case OP_BracketOpen:
-		//case OP_BracketClose:
+	//case OP_BracketClose:
 	case OP_CurlyBraceOpen:
-		//case OP_CurlyBraceClose:
+	//case OP_CurlyBraceClose:
 	case OP_Comma:
 	case OP_Exclaim:
 	case OP_Value:
 	case OP_Op:
 	case OP_Name: {
 		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
-		ibc->DotPathOn = true;
+		ibc->DotPathOn = true;		
+		IBVectorClear(&ibc->DotPathVec, IBStrFree);
 		/*getchar();*/
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
 	}
@@ -3674,6 +3677,19 @@ top:
 	}
 	/* < PFXLESSTHAN */ case OP_LessThan: {
 		switch(t->type) {
+		case OP_ActOnName: {
+			switch(ibc->NameOp) {
+			case OP_Subtract: {
+				o = IBLayer3GetObj(ibc);
+				SetTaskType(t, OP_ExprToName);
+				SetObjType(o, OP_ExprToName);
+				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
+				break;
+			}
+			IBCASE_UNIMPLEMENTED
+			}
+			break;
+		}
 		case OP_VarWantValue: {
 			switch(ibc->NameOp) {
 			case OP_Subtract: {
@@ -3687,7 +3703,6 @@ top:
 			}
 			break;
 		}
-		case OP_ActOnName:
 		case OP_BuildingIf: {
 			IBExpects* exp;
 			switch(o->type) {

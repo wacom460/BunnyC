@@ -2,7 +2,13 @@ struct $entity
 	i32 $id
 _
 
+enum $testE
+	$c
+_
+
 blk $main -> i32
+	testE $te <- .c
 	entity $e
+	$e.id <- 10
 	"%%" $e.id
 _ 0
