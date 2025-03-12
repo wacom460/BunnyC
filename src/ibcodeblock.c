@@ -10,7 +10,7 @@ void IBCodeBlockInit(IBCodeBlock* block) {
 	IBStrInit(&block->code);
 	IBStrInit(&block->codeRight);
 	IBStrInit(&block->footer);
-	IBNameInfoDBInit(&block->localVariables);
+	IBNameInfoInit(&block->localVariables);
 }
 
 void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output) {
@@ -30,7 +30,7 @@ void IBCodeBlockFinish(IBCodeBlock* block, IBStr* output) {
 void IBCodeBlockFree(IBCodeBlock* block) {
 	IBASSERT0(block);
 	IB_ASSERTMAGICP(block);
-	IBNameInfoDBFree(&block->localVariables);
+	IBNameInfoFree(&block->localVariables);
 	IBStrFree(&block->header);
 	IBStrFree(&block->variables);
 	IBStrFree(&block->varsInit);

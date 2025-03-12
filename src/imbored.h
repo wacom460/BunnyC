@@ -260,7 +260,7 @@ typedef struct IBTypeInfo {
 	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
 	struct IBTypeInfo* structVarType;
 	IBStr name;
-	IBVector members;
+	IBVector members;//IBTypeInfo
 	struct {
 		char isFlags;
 	} Enum;
@@ -291,20 +291,21 @@ typedef struct IBNameInfo {
 	IBTypeInfo*ti;
 	IBOp cast;
 	char* name;
+	IBVector members; //IBNameInfo
 } IBNameInfo;
 
-typedef struct IBNameInfoDB {
-	IBVector pairs;//IBNameInfo
-} IBNameInfoDB;
+//typedef struct IBNameInfoDB {
+//	IBVector pairs;//IBNameInfo
+//} IBNameInfoDB;
 
 void IBNameInfoInit(IBNameInfo* info);
 void IBNameInfoFree(IBNameInfo* info);
-void IBNameInfoDBInit(IBNameInfoDB* db);
-void IBNameInfoDBFree(IBNameInfoDB* db);
-IBOp IBNameInfoDBAdd(struct IBLayer3* ibc, IBNameInfoDB* db, char* name, IBOp type, IBNameInfo** niDP);
-IBOp IBNameInfoDBFindType(IBNameInfoDB* db, char* name);
-IBNameInfo* _IBNameInfoDBFind(IBNameInfoDB* db, char* name, int lineNum);
-#define IBNameInfoDBFind(db,name) _IBNameInfoDBFind(db,name,__LINE__)
+//void IBNameInfoDBInit(IBNameInfoDB* db);
+//void IBNameInfoDBFree(IBNameInfoDB* db);
+IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp type, IBNameInfo** niDP);
+IBOp IBNameInfoFindType(IBNameInfo* ni, char* name);
+IBNameInfo* _IBNameInfoFindMember(IBNameInfo* ni, char* name, int lineNum);
+#define IBNameInfoFindMember(ni,name) _IBNameInfoFindMember(ni,name,__LINE__)
 
 typedef struct IBCodeBlock {
 	IBStr header;
@@ -314,7 +315,7 @@ typedef struct IBCodeBlock {
 	IBStr code;
 	IBStr codeRight;
 	IBStr footer;
-	IBNameInfoDB localVariables;
+	IBNameInfo localVariables;
 	IB_DEFMAGIC;
 } IBCodeBlock;
 
@@ -501,7 +502,7 @@ typedef struct IBLayer3 {
 	IBVector StrReadPtrsStack; /*bool*/
 	IBVector CodeBlockStack; /*IBCodeBlock*/
 	IBVector ExpressionStack; /*IBExpression*/
-	IBNameInfoDB GlobalVariables;
+	IBNameInfo GlobalVariables;
 
 	char* InputStr;
 	IBStr CurSpace;
@@ -557,6 +558,7 @@ void IBLayer3RegisterCustomType(IBLayer3*ibc,char*name,
 void IBLayer3FindType(IBLayer3*ibc,char*name,IBTypeInfo**outDP);
 void IBLayer3CompileTCC(IBLayer3* ibc);
 IBObj* IBLayer3GetObj(IBLayer3* ibc);
+IBNameInfo* IBLayer3TryFindNameInfoInStructVar(IBLayer3* ibc, IBNameInfo* ni);
 IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln);
 #define IBLayer3SearchNameInfo(ibc,name)\
 	_IBLayer3SearchNameInfo(ibc,name,__LINE__)
@@ -615,6 +617,8 @@ void _IBLayer3Pop(IBLayer3* ibc);
 	PLINE;\
 	_IBLayer3Pop(ibc);\
 }
+
+void IBStrSplitBy(IBStr* str, char ch, IBVector* toVec);
 
 /*life:0 = infinite, -1 life each pfx*/
 void IBLayer3PushExpects(IBLayer3* ibc, IBExpects** expDP);

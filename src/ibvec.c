@@ -8,7 +8,6 @@ struct IBVecData {
 		IBOp op;
 		bool boolean;
 		IBExpects expects;
-		IBNameInfoDB niDB;
 		IBNameInfo ni;
 		IBDictKey dictKey;
 		IBDictKeyDef dictKeyDef;

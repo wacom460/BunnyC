@@ -169,7 +169,7 @@ void IBStrSplitBy(IBStr* str, char splitByCh, IBVector* toVec)
 		}
 		else {
 			IBStrAppendCh(cur, ch, 1);
-			DbgFmt("%c\n", ch);
+			//DbgFmt("%c\n", ch);
 		}
 	}
 }

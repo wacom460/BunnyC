@@ -60,8 +60,6 @@ void IBStrInitWithCStr(IBStr* str, char* cstr);
 //you cannot use IBStrFree on a IBStr init'd with this
 void IBStrInitExt(IBStr* str, char* cstr);
 
-typedef struct IBVector IBVector;
-
 void IBStrFree(IBStr* str);
 void IBStrClear(IBStr* str);
 void IBStrReplaceWithCStr(IBStr* str, char* cstr);
@@ -73,7 +71,6 @@ char* IBStrAppendCStr(IBStr* str, char* with);
 void IBStrAppendFmt(IBStr* str, char* fmt, ...);
 char* IBStrAppend(IBStr* str, IBStr* with);
 int IBStrStripFront(IBStr* str, char ch);
-void IBStrSplitBy(IBStr* str, char ch, IBVector* toVec);
 
 struct IBVecData;
 

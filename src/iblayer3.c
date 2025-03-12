@@ -3,6 +3,25 @@
 IBObj* IBLayer3GetObj(IBLayer3* ibc) {
 	return (IBObj*) IBVectorTop(&ibc->ObjStack);
 }
+
+//$structObj.memberVar
+IBNameInfo* IBLayer3TryFindNameInfoInStructVar(IBLayer3* ibc, IBNameInfo* ni) {
+	if(ibc->DotPathVec.elemCount >= 2) {
+		IBStr* first = (IBStr*)IBVectorGet(&ibc->DotPathVec, 0);
+		IBNameInfo* sni = IBNameInfoFindMember(ni, first->start);
+		if(sni && sni->ti && sni->ti->members.elemCount) {
+			for(int i = 1; i < ibc->DotPathVec.elemCount; i++) {
+				IBStr* ds = (IBStr*) IBVectorGet(&ibc->DotPathVec, i);
+				IBTypeInfo* ti = (IBTypeInfo*) IBVectorGet(&sni->ti->members, i - 1);
+				if(!strcmp(ds->start, ti->name.start)) {
+					DB;
+				}
+			}
+		}
+	}
+	return NULL;
+}
+
 IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln) {
 	int idx;
 	IBNameInfo* ni = NULL;
@@ -15,12 +34,14 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln) {
 	while(idx >= 0) {
 		IBCodeBlock* cb = (IBCodeBlock*) IBVectorGet(&ibc->CodeBlockStack, idx);
 		IBassert(cb);
-		IB_ASSERTMAGICP(&cb->localVariables.pairs);
-		ni = IBNameInfoDBFind(&cb->localVariables, name);
+		IB_ASSERTMAGICP(&cb->localVariables.members);
+		ni = IBNameInfoFindMember(&cb->localVariables, name);
 		if(ni) return ni;
+		else ni = IBLayer3TryFindNameInfoInStructVar(ibc, &cb->localVariables);
 		idx--;
 	}
-	ni = IBNameInfoDBFind(&ibc->GlobalVariables, name);
+	ni = IBNameInfoFindMember(&ibc->GlobalVariables, name);
+	if(!ni) ni = IBLayer3TryFindNameInfoInStructVar(ibc, &ibc->GlobalVariables);
 	return ni;
 }
 //void IBLayer3PrintVecData(struct IBVecData* data, IBOp type){
@@ -288,7 +309,7 @@ IBLayer3Init
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
 	ibc->CommentMode = OP_NotSet;
-	IBNameInfoDBInit(&ibc->GlobalVariables);
+	IBNameInfoInit(&ibc->GlobalVariables);
 	IBStrInit(&ibc->CurSpace);
 	IBVectorInit(&ibc->ObjStack, sizeof(IBObj), OP_Obj, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&ibc->ModeStack, sizeof(IBOp), OP_Op, IBVEC_DEFAULT_SLOTCOUNT);
@@ -327,7 +348,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 	if(ibc->StringMode)
 		Err(OP_Error, "Reached end of file without closing string");
 	if(ibc->Str[0]) IBLayer3StrPayload(ibc);
-	if(cb->localVariables.pairs.elemCount)
+	if(cb->localVariables.members.elemCount)
 		Err(OP_Error, "root codeblock can't have variables in it!!!");
 	t = IBLayer3GetTask(ibc);
 	if(ibc->TaskStack.elemCount) {
@@ -396,7 +417,7 @@ void IBLayer3Free(IBLayer3* ibc) {
 		ibc->SpaceNameStr = NULL;
 	}*/
 	IBStrFree(&rootCbFinal);
-	IBNameInfoDBFree(&ibc->GlobalVariables);
+	IBNameInfoFree(&ibc->GlobalVariables);
 	IBStrFree(&ibc->CurSpace);
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
@@ -965,14 +986,13 @@ void IBLayer3Tick(IBLayer3* ibc, FILE* f) {
 }
 /*NO NEWLINES AT END OF STR*/
 void IBLayer3InputChar(IBLayer3* ibc, char ch) {
-	IBOp m;
-	IBTask* t;
-	IBObj* o;
-	bool nl;
+	IBOp m = OP_Null;
+	IBTask * t = 0;
+	IBObj * o = 0;
+	bool nl = false;
 	ibc->Ch = ch;
 	if(ibc->CommentMode == OP_NotSet && ibc->Ch != IBCOMMENT_CHAR)
 		IBStrAppendCh(&ibc->CurrentLineStr, ibc->Ch, 1);
-	nl = false;
 	m = IBLayer3GetMode(ibc);
 	t = IBLayer3GetTask(ibc);
 	o = IBLayer3GetObj(ibc);
@@ -1084,20 +1104,19 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 				IBLayer3FinishTask(ibc);
 				break;
 			}
-							  IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
-							  IBCASE_BLOCKWANTCODE
-							  {
-								  break;
-							  }
+		IBCASE_BLOCKWANTCODE {
+			break;
+		}
 		case OP_VarWantValue: {
-								  IBassert(o->type == OP_VarWantValue);
-								  IBLayer3PopObj(ibc, true, &o);
-								  IBLayer3FinishTask(ibc);
-								  break;
-							  }
+			IBassert(o->type == OP_VarWantValue);
+			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3FinishTask(ibc);
+			break;
+		}
 		case OP_CallWantArgs: {
 			IBLayer3FinishTask(ibc);
 			t = IBLayer3GetTask(ibc);
@@ -1107,13 +1126,13 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 				IBLayer3FinishTask(ibc);
 				break;
 			}
-							IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
 		case OP_IfFinished: {
-			IBCodeBlock* cb;
-			IBExpects* exp;
+			IBCodeBlock* cb=0;
+			IBExpects* exp=0;
 			IBLayer3PopObj(ibc, true, &o);
 			SetTaskType(t, OP_IfBlockWantCode);
 			IBLayer3ReplaceExpects(ibc, &exp);
@@ -1179,6 +1198,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch) {
 		ibc->Imaginary = false;
 		ibc->Pfx = OP_Null;
 		ibc->DotPathOn = false;
+		IBVectorClear(&ibc->DotPathVec, IBStrFree);
 		break;
 	}
 	}
@@ -1834,7 +1854,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc) {
 		{
 			int idx = 0;
 			IBNameInfo* ni = 0;
-			while(ni = (IBNameInfo*) IBVectorIterNext(&cb->localVariables.pairs, &idx)) {
+			while(ni = (IBNameInfo*) IBVectorIterNext(&cb->localVariables.members, &idx)) {
 				IBTypeInfo* nti = 0;
 				IBVectorPush(&ti->members, &nti);
 				IBTypeInfoInit(nti, OP_StructVar, ni->name);
@@ -2903,7 +2923,7 @@ top:
 		case OP_ForNeedStartValName: {
 			IBNameInfo* ni = NULL;
 			IBExpects* exp = NULL;
-			IBOp ar = IBNameInfoDBAdd(ibc, &cb->localVariables, ibc->Str, OP_Name, &ni);
+			IBOp ar = IBNameInfoAddMember(ibc, &cb->localVariables, ibc->Str, OP_Name, &ni);
 			//should never happen
 			if(ar == OP_AlreadyExists)
 				ErrF(OP_AlreadyExists, "name %s already in use", ibc->Str);
@@ -2956,7 +2976,7 @@ top:
 				SetObjType(o, OP_FuncArgComplete);
 				PopExpects();
 				IBObjSetName(IBLayer3GetObj(ibc), ibc->Str);
-				IBNameInfoDBAdd(ibc, &cb->localVariables, ibc->Str,
+				IBNameInfoAddMember(ibc, &cb->localVariables, ibc->Str,
 					o->arg.type, NULL);
 				IBLayer3PopObj(ibc, true, NULL);
 				break;
@@ -3151,7 +3171,7 @@ top:
 										 IBOp rc = 0;
 										 IBObjSetName(o, ibc->Str);
 										 IBOp realType = o->var.type == OP_Unknown && o->var.ti ? o->var.ti->type : o->var.type;
-										 rc = IBNameInfoDBAdd(ibc,
+										 rc = IBNameInfoAddMember(ibc,
 											 (tParent && tParent->type == OP_RootTask) ?
 											 &ibc->GlobalVariables : &cb->localVariables,
 											 ibc->Str, realType, &ni);
