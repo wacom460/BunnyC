@@ -2393,7 +2393,7 @@ void IBLayer3StrPayload(IBLayer3* ibc)
 			strVal.boolean = false;
 			break;
 		}
-					 IBCASE_UNIMPLEMENTED
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
@@ -2410,11 +2410,11 @@ void IBLayer3StrPayload(IBLayer3* ibc)
 		strVal.f32 = (float) atof(ibc->Str);
 		break;
 	}
-				 //IBCASE_UNIMPLEMENTED
-				 /*default: {
-					 strVal.i32 = atoi(ibc->Str);
-					 break;
-				 }*/
+	//IBCASE_UNIMPLEMENTED
+	/*default: {
+		strVal.i32 = atoi(ibc->Str);
+		break;
+	}*/
 	}
 
 	//if(ibc->Pfx==OP_Op) ibc->LastNameOp = ibc->NameOp;
@@ -2471,7 +2471,6 @@ top:
 						}
 					}
 				}
-
 			}
 			if(type == OP_Unknown || !st)
 				Err(OP_Error, "context not found");
@@ -2494,7 +2493,7 @@ top:
 			IBLayer3PopObj(ibc, true, &o);
 			break;
 		}
-							  IBCASE_UNIMPLEMENTED
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
@@ -2505,7 +2504,7 @@ top:
 			o->var.valSet = true;
 			break;
 		}
-							IBCASE_UNIMPLEMENTED
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
@@ -2546,7 +2545,7 @@ top:
 			IBLayer3Done(ibc);
 			break;
 		}
-						IBCASE_UNIMPLEMENTED
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
@@ -2565,7 +2564,7 @@ top:
 					IBLayer3Push(ibc, OP_ModeCCompTimeMacroPaste, true);
 					break;
 				}
-							   IBCASE_UNIMPLEMENTED
+				IBCASE_UNIMPLEMENTED
 				}
 				break;
 			}
@@ -2576,7 +2575,7 @@ top:
 				IBLayer3PopObj(ibc, true, &o);
 				break;
 			}
-								  IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -2588,7 +2587,7 @@ top:
 			IBExpectsInit(exp, "P", OP_VarType);
 			break;
 		}
-						   IBCASE_UNIMPLEMENTED
+		IBCASE_UNIMPLEMENTED
 		}
 		//if (!fall) break;
 		break;
@@ -2601,59 +2600,38 @@ top:
 		}
 		}
 	}
-	///* + PFXADD */ case OP_Add: {
-	//	switch (ibc->NameOp) {
-	//	case OP_Or: {
-
-	//	}
-	//	case OP_EmptyStr: {
-	//		switch (t->type) {
-	//		case OP_NeedExpression: {
-	//			IBObj* o;
-	//			IBLayer3PushObj(ibc, &o);
-	//			IBObjSetType(o, ibc->Pfx);
-	//			IBLayer3PopObj(ibc, true, &o);
-	//			break;
-	//		}
-	//		}
-	//		break;
-	//	}
-	//	IBCASE_UNIMPLEMENTED
-	//	}
-	//	break;
-	//}
 	/* ! PFXEXCLAIM */ case OP_Exclaim: {
 		switch(t->type) {
-			IBCASE_BLOCKWANTCODE
-			{
-				if(!*ibc->Str) {
-					IBExpects* exp = 0;
-					//IBTask*t=0;
-					IBLayer3PushTask(ibc, OP_CallMethodNeedName, &exp, &t);
-					IBExpectsInit(exp,"P",OP_Name);
-					break;
-				}
+		IBCASE_BLOCKWANTCODE
+		{
+			if(!*ibc->Str) {
+				IBExpects* exp = 0;
+				//IBTask*t=0;
+				IBLayer3PushTask(ibc, OP_CallMethodNeedName, &exp, &t);
+				IBExpectsInit(exp,"P",OP_Name);
+				break;
+			}
 			//IBTask* t;
 			//IBLayer3PushTask(ibc, OP_CodeBlockCallFunc, NULL, NULL);
 			IBLayer3PushTask(ibc, OP_CallFunc, NULL, NULL);
 			//break;
-			}
+		}
 		case OP_ActOnNameEquals: {
-				IBExpects* exp;
-				IBObj* o;
-				//IBTask* t;
-				IBLayer3PushObj(ibc, &o);
-				IBObjSetStr(o, ibc->Str);
-				IBObjSetType(o, OP_Call);
-				IBLayer3PushTask(ibc, OP_CallWantArgs, &exp, &t);
-				IBLayer3PopObj(ibc, true, &o);
-				IBLayer3PushObj(ibc, &o);
-				SetObjType(o, OP_ArgNeedValue);
-				IBExpectsInit(exp, "PPPP",
-					OP_Name, OP_Value, OP_String, OP_LineEnd);
-				break;
-			}
-			IBCASE_UNIMPLEMENTED
+			IBExpects* exp;
+			IBObj* o;
+			//IBTask* t;
+			IBLayer3PushObj(ibc, &o);
+			IBObjSetStr(o, ibc->Str);
+			IBObjSetType(o, OP_Call);
+			IBLayer3PushTask(ibc, OP_CallWantArgs, &exp, &t);
+			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3PushObj(ibc, &o);
+			SetObjType(o, OP_ArgNeedValue);
+			IBExpectsInit(exp, "PPPP",
+				OP_Name, OP_Value, OP_String, OP_LineEnd);
+			break;
+		}
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
@@ -2722,20 +2700,20 @@ top:
 			IBLayer3PopObj(ibc, true, NULL);
 			break;
 		}
-								 IBCASE_BLOCKWANTCODE
-								 { /*printf*/
-									 IBExpects * ap;
-									 IBObj* o;
-									 IBLayer3PushTask(ibc, OP_CPrintfHaveFmtStr, &ap, NULL);
-									 IBExpectsInit(ap, "1PPPPP", "expected fmt args or line end",
-										 OP_Exclaim, OP_Value, OP_Name, OP_String, OP_LineEnd);
-									 IBLayer3PushObj(ibc, &o);
-									 IBObjSetStr(o, ibc->Str);
-									 IBObjSetType(o, OP_CPrintfFmtStr);
-									 IBLayer3PopObj(ibc, true, NULL);
-									 break;
-								 }
-									 IBCASE_UNIMPLEMENTED
+		IBCASE_BLOCKWANTCODE
+		{ /*printf*/
+			IBExpects * ap;
+			IBObj* o;
+			IBLayer3PushTask(ibc, OP_CPrintfHaveFmtStr, &ap, NULL);
+			IBExpectsInit(ap, "1PPPPP", "expected fmt args or line end",
+				OP_Exclaim, OP_Value, OP_Name, OP_String, OP_LineEnd);
+			IBLayer3PushObj(ibc, &o);
+			IBObjSetStr(o, ibc->Str);
+			IBObjSetType(o, OP_CPrintfFmtStr);
+			IBLayer3PopObj(ibc, true, NULL);
+			break;
+		}
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
@@ -3173,7 +3151,7 @@ top:
 				IBExpectsInit(ap, "1P", "expected enum name", OP_Name);
 				break;
 			}
-							IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -3188,7 +3166,7 @@ top:
 				IBExpectsInit(ap, "1P", "expected enum name", OP_Name);
 				break;
 			}
-							IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -3227,18 +3205,18 @@ top:
 				IBLayer3PushCodeBlock(ibc, &cb);
 				break;
 			}
-							IBCASE_BLOCKWANTCODE
-							{
-								IBTask * t;
-								IBExpects* exp;
-								IBObj* o;
-								IBLayer3PushTask(ibc, OP_StructInitNeedName, &exp, &t);
-								IBExpectsInit(exp, "1P", "expected thing name", OP_Name);
-								IBLayer3PushObj(ibc, &o);
-								IBObjSetType(o, OP_StructInit);
-								break;
-							}
-			default: Err(OP_Error, "can't use thing here");
+			IBCASE_BLOCKWANTCODE
+			{
+				IBTask * t;
+				IBExpects* exp;
+				IBObj* o;
+				IBLayer3PushTask(ibc, OP_StructInitNeedName, &exp, &t);
+				IBExpectsInit(exp, "1P", "expected struct name", OP_Name);
+				IBLayer3PushObj(ibc, &o);
+				IBObjSetType(o, OP_StructInit);
+				break;
+			}
+			default: Err(OP_Error, "can't use struct here");
 			}
 			break;
 		}
@@ -3280,27 +3258,24 @@ top:
 				IBExpectsInit(exp, "e", OP_Op);
 				break;
 			}
-								 IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
 		case OP_Table: {
 			switch(t->type) {
-				IBCASE_BLOCKWANTCODE
-				{
-					IBTask * t = NULL;
-					IBLayer3PushTask(ibc, OP_TableNeedExpr, NULL, NULL);
-					IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
-					break;
-				}
+			IBCASE_BLOCKWANTCODE
+			{
+				IBTask * t = NULL;
+				IBLayer3PushTask(ibc, OP_TableNeedExpr, NULL, NULL);
+				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
+				break;
+			}
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
-		case OP_dbgBreak: {
-			/*__debugbreak();*/
-			/*ibc->TaskStack;*/
-			break;
-		}
+		case OP_dbgBreak: { break; }
 		case OP_Imaginary: {
 			ibc->Imaginary = true;
 			IBPushColor(IBFgMAGENTA);
@@ -3371,52 +3346,6 @@ top:
 			IBLayer3PushCodeBlock(ibc, &cb);
 			break;
 		}
-		/*case OP_Set: {
-			switch (t->type) {
-			IBCASE_BLOCKWANTCODE
-			{
-				IBExpects* ap;
-				IBObj* o;
-				IBLayer3PushObj(ibc, &o);
-				ObjSetType(o, OP_Set);
-				IBLayer3PushTask(ibc, OP_SetNeedName, &ap, NULL);
-				ExpectsInit(ap, "1P", "expected @set $name", OP_Name);
-				break;
-			}
-			default: {
-				Err(OP_Error, "can't use set here");
-				break;
-			}
-			}
-			break;
-		}*/
-		//case OP_LessThanOrEquals: //@lteq
-		//case OP_GreaterThanOrEquals: //@gteq
-		//case OP_LessThan: //@lt
-		//case OP_GreaterThan: //@gt
-		//case OP_NotEquals: //@neq
-		//case OP_Equals: { //@eq
-		//	switch(t->type) {
-		//	case OP_BuildingIf: {
-		//		IBExpects* exp;
-		//		switch(o->type) {
-		//		case OP_IfNeedMidOP: {
-		//			o->ifO.midOp = ibc->NameOp;
-		//			IBObjSetType(o, OP_IfNeedRVal);
-		//			IBLayer3ReplaceExpects(ibc, &exp);
-		//			IBExpectsInit(exp, "PP", OP_Name, OP_Value);
-		//			break;
-		//		}
-		//		default: {
-		//			Err(OP_Error, "Unimplemented If task context");
-		//		}
-		//		}
-		//		break;
-		//	}
-		//	default: Err(OP_Error, "can't use comparison operator here");
-		//	}
-		//	break;
-		//}
 		case OP_Else: {
 			switch(t->type) {
 			case OP_IfBlockWantCode: {
@@ -3456,36 +3385,36 @@ top:
 				IBStrAppendCStr(&cb->code, "else ");
 				IBLayer3PopTask(ibc, &t, false);
 			}
-						  IBCASE_BLOCKWANTCODE {
-							  IBTask * nt;
-							  IBExpects* nexp;
-							  IBObj* o;
-							  IBLayer3PushObj(ibc, &o);
-							  IBObjSetType(o, OP_IfNeedLVal);
-							  IBLayer3PushTask(ibc, OP_BuildingIf, &nexp, &nt);
-							  IBExpectsInit(nexp, "1PP", "expected lval",
-								  OP_Value, OP_Name/*, OP_String*/);
-							  break;
-						  }
+			IBCASE_BLOCKWANTCODE {
+				IBTask * nt;
+				IBExpects* nexp;
+				IBObj* o;
+				IBLayer3PushObj(ibc, &o);
+				IBObjSetType(o, OP_IfNeedLVal);
+				IBLayer3PushTask(ibc, OP_BuildingIf, &nexp, &nt);
+				IBExpectsInit(nexp, "1PP", "expected lval",
+					OP_Value, OP_Name/*, OP_String*/);
+				break;
+			}
 			default: {
-							  Err(OP_Error, "Unimplemented If task context");
-							  break;
-						  }
+				Err(OP_Error, "Unimplemented If task context");
+				break;
+			}
 			}
 			break;
 		}
 		case OP_Loop: {
 			switch(t->type) {
-				IBCASE_BLOCKWANTCODE
-				{
-					IBExpects * exp;
-					IBTask* t;
-					IBLayer3PushTask(ibc, OP_LoopBlockWantCode, &exp, &t);
-					IBExpectsInit(exp, "Nc", OP_Break);
-					IBLayer3PushCodeBlock(ibc, &cb);
-					break;
-				}
-					IBCASE_UNIMPLEMENTED
+			IBCASE_BLOCKWANTCODE
+			{
+				IBExpects * exp;
+				IBTask* t;
+				IBLayer3PushTask(ibc, OP_LoopBlockWantCode, &exp, &t);
+				IBExpectsInit(exp, "Nc", OP_Break);
+				IBLayer3PushCodeBlock(ibc, &cb);
+				break;
+			}
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -3506,19 +3435,19 @@ top:
 			}
 			*/
 			switch(t->type) {
-				IBCASE_BLOCKWANTCODE
-				{
-					IBObj * o;
-					IBTask* t;
-					IBExpects* exp;
-					IBLayer3PushObj(ibc, &o);
-					IBObjSetType(o, OP_For);
-					IBLayer3PushTask(ibc, OP_ForNeedStartValName, &exp, &t);
-					IBExpectsInit(exp, "P", OP_Name);
-					IBLayer3PushCodeBlock(ibc, &cb);
-					break;
-				}
-					IBCASE_UNIMPLEMENTED
+			IBCASE_BLOCKWANTCODE
+			{
+				IBObj * o;
+				IBTask* t;
+				IBExpects* exp;
+				IBLayer3PushObj(ibc, &o);
+				IBObjSetType(o, OP_For);
+				IBLayer3PushTask(ibc, OP_ForNeedStartValName, &exp, &t);
+				IBExpectsInit(exp, "P", OP_Name);
+				IBLayer3PushCodeBlock(ibc, &cb);
+				break;
+			}
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -3532,7 +3461,7 @@ top:
 		case OP_ForNeedStartInitVal: {
 			switch(t->type) {
 
-				IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -3554,7 +3483,7 @@ top:
 				IBExpectsInit(exp, "P", OP_Exclaim);
 				break;
 			}
-							IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -3597,14 +3526,14 @@ top:
 						Err(OP_YouCantUseThatHere, "wrong value for number variable");
 					break;
 				}
-						   IBCASE_UNIMPLEMENTED
+				IBCASE_UNIMPLEMENTED
 				}
 				SetObjType(o, OP_VarComplete);
 				IBLayer3PopObj(ibc, true, &o);
 				IBLayer3FinishTask(ibc);
 				break;
 			}
-								IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -3653,7 +3582,7 @@ top:
 					IBExpectsInit(exp, "PP", OP_Name, OP_Value);
 					break;
 				}
-							  IBCASE_UNIMPLEMENTED
+				IBCASE_UNIMPLEMENTED
 				}
 				break;
 			}
@@ -3718,7 +3647,7 @@ top:
 						}
 						break;
 					}
-							   IBCASE_UNIMPLEMENTED
+					IBCASE_UNIMPLEMENTED
 					}
 					DbgPuts("Finishing func got ret value\n");
 					o->func.retVal = IBLayer3StrToVal(ibc, ibc->Str, o->func.retValType);
@@ -3731,7 +3660,7 @@ top:
 			}
 			break;
 		}
-							  IBCASE_UNIMPLEMENTED
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
@@ -3746,7 +3675,7 @@ top:
 				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
 				break;
 			}
-							IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 			break;
 		}
@@ -3774,7 +3703,7 @@ top:
 			}
 			break;
 		}
-						 IBCASE_UNIMPLEMENTED
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
@@ -3803,11 +3732,11 @@ top:
 			}
 			break;
 		}
-						  IBCASE_UNIMPLEMENTED
+		IBCASE_UNIMPLEMENTED
 		}
 		break;
 	}
-							IBCASE_UNIMPLEMENTED
+	IBCASE_UNIMPLEMENTED
 	}
 	ibc->Str[0] = '\0';
 #ifdef IBDEBUGPRINTS
