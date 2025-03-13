@@ -49,6 +49,7 @@ CLAMP_FUNC(int, ClampInt);
 CLAMP_FUNC(long long int, ClampSizeT);
 
 typedef struct IBStr {
+	IBOp DataTypeIdentifier;
 	char* start;
 	char* end; /*ptr of null terminator '\0'*/
 } IBStr;
@@ -82,8 +83,9 @@ typedef struct IBVecPushInfo {
 } IBVecPushInfo;
 
 typedef struct IBVector {
-	long long int elemSize;
+	IBOp DataTypeIdentifier;
 	IBOp type;
+	long long int elemSize;
 	int elemCount;
 	int slotCount;
 	int initialSlotCount;

@@ -206,6 +206,7 @@ X(PfxlessValue) \
 X(IBDictKeyDef) \
 X(EnumName) \
 X(IBDictKey) \
+X(IBVector) \
 X(Letter_azAZ) \
 X(DataTypes) \
 X(IBExpression) \

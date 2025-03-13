@@ -3,6 +3,7 @@
 void ObjInit(IBObj* o)
 {
 	memset(o, 0, sizeof * o);
+	o->DataTypeIdentifier = OP_Obj;
 	o->type = OP_NotSet;
 	o->modifier = OP_NotSet;
 	o->privacy = OP_NoChange;

@@ -2,6 +2,7 @@
 
 void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def)
 {
+	key->DataTypeIdentifier = OP_IBDictKey;
 	key->type = def.type;
 	switch (def.type) {
 	case IBDictDataType_Int: {
@@ -151,6 +152,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...)
 		case 's': {//string
 			IBDictKeyDef* kd = NULL;
 			IBVectorPush(&keyStack, &kd);
+			kd->DataTypeIdentifier = OP_IBDictKeyDef;
 			kd->type = IBDictDataType_String;
 			kd->key = NULL;
 			kd->str = va_arg(args, char*);
@@ -159,6 +161,7 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...)
 		case 'd': {//int
 			IBDictKeyDef* kd = NULL;
 			IBVectorPush(&keyStack, &kd);
+			kd->DataTypeIdentifier = OP_IBDictKeyDef;
 			kd->type = IBDictDataType_Int;
 			kd->key = NULL;
 			kd->num = va_arg(args, int);

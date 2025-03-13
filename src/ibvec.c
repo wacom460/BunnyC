@@ -1,26 +1,11 @@
 #include "imbored.h"
 
-struct IBVecData {
-	union {
-		IBObj obj;
-		IBStr str;
-		IBTask task;
-		IBOp op;
-		bool boolean;
-		IBExpects expects;
-		IBNameInfo ni;
-		IBDictKey dictKey;
-		IBDictKeyDef dictKeyDef;
-		IBTypeInfo ti;
-		IBVector vec;
-	};
-};
-
 void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count)
 {
 	void* m;
 	IBASSERT0(count > 0);
 	memset(vec, 0, sizeof * vec);
+	vec->DataTypeIdentifier = OP_IBVector;
 	vec->initMagic = IBMAGIC;
 	vec->elemSize = elemSize;
 	vec->type = type;

@@ -2,6 +2,7 @@
 
 void IBNameInfoInit(IBNameInfo* info)
 {
+	info->DataTypeIdentifier = OP_NameInfo;
 	info->type = OP_NotSet;
 	info->cast = OP_NotSet;
 	info->name = NULL;

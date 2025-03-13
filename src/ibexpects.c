@@ -7,6 +7,7 @@ void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...)
 	IBOp nameOp;
 	int i;
 	IBassert(exp);
+	exp->DataTypeIdentifier = OP_Expects;
 	IBVectorInit(&exp->pfxs, sizeof(IBOp), OP_Op, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&exp->nameOps, sizeof(IBOp), OP_Op, IBVEC_DEFAULT_SLOTCOUNT);
 	exp->pfxErr = "";

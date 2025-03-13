@@ -152,6 +152,7 @@ typedef enum IBDictDataType {
 #define IBDICTKEY_KEYSIZE 16
 
 typedef struct IBDictKey {
+	IBOp DataTypeIdentifier;
 	IBDictDataType type;
 	IBVector children;
 	union key {
@@ -166,6 +167,7 @@ typedef struct IBDictKey {
 } IBDictKey;
 
 typedef struct IBDictKeyDef {
+	IBOp DataTypeIdentifier;
 	IBDictDataType type;
 	IBDictKey* key;
 	union {
@@ -254,6 +256,7 @@ typedef union IBVal {
 } IBVal;
 
 typedef struct IBTypeInfo {
+	IBOp DataTypeIdentifier;
 	//IBOp infoType; //OP_Builtin,OP_Custom
 	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
 	struct IBTypeInfo* structVarType;
@@ -285,6 +288,7 @@ void IBTypeInfoFree(IBTypeInfo* ti);
 void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP);
 
 typedef struct IBNameInfo {
+	IBOp DataTypeIdentifier;
 	IBOp type;
 	IBTypeInfo*ti;
 	IBOp cast;
@@ -301,6 +305,7 @@ IBNameInfo* _IBNameInfoFindMember(IBNameInfo* ni, char* name, int lineNum);
 	_IBNameInfoFindMember(ni, name, __LINE__)
 
 typedef struct IBCodeBlock {
+	IBOp DataTypeIdentifier;
 	IBStr header;
 	IBStr variables;
 	IBStr varsInit;
@@ -319,6 +324,7 @@ void IBCodeBlockFree(IBCodeBlock* block);
 char* IBGetOpName(IBOp op);
 
 typedef struct IBObj {
+	IBOp DataTypeIdentifier;
 	IBOp type;
 	IBOp modifier;
 	IBOp valType;
@@ -394,7 +400,8 @@ void ObjInit(IBObj* o);
 void ObjFree(IBObj* o);
 void Val2Str(char* dest, int destSz, IBVal v, IBOp type);
 
-typedef struct IBExpects {
+typedef struct IBExpects {	
+	IBOp DataTypeIdentifier;
 	IBVector pfxs;/*IBOp P */
 	IBVector nameOps;/*IBOp N */
 	char* pfxErr;
@@ -425,6 +432,7 @@ typedef struct IBTaskNeedExpression {
 } IBTaskNeedExpression;
 
 typedef struct IBTask {
+	IBOp DataTypeIdentifier;
 	IBOp type;
 	IBCodeBlock code;
 	IBVector expStack; /*IBExpects*/
@@ -658,3 +666,20 @@ char* IBGetPfxName(IBOp op);
 IBOp IBGetOpFromNameList(char* name, IBOp list);
 IBOp IBOPFromPfxCh(char ch);
 void IBOverwriteStr(char** str, char* with);
+
+struct IBVecData {
+	union {
+		IBObj obj;
+		IBStr str;
+		IBTask task;
+		IBOp op;
+		bool boolean;
+		IBExpects expects;
+		IBNameInfo nameInfo;
+		IBDictKey dictKey;
+		IBDictKeyDef dictKeyDef;
+		IBTypeInfo typeInfo;
+		IBVector vec;
+		IBCodeBlock codeBlock;
+	};
+};

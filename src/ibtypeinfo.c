@@ -4,6 +4,7 @@ void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name)
 {
 	IBASSERT0(ti);
 	memset(ti, 0, sizeof * ti);
+	ti->DataTypeIdentifier = OP_IBTypeInfo;
 	IBStrInitWithCStr(&ti->name, name);
 	ti->type = type;
 	IBVectorInit(&ti->members, sizeof * ti,

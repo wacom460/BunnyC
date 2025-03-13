@@ -2,6 +2,7 @@
 
 void TaskInit(IBTask* t, IBOp type)
 {
+	t->DataTypeIdentifier = OP_Task;
 	IBVectorInit(&t->working, sizeof(IBObj), OP_Obj, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&t->expStack, sizeof(IBExpects), OP_Expects, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&t->subTasks, sizeof(IBTask), OP_Task, IBVEC_DEFAULT_SLOTCOUNT);

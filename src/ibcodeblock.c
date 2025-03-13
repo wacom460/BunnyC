@@ -4,6 +4,7 @@ void IBCodeBlockInit(IBCodeBlock* block)
 {
 	IBASSERT0(block);
 	IB_SETMAGICP(block);
+	block->DataTypeIdentifier = OP_IBCodeBlock;
 	IBStrInit(&block->header);
 	IBStrInit(&block->variables);
 	IBStrInit(&block->varsInit);

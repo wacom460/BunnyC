@@ -2,6 +2,7 @@
 
 void IBStrInit(IBStr* str)
 {
+	str->DataTypeIdentifier = OP_IBStr;
 	IBASSERT0(str);
 	str->start = (char*)malloc(1);
 	IBASSERT0(str->start);

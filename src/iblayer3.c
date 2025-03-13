@@ -14,7 +14,6 @@ IBNameInfo* IBLayer3TryFindNameInfoInStructVar(IBLayer3* ibc, IBNameInfo* ni)
 		if(sni && sni->ti && sni->ti->members.elemCount) {
 			for(int i = 1; i < ibc->DotPathVec.elemCount; i++) {
 				IBStr* ds = (IBStr*) IBVectorGet(&ibc->DotPathVec, i);
-				//IBTypeInfo* mvTi = (IBTypeInfo*) IBVectorGet(&sni->ti->members, i - 1);
 				IBNameInfo* mvNi = (IBNameInfo*) IBVectorGet(&sni->members, i - 1);
 				if(!strcmp(ds->start, mvNi->name)) {
 					return mvNi;
@@ -2235,8 +2234,11 @@ void IBLayer3Prefix(IBLayer3* ibc)
 	case OP_Op:
 	case OP_Name: {
 		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
-		ibc->DotPathOn = true;		
-		IBVectorClear(&ibc->DotPathVec, IBStrFree);
+		if(ibc->Pfx == OP_Name)
+		{
+			ibc->DotPathOn = true;		
+			IBVectorClear(&ibc->DotPathVec, IBStrFree);
+		}
 		/*getchar();*/
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
 	}
@@ -2370,7 +2372,7 @@ void IBLayer3StrPayload(IBLayer3* ibc)
 	IBObj* o;
 	IBOp valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
 	strVal.i64 = 0;
-	if(ibc->DotPathOn)
+	if(ibc->DotPathOn && ibc->Pfx == OP_Name)
 	{
 		IBStr dpStr;
 		IBStrInitWithCStr(&dpStr, ibc->Str);
@@ -2468,7 +2470,8 @@ top:
 					}
 					else {
 						IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, no->name);
-						if(ni->ti) {
+						if(!ni) DB;
+						if(ni && ni->ti) {
 							ti = ni->ti;
 							type = ti->type;
 							IBTypeInfoFindMember(ti, ibc->Str, &st);
