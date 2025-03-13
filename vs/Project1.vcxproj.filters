@@ -52,15 +52,6 @@
     <ClCompile Include="..\src\finishtask.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\pfxadd.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\pfxaz.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\pfxdivide.c">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\pfxdot.c">
       <Filter>src</Filter>
     </ClCompile>
@@ -71,9 +62,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\pfxlessthan.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\pfxmultiply.c">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\pfxname.c">
@@ -89,12 +77,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\pfxstring.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\pfxsubtract.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\pfxunderscore.c">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\pfxvalue.c">

@@ -437,12 +437,7 @@ typedef struct IBLayer3
 
 void IBLayer3PFX_DOT(IBLayer3* ibc);
 void IBLayer3PFX_SINGLEQUOTE(IBLayer3* ibc);
-void IBLayer3PFX_azAZ(IBLayer3* ibc);
 void IBLayer3PFX_UNDERSCORE(IBLayer3* ibc);
-void IBLayer3PFX_ADD(IBLayer3* ibc);
-void IBLayer3PFX_MULTIPLY(IBLayer3* ibc);
-void IBLayer3PFX_DIVIDE(IBLayer3* ibc);
-void IBLayer3PFX_SUBTRACT(IBLayer3* ibc);
 void IBLayer3PFX_OR(IBLayer3* ibc);
 void IBLayer3PFX_EXCLAIM(IBLayer3* ibc);
 void IBLayer3PFX_STRING(IBLayer3* ibc);
