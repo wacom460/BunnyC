@@ -83,16 +83,6 @@ void IBLayer3StrPayload(IBLayer3* ibc)
 top:
 	switch(ibc->Pfx)
 	{
-	case OP_Dot:
-	{
-		IBLayer3PFX_DOT(ibc);
-		break;
-	}
-	case OP_SingleQuote:
-	{
-		IBLayer3PFX_SINGLEQUOTE(ibc);
-		break;
-	}
 	/* a-zA-z PFXazAZ */ case OP_Letter_azAZ:
 	{
 		IBTypeInfo* ti = 0;
@@ -205,6 +195,16 @@ top:
 			break;
 		}
 		}
+	}
+	case OP_Dot:
+	{
+		IBLayer3PFX_DOT(ibc);
+		break;
+	}
+	case OP_SingleQuote:
+	{
+		IBLayer3PFX_SINGLEQUOTE(ibc);
+		break;
 	}
 	case OP_Exclaim:
 	{
