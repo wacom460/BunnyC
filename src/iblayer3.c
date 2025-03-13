@@ -930,6 +930,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 				IBLayer3PopObj(ibc, true, &o);
 			}
 			case OP_ExprToName: {
+				IBLayer3PopObj(ibc, true, &o);
 				IBLayer3FinishTask(ibc);
 				break;
 			}
@@ -3583,8 +3584,8 @@ top:
 		case OP_ActOnName: {
 			switch(ibc->NameOp) {
 			case OP_Subtract: {
-				o = IBLayer3GetObj(ibc);
 				SetTaskType(t, OP_ExprToName);
+				IBLayer3PushObj(ibc, &o);
 				SetObjType(o, OP_ExprToName);
 				IBLayer3PushTask(ibc, OP_NeedExpression, NULL, &t);
 				break;

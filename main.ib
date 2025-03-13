@@ -1,26 +1,14 @@
-flags $entityType
-	$human
-	$projectile
-	$wall
-_
-
-struct $v2i
-	i64 $x
-	i64 $y
-_
-
 struct $entity
-	entityType $type
-	v2i $pos
+	i32 $id
 _
 
 methods $entity
 	blk $init
+		$self.id <- 0
 	_
 _
 
 blk $main -> i32
 	entity $e
-	$e.type <- .human
-	$e.pos.x <- 0
+	!e.init
 _ 0
