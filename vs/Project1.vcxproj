@@ -39,7 +39,6 @@
     <ClCompile Include="..\src\pfxlessthan.c" />
     <ClCompile Include="..\src\pfxname.c" />
     <ClCompile Include="..\src\pfxop.c" />
-    <ClCompile Include="..\src\pfxor.c" />
     <ClCompile Include="..\src\pfxsinglequote.c" />
     <ClCompile Include="..\src\pfxstring.c" />
     <ClCompile Include="..\src\pfxvalue.c" />
