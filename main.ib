@@ -1,3 +1,11 @@
-enum $e
-	$a
+flags $pls
+	$owo $uwu
 _
+struct $entity
+	pls $o
+_
+
+blk $main -> i32
+	entity $e
+	$e.o <- .owo
+_ 0

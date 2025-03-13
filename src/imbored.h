@@ -259,7 +259,7 @@ typedef struct IBTypeInfo {
 	IBOp DataTypeIdentifier;
 	//IBOp infoType; //OP_Builtin,OP_Custom
 	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
-	struct IBTypeInfo* structVarType;
+	struct IBTypeInfo* memberVarType;
 	IBStr name;
 	IBVector members;//IBTypeInfo
 	struct {

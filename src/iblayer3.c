@@ -1759,7 +1759,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 				IBTypeInfo* nti = 0;
 				IBVectorPush(&ti->members, &nti);
 				IBTypeInfoInit(nti, OP_StructVar, ni->name);
-				nti->structVarType = ni->ti;
+				nti->memberVarType = ni->ti;
 			}
 		}
 		IBLayer3PopCodeBlock(ibc, false, &cb);
@@ -2471,8 +2471,9 @@ top:
 						if(ni && ni->ti) {
 							ti = ni->ti;
 							type = ti->type;
-							IBASSERT0(ti->members.elemCount);
+							//IBASSERT0(ti->members.elemCount);
 							IBTypeInfoFindMember(ti, ibc->Str, &st);
+							if(!st) st = ti->memberVarType;
 						}
 					}
 				}
@@ -2489,11 +2490,9 @@ top:
 			IBassert(ti);
 			if(ti)IBObjSetStr(o, ti->name.start);
 			IBObjSetName(o, ibc->Str);
-			if(st && st->type == OP_StructVar) {
-				IBOp t = st->structVarType->type;
-				IBassert(st->structVarType);
-				IBObjSetType(o, t == OP_Enum ? OP_EnumVal : t);
-				IBOverwriteStr(&o->str, st->structVarType->name.start);
+			if(st && st->type == OP_Enum) {
+				IBObjSetType(o, OP_EnumVal);
+				IBOverwriteStr(&o->str, st->name.start);
 			}
 			IBLayer3PopObj(ibc, true, &o);
 			break;
@@ -2841,6 +2840,7 @@ top:
 			IBVectorPush(&ibc->DefiningEnumTypeInfo->members, &nti);
 			IBASSERT0(nti);
 			IBTypeInfoInit(nti, OP_EnumName, o->name);
+			nti->memberVarType = ibc->DefiningEnumTypeInfo;
 			IBLayer3PopObj(ibc, true, &o);
 			break;
 		}
