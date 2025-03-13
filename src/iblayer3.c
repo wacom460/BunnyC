@@ -150,9 +150,6 @@ void IBLayer3Init(IBLayer3* ibc)
 	IBStrInit(&ibc->HFileStr);
 	IBVectorInit(&ibc->ArrayIndexExprsVec, sizeof(IBStr), OP_IBStr, IBVEC_DEFAULT_SLOTCOUNT);
 	ibc->Pointer = OP_NotSet;
-	ibc->Privacy = OP_Public;
-	ibc->CommentMode = OP_NotSet;
-	IBStrInit(&ibc->CurSpace);
 	IBVectorInit(&ibc->ObjStack, sizeof(IBObj), OP_Obj, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&ibc->ModeStack, sizeof(IBOp), OP_Op, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&ibc->StrReadPtrsStack, sizeof(bool), OP_Bool, IBVEC_DEFAULT_SLOTCOUNT);
@@ -167,10 +164,10 @@ void IBLayer3Init(IBLayer3* ibc)
 	IBLayer3Push(ibc, OP_ModePrefixPass, false);
 	IBLayer3PushObj(ibc, &o);
 	IBLayer3PushTask(ibc, OP_RootTask, &exp, NULL);
-	IBExpectsInit(exp, "PPPNNNNNNNNNNNN",
+	IBExpectsInit(exp, "PPPNNNNNNNNN",
 		OP_Op, OP_VarType, OP_Subtract, OP_Use, OP_Imaginary, OP_Func,
-		OP_Enum, OP_Flags, OP_Struct, OP_Methods, OP_Space, OP_Public,
-		OP_Private, OP_RunArguments, OP_CInclude
+		OP_Enum, OP_Flags, OP_Struct, OP_Methods,
+		OP_RunArguments, OP_CInclude
 	);
 }
 
@@ -256,12 +253,7 @@ void IBLayer3Free(IBLayer3* ibc)
 #ifdef IBDEBUGPRINTS
 	getchar();
 #endif
-	/*if (ibc->SpaceNameStr != NULL) {
-		free(ibc->SpaceNameStr);
-		ibc->SpaceNameStr = NULL;
-	}*/
 	IBStrFree(&rootCbFinal);
-	IBStrFree(&ibc->CurSpace);
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
 	IBVectorFreeSimple(&ibc->ModeStack);
@@ -811,7 +803,7 @@ bool IBLayer3IsPfxExpected(IBLayer3* ibc, IBOp pfx)
 	IBTask* t;
 	IBExpects* ap;
 	if(pfx == OP_PfxlessValue) pfx = OP_Value;
-	if(pfx == OP_Letter_azAZ || pfx == OP_Comment) return true;
+	if(pfx == OP_Letter_azAZ) return true;
 	t = NULL;
 	ap = NULL;
 	t = IBLayer3GetTask(ibc);
@@ -877,55 +869,10 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 	IBObj * o = 0;
 	bool nl = false;
 	ibc->Ch = ch;
-	if(ibc->CommentMode == OP_NotSet && ibc->Ch != IBCOMMENT_CHAR)
-		IBStrAppendCh(&ibc->CurrentLineStr, ibc->Ch, 1);
 	m = IBLayer3GetMode(ibc);
 	t = IBLayer3GetTask(ibc);
 	o = IBLayer3GetObj(ibc);
-	if(ibc->LastCh == IBCOMMENT_CHAR &&
-		ibc->Ch == IBCOMMENT_CHAR_OPEN)
-	{
-		IBLayer3Push(ibc, OP_ModeMultiLineComment, false);
-		ibc->CommentMode = OP_MultiLineComment;
-		ibc->Ch = '\0';
-	}
-	else if(ibc->CommentMode == OP_MultiLineComment &&
-		ibc->LastCh == IBCOMMENT_CHAR_CLOSE &&
-		ibc->Ch == IBCOMMENT_CHAR)
-	{
-		IBLayer3Pop(ibc);
-		ibc->CommentMode = OP_NotSet;
-		ibc->Ch = '\0';
-	}
-	//if(ibc->CommentMode==OP_NotSet&&
-	//	ibc->Ch==IBCOMMENT_CHAR/*&&
-	//	ibc->LastCh!=IBCOMMENT_CHAR*/)
-	//{
-	//	/*PLINE;
-	//	DbgFmt(" LINE COMMENT ON\n","");*/
-	//	ibc->CommentMode = OP_Comment;
-	//	IBLayer3Push(ibc, OP_ModeComment, false);
-	//}else if(ibc->CommentMode==OP_Comment&&
-	//		ibc->LastCh==ibc->Ch &&
-	//			!ibc->StringMode
-	//			&&ibc->Ch==IBCOMMENT_CHAR&&
-	//			m==OP_ModeComment)
-	//{
-	//	/*PLINE;
-	//	DbgFmt(" MULTI COMMENT ON!!!!!!\n","");*/
-	//	IBLayer3Pop(ibc);
-	//	IBLayer3Push(ibc, OP_ModeMultiLineComment, false);
-	//	ibc->CommentMode = OP_MultiLineComment;
-	//	ibc->Ch='\0';
-	//}else if(ibc->CommentMode==OP_MultiLineComment&&
-	//	ibc->LastCh==ibc->Ch &&
-	//			!ibc->StringMode
-	//			&&ibc->Ch==IBCOMMENT_CHAR&&
-	//			m==OP_ModeMultiLineComment) {
-	//	/*PLINE;
-	//	DbgFmt(" MULTI COMMENT OFF!\n","");*/
-	//	ibc->CommentMode=OP_NotSet;
-	//}
+	
 	switch(ibc->Ch) {
 	case OP_ParenthesisOpen: {//expression wrapper
 		break;
@@ -937,10 +884,6 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 	case '\n': { /* \n PFXLINEEND */
 		t = IBLayer3GetTask(ibc);
 		nl = true;
-		if(ibc->CommentMode == OP_Comment) {
-			IBLayer3Pop(ibc);
-			ibc->CommentMode = OP_NotSet;
-		}
 
 		switch(m) {
 		case OP_ModeStrPass: {
@@ -1005,7 +948,6 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 				IBVectorPush(&ibc->DefiningStructTypeInfo->members, &ti);
 				IBTypeInfoInit(ti, OP_StructVar, o->name);
 				ti->StructVar.type = o->var.type;
-				ti->StructVar.privacy = o->var.privacy;
 			}
 			IBLayer3PopObj(ibc, true, &o);
 			IBLayer3FinishTask(ibc);
@@ -1076,7 +1018,8 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 			break;
 		}
 		}
-		/*if (ibc->CommentMode == OP_NotSet)*/ {
+
+		{
 			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
 			int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column;
 			int stripped = 0;
@@ -1089,6 +1032,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 			IBPopColor();
 			IBStrClear(&ibc->CurrentLineStr);
 		}
+
 		ibc->Imaginary = false;
 		ibc->Pfx = OP_Null;
 		ibc->DotPathOn = false;
@@ -1096,7 +1040,7 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 	}
 	}
 	m = IBLayer3GetMode(ibc);
-	if(!nl /*&& ibc->CommentMode == OP_NotSet*/) {
+	if(!nl) {
 		//#ifdef IBDEBUGPRINTS
 		//		{
 		//			int l = ibc->InputStr ? ibc->LineIS : ibc->Line;
@@ -1107,9 +1051,6 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 		//		}
 		//#endif
 		switch(m) {
-		case OP_ModeComment:
-		case OP_ModeMultiLineComment:
-			break;
 		case OP_ModePrefixPass: {
 			IBLayer3Prefix(ibc);
 			break;
@@ -1164,9 +1105,6 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 		}
 	}
 	ibc->LastCh = ibc->Ch;
-	//if(m==OP_ModeMultiLineComment&&ibc->CommentMode==OP_NotSet){
-	//	IBLayer3Pop(ibc);
-	//}
 	//DbgFmt("End of InputChar\n", 0);
 }
 
@@ -1765,16 +1703,6 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		IBLayer3PopCodeBlock(ibc, false, &cb);
 		break;
 	}
-	case OP_SpaceHasName: {
-		IBObj* o = NULL;
-		int idx = 0;
-		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx))
-			if(o->type == OP_Space) break;
-		IBassert(o);
-		if(o)
-			IBStrReplaceWithCStr(&ibc->CurSpace, o->name);
-		break;
-	}
 	case OP_FuncWantCode:
 	case OP_FuncSigComplete:
 	case OP_FuncHasName:
@@ -2239,7 +2167,6 @@ void IBLayer3Prefix(IBLayer3* ibc)
 		IBLayer3Push(ibc, OP_ModeStrPass, false);
 	}
 	case OP_SpaceChar:
-	case OP_Comment:
 		break;
 	}
 	if(ibc->Pfx == OP_Op) {
@@ -3031,17 +2958,6 @@ top:
 			IBLayer3PopCodeBlock(ibc, false, &cb);//?????
 			break;
 		}
-		case OP_SpaceNeedName: {
-			IBObj* o;
-			IBLayer3PushObj(ibc, &o);
-			IBassert(ibc->Str[0] != '\0');
-			IBObjSetName(o, ibc->Str);
-			IBObjSetType(o, OP_Space);
-			IBLayer3PopObj(ibc, true, &o);
-			SetTaskType(t, OP_SpaceHasName);
-			IBLayer3FinishTask(ibc);
-			break;
-		}
 		case OP_CPrintfHaveFmtStr: {
 			IBObj* o = 0;
 			IBStr* at = 0;
@@ -3183,18 +3099,6 @@ top:
 				break;
 			}
 			IBCASE_UNIMPLEMENTED
-			}
-			break;
-		}
-		case OP_Space: {
-			switch(t->type) {
-			case OP_RootTask: {
-				IBExpects* ap;
-				IBLayer3PushTask(ibc, OP_SpaceNeedName, &ap, NULL);
-				IBExpectsInit(ap, "1P", "expected space name", OP_Name);
-				break;
-			}
-			default: Err(OP_Error, "can't use space here");
 			}
 			break;
 		}
@@ -3343,16 +3247,10 @@ top:
 			IBLayer3PushTask(ibc, OP_FuncNeedName, &ap, NULL);
 			IBExpectsInit(ap, "1P", "expected function name", OP_Name);
 			o->type = ibc->NameOp;
-			o->privacy = ibc->Privacy;
 			o->func.retTYPE = OP_NotSet;
 			o->func.retValType = OP_Void;
 			o->func.retTypeMod = OP_NotSet;
 			IBLayer3PushCodeBlock(ibc, &cb);
-			break;
-		}
-		case OP_Public:
-		case OP_Private: {
-			ibc->Privacy = ibc->NameOp;
 			break;
 		}
 		case OP_Use: {

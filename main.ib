@@ -1,11 +1,26 @@
-flags $pls
-	$owo $uwu
+flags $entityType
+	$human
+	$projectile
+	$wall
 _
+
+struct $v2i
+	i64 $x
+	i64 $y
+_
+
 struct $entity
-	pls $o
+	entityType $type
+	v2i $pos
+_
+
+methods $entity
+	blk $init
+	_
 _
 
 blk $main -> i32
 	entity $e
-	$e.o <- .owo
+	$e.type <- .human
+	$e.pos.x <- 0
 _ 0

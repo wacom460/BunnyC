@@ -38,15 +38,15 @@ IBOpNamePair opNamesAR[] = {
 #undef OP*/
 IBOpNamePair PairNameOps[] = {
 	{"null", OP_Null},{IBFALSESTR, OP_False},{IB_TRUESTR, OP_True},
-	{"blk", OP_Func},{"~", OP_Comment},{"%", OP_VarType},
+	{"blk", OP_Func},{"%", OP_VarType},
 	{"return", OP_Return},{"ext", OP_Imaginary},
 	{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
-	{"build", OP_Build},{"space", OP_Space},{"priv", OP_Private},
+	{"build", OP_Build},
 	{"eq", OP_Equals},{"neq", OP_NotEquals},{"lt", OP_LessThan},
 	{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
 	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},
 	{"for", OP_For},{"loop", OP_Loop},{"i64", OP_i64},{"f32", OP_f32},
-	{"d64", OP_d64},{"pub", OP_Public},{"void", OP_Void},{"c8", OP_c8},
+	{"d64", OP_d64},{"void", OP_Void},{"c8", OP_c8},
 	{"u8", OP_u8},{"u16", OP_u16},{"u32", OP_u32},{"u64", OP_u64},
 	{"i8", OP_i8},{"i16", OP_i16},{"bool", OP_Bool},
 	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
@@ -66,7 +66,7 @@ IBOpNamePair PairDataTypeOPs[] = {
 };
 IBOpNamePair pfxNames[] = {
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
-	{"Comment(~)", OP_Comment},{"Name($)", OP_Name},
+	{"Name($)", OP_Name},
 	{"VarType(%)", OP_VarType},{"Pointer(&)", OP_Pointer},
 	{"Return(@ret)", OP_Return},{"OP_Unknown", OP_Unknown},
 	{"String(\")", OP_String},{"LineEnd(\\n)", OP_LineEnd},
@@ -190,7 +190,6 @@ IBOp IBOPFromPfxCh(char ch)
 	switch (ch) {
 	IBCASE_aTHRUz
 	IBCASE_ATHRUZ return OP_Letter_azAZ;
-	case IBCOMMENT_CHAR: return OP_Comment;
 	case '|': return OP_Or;
 	case '\t': return OP_TabChar;
 	case ' ': return OP_SpaceChar;

@@ -6,7 +6,6 @@ void ObjInit(IBObj* o)
 	o->DataTypeIdentifier = OP_Obj;
 	o->type = OP_NotSet;
 	o->modifier = OP_NotSet;
-	o->privacy = OP_NoChange;
 	o->name = NULL;
 	o->str = NULL;
 	o->val.i32 = 0;

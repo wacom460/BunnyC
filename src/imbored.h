@@ -73,9 +73,6 @@ case 'W': case 'X': case 'Y': case 'Z':
 	case OP_f32: case OP_u64: case OP_i64: case OP_d64:
 
 #define IBOP_NAME_LEN 32
-#define IBCOMMENT_CHAR ('~') // ~( ~( )~ )~
-#define IBCOMMENT_CHAR_OPEN ('(')
-#define IBCOMMENT_CHAR_CLOSE (')')
 #define IBLayer3STR_MAX 64
 
 #define IB_WARN_ON_REALLOC 0
@@ -273,7 +270,6 @@ typedef struct IBTypeInfo {
 		char placeholder;
 	} Struct;
 	struct {
-		IBOp privacy;
 		IBOp type;
 	} StructVar;
 	struct {
@@ -328,7 +324,6 @@ typedef struct IBObj {
 	IBOp type;
 	IBOp modifier;
 	IBOp valType;
-	IBOp privacy;
 	char* name;
 	char* str;
 	IBVal val;
@@ -364,7 +359,6 @@ typedef struct IBObj {
 		IBOp type;
 		IBTypeInfo*ti;
 		IBOp mod;
-		IBOp privacy;
 		bool valSet;
 		IBVal val;
 		char* valStrLiteral;
@@ -452,11 +446,9 @@ typedef struct IBExpression {
 typedef struct IBLayer3 {
 	IBOp Pfx;
 	IBOp Pointer;
-	IBOp Privacy;
 	IBOp NameOp;
 	IBOp LastNameOp;
 	IBOp Varcast;
-	IBOp CommentMode;
 	int Line;
 	int Column;
 	int LineIS; //LINE inputstr
@@ -481,10 +473,8 @@ typedef struct IBLayer3 {
 	IBVector StrReadPtrsStack; /*bool*/
 	IBVector CodeBlockStack; /*IBCodeBlock*/
 	IBVector ExpressionStack; /*IBExpression*/
-	//IBNameInfo GlobalVariables;
 
 	char* InputStr;
-	IBStr CurSpace;
 	char Ch;
 	char LastCh;
 	char DefiningStruct;

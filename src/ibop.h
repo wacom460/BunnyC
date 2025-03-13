@@ -15,7 +15,6 @@ X(Call) \
 X(Case) \
 X(Output) \
 X(CallWantArgs) \
-X(Space) \
 X(Enum) \
 X(Flags) \
 X(Method)\
@@ -50,10 +49,6 @@ X(StructVar)\
 X(VarType) \
 X(LineEnd) \
 X(EmptyLine) \
-X(Comment) \
-X(MultiLineComment) \
-X(Public) \
-X(Private) \
 X(Imaginary) \
 X(Void) \
 X(Colon) \
@@ -85,8 +80,6 @@ X(RootTask) \
 X(StructWantName) \
 X(StructWantContent) \
 X(StructWantRepr) \
-X(SpaceNeedName) \
-X(SpaceHasName) \
 X(Placeholder) \
 X(StructInit) \
 X(NameOps) \
@@ -194,8 +187,6 @@ X(ErrDirtyTaskStack) \
 X(TCC_Error) \
 X(ModePrefixPass) \
 X(ModeStrPass) \
-X(ModeComment) \
-X(ModeMultiLineComment) \
 X(ModeArrayIndexExpr) \
 X(ActOnName) \
 X(ActOnNameEquals) \
