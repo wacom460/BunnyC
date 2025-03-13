@@ -1,5 +1,4 @@
-#ifndef IBCOMMON_H_
-#define IBCOMMON_H_
+#pragma once
 
 #ifndef bool
 #define bool char
@@ -128,15 +127,15 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
 
 void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS);
 #define IBVectorPush(vec, dataDP) \
-{ \
-	/*int c=(vec)->elemCount - 1;*/ \
-	_IBVectorPush((vec), (struct IBVecData**)dataDP IBDBGFLPI1); \
-	/*PLINE; \
-	DbgFmt(" VectorPush: %s ", #vec); \
-	IBPushColor(IBFgCYAN); \
-	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1); \
-	IBPopColor(); \*/ \
-}
+	{ \
+		/*int c=(vec)->elemCount - 1;*/ \
+		_IBVectorPush((vec), (struct IBVecData**)dataDP IBDBGFLPI1); \
+		/*PLINE; \
+		DbgFmt(" VectorPush: %s ", #vec); \
+		IBPushColor(IBFgCYAN); \
+		DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1); \
+		IBPopColor(); \*/ \
+	}
 
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS);
 #define IBVectorCopyPush(vec, elem) \
@@ -157,12 +156,12 @@ struct IBVecData* IBVectorFront(IBVector* vec);
 	_IBVectorPop((vec), (void(*)(void*))(freeFunc))
 
 #define IBVectorClear(vec, freeFunc) \
-{ \
-	while((vec)->elemCount) \
 	{ \
-		IBVectorPop((vec), (void(*)(void*))(freeFunc)); \
-	} \
-}
+		while((vec)->elemCount) \
+		{ \
+			IBVectorPop((vec), (void(*)(void*))(freeFunc)); \
+		} \
+	}
 
 void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
 void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
@@ -174,22 +173,20 @@ void IBVectorFreeSimple(IBVector* vec);
 void _IBVectorReinitPushInfo(IBVector* vec);
 
 #define IBVectorFree(vec, freeFunc) \
-{ \
-	int i; \
-	for(i = 0; i < (vec)->elemCount; i++) \
 	{ \
-		(freeFunc)((void*)IBVectorGet((vec), i)); \
-	} \
-	IBVectorFreeSimple((vec)); \
-}
+		int i; \
+		for(i = 0; i < (vec)->elemCount; i++) \
+		{ \
+			(freeFunc)((void*)IBVectorGet((vec), i)); \
+		} \
+		IBVectorFreeSimple((vec)); \
+	}
 
 #define Assert(x) \
-if(!(x)) \
-{ \
-    printf("FAIL: " \
-        "at %s:%d -> %s==0!\n", \
-        __FILE__, __LINE__, #x); \
-    DB; \
-}
-
-#endif
+	if(!(x)) \
+	{ \
+		printf("FAIL: " \
+			"at %s:%d -> %s==0!\n", \
+			__FILE__, __LINE__, #x); \
+		DB; \
+	}

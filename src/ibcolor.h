@@ -1,8 +1,8 @@
-#ifndef IBCOLOR_H_
-#define IBCOLOR_H_
+#pragma once
 
 #ifdef _WIN32
 #include <Windows.h>
+
 typedef enum IBColor
 {
 	//fg
@@ -31,7 +31,7 @@ typedef enum IBColor
 	IBBgBROWN = BACKGROUND_RED | BACKGROUND_GREEN,
 	IBBgIntensity = BACKGROUND_INTENSITY
 }IBColor;
-#else//unix soon
+#else //unix soon
 typedef enum IBColor
 {
 	//fg
@@ -64,6 +64,3 @@ void _IBVectorCopyPushIBColor(struct IBVector* vec, IBColor col IBDBGFILELINEPAR
 #define IBVectorCopyPushIBColor(vec,col) \
 	_IBVectorCopyPushIBColor(vec, col, __FILE__, __LINE__)
 void IBPopColor();
-
-
-#endif

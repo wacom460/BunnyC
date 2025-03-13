@@ -3932,7 +3932,6 @@ top:
 			{
 				o->ifO.lvVal = strVal;
 				o->ifO.lvTYPE = valType;
-				//o->ifO.lvDataType = OP_i32;
 				SetObjType(o, OP_IfNeedMidOP);
 				break;
 			}
@@ -3957,7 +3956,6 @@ top:
 				IBExpects* exp;
 				o->ifO.rvVal = strVal;
 				o->ifO.rvTYPE = valType;
-				//o->ifO.rvDataType = OP_i32;
 				SetObjType(o, OP_IfFinished);
 				SetTaskType(t, OP_IfFinished);
 				IBLayer3ReplaceExpects(ibc, &exp);

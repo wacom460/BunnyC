@@ -16,4 +16,9 @@ blk $main -> i32
 	entity $e
 	$e.id <- 10
 	"%%" $e.id
+	table $e.id
+	_
+	loop
+		"hey\n"
+	_
 _ 0
