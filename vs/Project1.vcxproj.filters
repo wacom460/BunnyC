@@ -13,9 +13,6 @@
     <ClCompile Include="..\src\ibcodeblock.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ibdict.c">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ibexpects.c">
       <Filter>src</Filter>
     </ClCompile>

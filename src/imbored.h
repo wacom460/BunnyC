@@ -14,14 +14,13 @@
 #define strdup _strdup
 #endif
 
-#define IB_IllegalDbObjNameChars " \t\n,.:~!@#$%^&*=/()[]{}<>?|\\`'\""
 #define IBBoolStr(b) (b ? IB_TRUESTR : IBFALSESTR)
 #define IBBoolStrChar(b) (b ? "1" : "0")
 
 extern char* SysLibCodeStr;
 
 #ifdef IBDEBUGPRINTS
-void _PrintLine(char*f, int l);
+void _PrintLine(char* f, int l);
 #define PLINE _PrintLine(__FILE__, __LINE__)
 #else
 #define PLINE
@@ -29,11 +28,12 @@ void _PrintLine(char*f, int l);
 
 #define IBRUN_MAXARGS 10
 
-#define IBCASE_BLOCKWANTCODE case OP_LoopBlockWantCode: \
-case OP_CaseWantCode:      \
-case OP_BlockWantCode:     \
-case OP_IfBlockWantCode:   \
-case OP_FuncWantCode:
+#define IBCASE_BLOCKWANTCODE \
+	case OP_LoopBlockWantCode: \
+	case OP_CaseWantCode: \
+	case OP_BlockWantCode: \
+	case OP_IfBlockWantCode: \
+	case OP_FuncWantCode:
 
 #define IBCASE_UNIMPLEMENTED \
 default: \
@@ -48,29 +48,37 @@ default: \
 	break; \
 }
 
-#define IB_STARTS_WITH_SELFDOT(o)\
-	((strnlen((o), 5)>=5) && (!strncmp((o),"self.",5)))
-#define IB_SELFDOTLESS_NTSP(o) ((o)+5)
+#define IB_STARTS_WITH_SELFDOT(o) \
+	((strnlen((o), 5) >= 5) && (!strncmp((o),"self.", 5)))
 
-#define IBCASE_0THRU9 case '0': case '1': case '2': case '3': \
-case '4': case '5': case '6': case '7': case '8': case '9':
+#define IB_SELFDOTLESS_NTSP(o) ((o) + 5)
 
-#define IBCASE_aTHRUz case 'a': case 'b': case 'c': case 'd': \
-case 'e': case 'f': case 'g': case 'h': case 'i': case 'j': \
-case 'k': case 'l': case 'm': case 'n': case 'o': case 'p': \
-case 'q': case 'r': case 's': case 't': case 'u': case 'v': \
-case 'w': case 'x': case 'y': case 'z':
+#define IBCASE_0THRU9 \
+	case '0': case '1': case '2': case '3': \
+	case '4': case '5': case '6': case '7': case '8': case '9':
 
-#define IBCASE_ATHRUZ case 'A': case 'B': case 'C': case 'D': \
-case 'E': case 'F': case 'G': case 'H': case 'I': case 'J': \
-case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': \
-case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': \
-case 'W': case 'X': case 'Y': case 'Z':
+#define IBCASE_aTHRUz \
+	case 'a': case 'b': case 'c': case 'd': \
+	case 'e': case 'f': case 'g': case 'h': case 'i': case 'j': \
+	case 'k': case 'l': case 'm': case 'n': case 'o': case 'p': \
+	case 'q': case 'r': case 's': case 't': case 'u': case 'v': \
+	case 'w': case 'x': case 'y': case 'z':
 
-#define IBCASE_AaTHRUZz IBCASE_aTHRUz IBCASE_ATHRUZ
-#define IBCASE_0AaTHRU9Zz IBCASE_AaTHRUZz IBCASE_0THRU9
+#define IBCASE_ATHRUZ \
+	case 'A': case 'B': case 'C': case 'D': \
+	case 'E': case 'F': case 'G': case 'H': case 'I': case 'J': \
+	case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': \
+	case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': \
+	case 'W': case 'X': case 'Y': case 'Z':
 
-#define IBCASE_NUMTYPES case OP_u8: case OP_c8: case OP_i8: \
+#define IBCASE_AaTHRUZz \
+	IBCASE_aTHRUz IBCASE_ATHRUZ
+
+#define IBCASE_0AaTHRU9Zz \
+	IBCASE_AaTHRUZz IBCASE_0THRU9
+
+#define IBCASE_NUMTYPES \
+	case OP_u8: case OP_c8: case OP_i8: \
 	case OP_u16: case OP_i16: case OP_u32: case OP_i32: \
 	case OP_f32: case OP_u64: case OP_i64: case OP_d64:
 
@@ -80,14 +88,14 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IB_WARN_ON_REALLOC 0
 
 #if IB_WARN_ON_REALLOC
-#define IBREALLOCWARNING\
-	DbgFmt("[%s:%d] %s realloc called!\n",__FILE__,__LINE__,__func__);
+#define IBREALLOCWARNING \
+	DbgFmt("[%s:%d] %s realloc called!\n", __FILE__, __LINE__, __func__);
 #else
 #define IBREALLOCWARNING
 #endif
 
-#define IBREALLOC(nptr,ptr,sz)\
-	nptr = realloc(ptr,sz);\
+#define IBREALLOC(nptr, ptr, sz) \
+	nptr = realloc(ptr, sz); \
 	IBREALLOCWARNING
 
 #define IBASSERT0(x) \
@@ -127,117 +135,11 @@ case 'W': case 'X': case 'Y': case 'Z':
 
 #include "ibop.h"
 
-#define CASE_VALTYPES case OP_u8: \
-	case OP_i8: case OP_c8: case OP_u16: case OP_i16: \
-	case OP_u32: case OP_i32: case OP_u64: case OP_i64:
+#define CASE_VALTYPES \
+	case OP_u8: case OP_i8: case OP_c8: case OP_u16: \
+	case OP_i16: case OP_u32: case OP_i32: case OP_u64: \
+	case OP_i64:
 
-#define IBDStr "s"
-#define IBDNum "d"
-#define IBDInPtr "i"
-#define IBDOutPtr "o"
-#define IBDCount "c"
-#define IBDInStr "z"
-#define IBDInNum "x"
-#define IBDOutStr "j"
-#define IBDOutNum "k"
-#define IBDOutKey "g"
-
-typedef enum IBDictDataType
-{
-	IBDictDataType_Unknown = 0,
-	IBDictDataType_RootKey,
-	IBDictDataType_VoidPtr,
-	IBDictDataType_Int,
-	IBDictDataType_String,
-} IBDictDataType;
-
-//char* IBDictDataTypeToString(IBDictDataType type);
-
-#define IBDICTKEY_MAXDATASIZE 256
-#define IBDICTKEY_KEYSIZE 16
-
-typedef struct IBDictKey
-{
-	IBOp DataTypeIdentifier;
-	IBDictDataType type;
-	IBVector children;
-	union key
-	{
-		//char* str;
-		int num;
-		char data[IBDICTKEY_KEYSIZE];
-	} key;
-	union val
-	{
-		char data[IBDICTKEY_MAXDATASIZE];
-		int num;
-	} val;
-} IBDictKey;
-
-typedef struct IBDictKeyDef
-{
-	IBOp DataTypeIdentifier;
-	IBDictDataType type;
-	IBDictKey* key;
-	union
-	{
-		char* str;
-		int num;
-	};
-} IBDictKeyDef;
-
-void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def);
-void IBDictKeyInitRoot(IBDictKey* key);
-void IBDictKeyFree(IBDictKey* key);
-//recursive
-IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack);
-IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def);
-//childDepth must be ptr to an int set to 0
-void IBDictKeyPrint(IBDictKey* key, int* childDepth);
-
-/*
-* IBDictManip fmt charOPs:
-*
-* KEYS:
-* s - string
-* d - int
-*
-* READ/WRITE:
-// i and o apply to previous charOPs
-* i - in read ptr (count required)
-* o - out write ptr (count required)
-* c - count
-*
-* z - in char* (null terminated)
-* x - in int
-* j - out char* (null terminated)
-* k - out int*
-* g - out IBDictKey*
-*
-* EXAMPLES:
-* IBDictManip(dict, "ddsx", 0, 0, "id", 1); //write 1 to "0.0.id"
-*
-* int i;
-* IBDictManip(dict, "ddsk", 0, 0, "id", &i); //read 1 from "0.0.id"
-*
-*
-	IBDictionary dict;
-	IBDictionaryInit(&dict);
-
-	//folder.file.100.info.date = 19910420
-	IBDictKey* k = IBDictManip(&dict,
-		IBDStr    IBDStr  IBDNum IBDStr  IBDStr  IBDInNum,
-		"folder", "file", 100,   "info", "date", 19910420
-	);
-*/
-
-IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...);
-
-//key = IBDictGet(dict, "0.0.id");
-IBDictKey* IBDictGet(IBDictKey* rootKey, char* keyPath);
-void IBDictTest();
-
-/* GLOBAL COLOR STACK */
 extern IBVector g_ColorStack; /*IBColor*/
 
 char* StrConcat(char* dest, int count, char* src);
@@ -357,11 +259,9 @@ typedef struct IBObj
 	struct _IBIfObj
 	{
 		IBOp lvTYPE;
-		//IBOp lvDataType;
 		IBOp lvMod;
 		IBOp midOp;
 		IBOp rvTYPE;
-		//IBOp rvDataType;
 		IBOp rvMod;
 		IBVal lvVal;
 		IBVal rvVal;
@@ -405,13 +305,16 @@ void _IBObjSetType(IBObj* obj, IBOp type);
 	PLINE; \
 	_IBObjSetType(obj, type); \
 }
+
 void IBObjSetMod(IBObj* obj, IBOp mod);
+
 void _IBObjSetName(IBObj* obj, char* name);
 #define IBObjSetName(obj, name) \
 { \
 	PLINE; \
 	_IBObjSetName(obj,name); \
 }
+
 void IBObjSetStr(IBObj* obj, char* Str);
 void IBObjCopy(IBObj* dst, IBObj* src);
 void ObjPrint(IBObj* obj);
@@ -512,13 +415,8 @@ typedef struct IBLayer3
 	IBTypeInfo* DefiningEnumTypeInfo;
 	char DefiningMethods;
 
-	//[DOT PATH]
-	//obj.thing.whatever ->
-	//obj
-	//thing
-	//whatever
 	char DotPathOn;
-	IBVector DotPathVec;//IBStr
+	IBVector DotPathVec; //IBStr
 
 	char*_methodsStructName;
 	//char DefiningEnum;
@@ -555,18 +453,18 @@ typedef struct IBLayer3
 
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
-void IBLayer3RegisterCustomType(IBLayer3*ibc,char*name, 
+void IBLayer3RegisterCustomType(IBLayer3* ibc,char* name, 
 	IBOp type,/*OP_Enum,OP_Struct,OP_FuncPtr*/
-	IBTypeInfo**outDP);
-void IBLayer3FindType(IBLayer3*ibc,char*name,IBTypeInfo**outDP);
+	IBTypeInfo** outDP);
+void IBLayer3FindType(IBLayer3* ibc, char* name, IBTypeInfo** outDP);
 void IBLayer3CompileTCC(IBLayer3* ibc);
 IBObj* IBLayer3GetObj(IBLayer3* ibc);
 IBNameInfo* IBLayer3TryFindNameInfoInStructVar(IBLayer3* ibc, IBNameInfo* ni);
+
 IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln);
-#define IBLayer3SearchNameInfo(ibc,name)\
-	_IBLayer3SearchNameInfo(ibc,name,__LINE__)
-//void IBLayer3PrintVecData(struct IBVecData* data, IBOp type);
-//void IBLayer3VecPrint(IBVector* vec);
+#define IBLayer3SearchNameInfo(ibc, name) \
+	_IBLayer3SearchNameInfo(ibc, name, __LINE__)
+
 IBObj* IBLayer3FindStackObjRev(IBLayer3*ibc,IBOp type);
 IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type);
 IBObj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, IBOp type);
@@ -577,12 +475,14 @@ IBObj* IBLayer3FindWorkingObj(IBLayer3* ibc, IBOp type);
 IBObj* IBLayer3FindWorkingObjRev(IBLayer3* ibc, IBOp type);
 IBObj* IBLayer3FindWorkingObjUnderIndex(IBLayer3* ibc, int index, IBOp type);
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc);
+
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP);
 #define IBLayer3PushCodeBlock(ibc, cbDP) \
 { \
 	PLINE; \
 	_IBLayer3PushCodeBlock(ibc, cbDP); \
 }
+
 void _IBLayer3PopCodeBlock(IBLayer3* ibc,
 	bool copyToParent, IBCodeBlock** cbDP);
 #define IBLayer3PopCodeBlock(ibc, copyToParent, cbDP) \
@@ -590,6 +490,7 @@ void _IBLayer3PopCodeBlock(IBLayer3* ibc,
 	PLINE; \
 	_IBLayer3PopCodeBlock(ibc, copyToParent, cbDP); \
 }
+
 void _IBLayer3PushTask(IBLayer3* ibc, IBOp taskOP,
 	IBExpects** exectsDP, IBTask** taskDP);
 #define IBLayer3PushTask(ibc, taskOP, exectsDP, taskDP) \
@@ -597,18 +498,21 @@ void _IBLayer3PushTask(IBLayer3* ibc, IBOp taskOP,
 	PLINE; \
 	_IBLayer3PushTask(ibc, taskOP, exectsDP, taskDP); \
 }
+
 void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP, bool popToParent);
 #define IBLayer3PopTask(ibc, taskDP, popToParent) \
 { \
 	PLINE; \
 	_IBLayer3PopTask(ibc, taskDP, popToParent); \
 }
+
 void _IBLayer3PushObj(IBLayer3* ibc, IBObj** o);
 #define IBLayer3PushObj(ibc, objDP) \
 { \
 	PLINE; \
 	_IBLayer3PushObj(ibc, objDP); \
 }
+
 #define GetObjCount (ibc->ObjStack.elemCount)
 void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP);
 #define IBLayer3PopObj(ibc, p2w, objDP) \
@@ -616,12 +520,14 @@ void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP);
 	PLINE; \
 	_IBLayer3PopObj(ibc, p2w, objDP); \
 }
+
 void _IBLayer3Push(IBLayer3* ibc, IBOp mode, bool strAllowSpace);
 #define IBLayer3Push(ibc, mode, strAllowSpace) \
 { \
 	PLINE; \
 	_IBLayer3Push(ibc, mode, strAllowSpace); \
 }
+
 void _IBLayer3Pop(IBLayer3* ibc);
 #define IBLayer3Pop(ibc) \
 { \
@@ -714,8 +620,6 @@ struct IBVecData
 		bool boolean;
 		IBExpects expects;
 		IBNameInfo nameInfo;
-		IBDictKey dictKey;
-		IBDictKeyDef dictKeyDef;
 		IBTypeInfo typeInfo;
 		IBVector vec;
 		IBCodeBlock codeBlock;

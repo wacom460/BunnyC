@@ -24,7 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\ibcodeblock.c" />
-    <ClCompile Include="..\src\ibdict.c" />
     <ClCompile Include="..\src\ibexpects.c" />
     <ClCompile Include="..\src\iblayer3.c" />
     <ClCompile Include="..\src\ibmain.c" />
