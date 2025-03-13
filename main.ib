@@ -1,14 +1,22 @@
-struct $entity
-	i32 $id
+enum $EntType
+	$person
+	$bullet
 _
 
-enum $testE
-	$c
+flags $traits
+	$flammable
+	$destructable
+_
+
+struct $entity
+	i32 $id
+	EntType $type
+	traits $traits
 _
 
 blk $main -> i32
-	testE $te <- .c
 	entity $e
 	$e.id <- 10
+	$e.type <- .person
 	"%%" $e.id
 _ 0

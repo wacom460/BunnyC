@@ -1133,14 +1133,14 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 				if(!strncmp(avT->start, "as ", 3)) {
 					IBOp nameOP = IBGetOpFromNameList(avT->start + 3, OP_NameOps);
 					switch(nameOP) {
-						IBCASE_NUMTYPES
-						{
-							if(ibc->Varcast != OP_Null)
-								Err(OP_Error, "");
-							ibc->Varcast = nameOP;
-							break;
-						}
-							IBCASE_UNIMPLEMENTED
+					IBCASE_NUMTYPES
+					{
+						if(ibc->Varcast != OP_Null)
+							Err(OP_Error, "");
+						ibc->Varcast = nameOP;
+						break;
+					}
+					IBCASE_UNIMPLEMENTED
 					}
 				}
 				IBLayer3Pop(ibc);
