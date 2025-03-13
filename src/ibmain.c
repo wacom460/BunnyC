@@ -3,7 +3,8 @@
 void removeExt(char* filename)
 {
 	char* dot = strrchr(filename, '.');
-	if(dot != NULL && dot != filename) {
+	if(dot != NULL && dot != filename)
+	{
 		*dot = '\0';
 	}
 }
@@ -11,7 +12,8 @@ void removeExt(char* filename)
 char* path2Filename(char* path)
 {
 	char* last_slash = strrchr(path, '/');
-	if(last_slash != NULL) {
+	if(last_slash != NULL)
+	{
 		return last_slash + 1;
 	}
 	return path;
@@ -19,14 +21,16 @@ char* path2Filename(char* path)
 
 void IBcompFrontend(int argc, char** argv, int* rv)
 {
-	if (argc < 2) {
+	if (argc < 2)
+	{
 		printf("Please specify a file\n");
 		*rv = -1;
 		return;
 	}
 	//printf("%d",(int)sizeof(IBVecData));
 	FILE* f = fopen(argv[1], "r");
-	if (f) {
+	if (f)
+	{
 		IBLayer3 comp;
 		IBLayer3Init(&comp);		
 		char* ext = strdup(argv[1]);
@@ -41,7 +45,8 @@ void IBcompFrontend(int argc, char** argv, int* rv)
 		fclose(f);
 		*rv = 0;
 	}
-	else {
+	else
+	{
 		printf("Error opening file %s\n", argv[1]);
 	}
 }

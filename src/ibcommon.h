@@ -48,7 +48,8 @@ long long strnlen(char* s, long long maxlen);
 CLAMP_FUNC(int, ClampInt);
 CLAMP_FUNC(long long int, ClampSizeT);
 
-typedef struct IBStr {
+typedef struct IBStr
+{
 	IBOp DataTypeIdentifier;
 	char* start;
 	char* end; /*ptr of null terminator '\0'*/
@@ -76,13 +77,15 @@ struct IBVecData;
 #define IBVEC_PUSHINFO_MAX (32)
 #define IBVEC_DEFAULT_SLOTCOUNT 16
 
-typedef struct IBVecPushInfo {
+typedef struct IBVecPushInfo
+{
 	struct IBVecData* ptr;
 	char* filePath;
 	int lineNum;
 } IBVecPushInfo;
 
-typedef struct IBVector {
+typedef struct IBVector
+{
 	IBOp DataTypeIdentifier;
 	IBOp elemDataType;//elem data type
 	long long int elemSize;
@@ -108,14 +111,15 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
 
 #define IBVectorIterNext(vec, idx) _IBVectorIterNext(vec, idx, __LINE__)
 void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS);
-#define IBVectorPush(vec, dataDP) { \
+#define IBVectorPush(vec, dataDP) \
+{ \
 	/*int c=(vec)->elemCount - 1;*/ \
 	_IBVectorPush((vec), (struct IBVecData**)dataDP IBDBGFLPI1); \
-	/*PLINE;\
+	/*PLINE; \
 	DbgFmt(" VectorPush: %s ", #vec); \
 	IBPushColor(IBFgCYAN); \
-	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1);\
-	IBPopColor();\*/ \
+	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1); \
+	IBPopColor(); \*/ \
 }
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS);
 #define IBVectorCopyPush(vec, elem) \
@@ -130,8 +134,10 @@ struct IBVecData* IBVectorTop(IBVector* vec);
 struct IBVecData* IBVectorFront(IBVector* vec);
 #define IBVectorPop(vec, freeFunc) \
 	_IBVectorPop((vec), (void(*)(void*))(freeFunc))
-#define IBVectorClear(vec, freeFunc) { \
-	while((vec)->elemCount) { \
+#define IBVectorClear(vec, freeFunc) \
+{ \
+	while((vec)->elemCount) \
+	{ \
 		IBVectorPop((vec), (void(*)(void*))(freeFunc)); \
 	} \
 }
@@ -142,20 +148,23 @@ void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
 	_IBVectorPopFront(vec,(void(*)(void*))(freeFunc))
 void IBVectorFreeSimple(IBVector* vec);
 void _IBVectorReinitPushInfo(IBVector* vec);
-#define IBVectorFree(vec, freeFunc) { \
+#define IBVectorFree(vec, freeFunc) \
+{ \
 	int i; \
-	for(i = 0;i<(vec)->elemCount;i++) { \
+	for(i = 0; i < (vec)->elemCount; i++) \
+	{ \
 		(freeFunc)((void*)IBVectorGet((vec), i)); \
 	} \
 	IBVectorFreeSimple((vec)); \
 }
 
 #define Assert(x) \
-if(!(x)) {         \
+if(!(x)) \
+{ \
     printf("FAIL: " \
         "at %s:%d -> %s==0!\n", \
         __FILE__, __LINE__, #x); \
-    DB;               \
+    DB; \
 }
 
 #endif

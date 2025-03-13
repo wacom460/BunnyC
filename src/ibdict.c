@@ -4,12 +4,15 @@ void IBDictKeyInit(IBDictKey* key, IBDictKeyDef def)
 {
 	key->DataTypeIdentifier = OP_IBDictKey;
 	key->type = def.type;
-	switch (def.type) {
-	case IBDictDataType_Int: {
+	switch (def.type)
+	{
+	case IBDictDataType_Int:
+	{
 		key->key.num = def.num;
 		break;
 	}
-	case IBDictDataType_String: {
+	case IBDictDataType_String:
+	{
 		strncpy(key->key.data, def.str, IBDICTKEY_KEYSIZE);
 		break;
 	}
@@ -42,13 +45,16 @@ IBDictKey* IBDictKeyFind(IBDictKey* rootKey, IBVector* keyDefStack)
 	IBassert(rootKey);
 	key = rootKey;
 	IBassert(keyDefStack->elemCount);
-	while (dp = IBVectorIterNext(keyDefStack, &idx)) {
+	while (dp = IBVectorIterNext(keyDefStack, &idx))
+	{
 		IBDictKey* ok = IBDictKeyFindChild(key, *dp);
-		if (ok) {
+		if (ok)
+		{
 			key = ok;
 			break;
 		}
-		else {
+		else
+		{
 			IBDictKey* nk = NULL;
 			IBVectorPush(&key->children, &nk);
 			IBDictKeyInit(nk, *dp);
@@ -65,18 +71,23 @@ IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def)
 	int idx = 0;
 	IBDictKey* sk = NULL;
 	IBassert(key);
-	while (sk = IBVectorIterNext(&key->children, &idx)) {
-		if (sk->type == def.type) {
-			switch (def.type) {
-			case IBDictDataType_Int: {
+	while (sk = IBVectorIterNext(&key->children, &idx))
+	{
+		if (sk->type == def.type)
+		{
+			switch (def.type)
+			{
+			case IBDictDataType_Int:
+			{
 				if (sk->key.num == def.num) return sk;
 				break;
 			}
-			case IBDictDataType_String: {
+			case IBDictDataType_String:
+			{
 				if (strcmp(sk->key.data, def.str) == 0) return sk;
 				break;
 			}
-									  IBCASE_UNIMP_A
+			IBCASE_UNIMP_A
 			}
 		}
 	}
@@ -93,33 +104,40 @@ void IBDictKeyPrint(IBDictKey* key, int* childDepth)
 	tc = *childDepth;
 	while (tc--) printf("\t");
 	printf("[%d] ", *childDepth);
-	switch (key->type) {
-	case IBDictDataType_RootKey: {
+	switch (key->type)
+	{
+	case IBDictDataType_RootKey:
+	{
 		printf("Root ");
 		break;
 	}
-	case IBDictDataType_VoidPtr: {
+	case IBDictDataType_VoidPtr:
+	{
 		printf("Pointer: %p", key->val.data);
 		break;
 	}
-	case IBDictDataType_Int: {
+	case IBDictDataType_Int:
+	{
 		printf("Int: %d", key->val.num);
 		break;
 	}
-	case IBDictDataType_String: {
+	case IBDictDataType_String:
+	{
 		printf("Str: %s", key->val.data);
 		break;
 	}
 	}
 	printf(" K:\n");
 	++*childDepth;
-	while (sk = IBVectorIterNext(&key->children, &idx)) {
+	while (sk = IBVectorIterNext(&key->children, &idx))
+	{
 		IBDictKeyPrint(sk, childDepth);
 	}
 	-- * childDepth;
 }
 
-typedef enum {
+typedef enum
+{
 	IBDictManipAction_Unknown = 0,
 	IBDictManipAction_DataIn,
 	IBDictManipAction_DataOut,
@@ -146,10 +164,13 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...)
 	IBDictManipAction action = IBDictManipAction_Unknown;
 	IBVectorInit(&keyStack, sizeof(IBDictKeyDef), OP_IBDictKeyDef, IBVEC_DEFAULT_SLOTCOUNT);
 	va_start(args, fmt);
-	for (i = 0; i < strlen(fmt); i++) {
+	for (i = 0; i < strlen(fmt); i++)
+	{
 		char ch = fmt[i];
-		switch (ch) {
-		case 's': {//string
+		switch (ch)
+		{
+		case 's':
+		{//string
 			IBDictKeyDef* kd = NULL;
 			IBVectorPush(&keyStack, &kd);
 			kd->DataTypeIdentifier = OP_IBDictKeyDef;
@@ -158,7 +179,8 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...)
 			kd->str = va_arg(args, char*);
 			break;
 		}
-		case 'd': {//int
+		case 'd':
+		{//int
 			IBDictKeyDef* kd = NULL;
 			IBVectorPush(&keyStack, &kd);
 			kd->DataTypeIdentifier = OP_IBDictKeyDef;
@@ -167,47 +189,55 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...)
 			kd->num = va_arg(args, int);
 			break;
 		}
-		case 'i': {//in ptr
+		case 'i':
+		{//in ptr
 			IBassert(action == IBDictManipAction_Unknown);
 			inPtr = va_arg(args, void*);
 			action = IBDictManipAction_DataOut;
 			break;
 		}
-		case 'o': {//out ptr
+		case 'o':
+		{//out ptr
 			IBassert(action == IBDictManipAction_Unknown);
 			outPtr = va_arg(args, void**);
 			action = IBDictManipAction_DataIn;
 			break;
 		}
-		case 'c': {//count
+		case 'c':
+		{//count
 			count = va_arg(args, size_t);
 			break;
 		}
-		case 'z': {//in char* (null terminated)
+		case 'z': //in char* (null terminated)
+		{
 			IBassert(action == IBDictManipAction_Unknown);
 			inStr = va_arg(args, char*);
 			action = IBDictManipAction_StrIn;
 			break;
 		}
-		case 'x': {//in int
+		case 'x': //in int
+		{
 			IBassert(action == IBDictManipAction_Unknown);
 			inInt = va_arg(args, int);
 			action = IBDictManipAction_IntIn;
 			break;
 		}
-		case 'j': {//out new char* (null terminated)
+		case 'j': //out new char* (null terminated)
+		{
 			IBassert(action == IBDictManipAction_Unknown);
 			outStr = va_arg(args, char**);
 			action = IBDictManipAction_StrOut;
 			break;
 		}
-		case 'k': {//out int*
+		case 'k': //out int*
+		{
 			IBassert(action == IBDictManipAction_Unknown);
 			outIntPtr = va_arg(args, int*);
 			action = IBDictManipAction_IntOut;
 			break;
 		}
-		case 'g': {//out IBDictKey*
+		case 'g': //out IBDictKey*
+		{
 			IBassert(action == IBDictManipAction_Unknown);
 			outKeyPtr = va_arg(args, IBDictKey**);
 			action = IBDictManipAction_KeyPtrOut;
@@ -218,36 +248,44 @@ IBDictKey* IBDictManip(IBDictKey* rootKey, char* fmt, ...)
 	}
 	dk = IBDictKeyFind(rootKey, &keyStack);
 	IBassert(dk);
-	switch (action) {
-	case IBDictManipAction_DataIn: {
+	switch (action)
+	{
+	case IBDictManipAction_DataIn:
+	{
 		IBassert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
 		memcpy_s(dk->val.data, IBDICTKEY_MAXDATASIZE, inPtr, count);
 		break;
 	}
-	case IBDictManipAction_DataOut: {
+	case IBDictManipAction_DataOut:
+	{
 		IBassert(outPtr);
 		IBassert(count > 0 && count <= IBDICTKEY_MAXDATASIZE);
 		if (outPtr)
 			memcpy(outPtr, dk->val.data, count);
 		break;
 	}
-	case IBDictManipAction_StrIn: {
+	case IBDictManipAction_StrIn:
+	{
 		strncpy(dk->val.data, inStr, IBDICTKEY_MAXDATASIZE);
 		break;
 	}
-	case IBDictManipAction_StrOut: {
+	case IBDictManipAction_StrOut:
+	{
 		*outStr = strdup(dk->val.data);
 		break;
 	}
-	case IBDictManipAction_IntIn: {
+	case IBDictManipAction_IntIn:
+	{
 		dk->val.num = inInt;
 		break;
 	}
-	case IBDictManipAction_IntOut: {
+	case IBDictManipAction_IntOut:
+	{
 		(*outIntPtr) = dk->val.num;
 		break;
 	}
-	case IBDictManipAction_KeyPtrOut: {
+	case IBDictManipAction_KeyPtrOut:
+	{
 		*outKeyPtr = dk;
 		break;
 	}

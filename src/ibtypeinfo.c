@@ -27,7 +27,8 @@ void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP)
 	IBASSERT0(ti);
 	IBASSERT0(name);
 	IBASSERT0(strlen(name) > 0);
-	while (nti = IBVectorIterNext(&ti->members, &idx)) {
+	while (nti = IBVectorIterNext(&ti->members, &idx))
+	{
 		IB_ASSERTMAGICP(nti);
 		IBASSERT0(nti->name.start)
 			if (!strcmp(nti->name.start, name)) break;

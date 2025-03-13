@@ -73,14 +73,17 @@ void IBObjCopy(IBObj* dst, IBObj* src)
 void ObjPrint(IBObj* obj)
 {
 	IBassert(obj);
-	if (obj) {
+	if (obj)
+	{
 		printf("[");
-		if (obj->type != OP_NotSet) {
+		if (obj->type != OP_NotSet)
+		{
 			printf("Type:%s(%d),", IBGetOpName(obj->type), (int)obj->type);
 		}
 		if (obj->name)printf("Name:%s,", obj->name);
 		if (obj->str)printf("Str:%s,", obj->str);
-		if (obj->modifier != OP_NotSet) {
+		if (obj->modifier != OP_NotSet)
+		{
 			printf("Mod:%s,", IBGetOpName(obj->modifier));
 		}
 		printf("Val:%d", obj->val.i32);

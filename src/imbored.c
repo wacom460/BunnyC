@@ -31,7 +31,9 @@ void _PrintLine(char* f, int l)
 }
 #endif
 
-#define X(a) {#a, OP_##a},
+#define X(a) \
+	{ #a, OP_##a },
+
 IBOpNamePair opNamesAR[] =
 {
 	_IB_OPS_

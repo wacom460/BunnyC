@@ -24,7 +24,8 @@ IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp 
 	IBASSERT0(name);
 	IBassert(ni != &((IBCodeBlock*)IBVectorFront(&ibc->CodeBlockStack))->localVariables);
 	found = IBNameInfoFindMember(ni, name);
-	if (found) {
+	if (found)
+	{
 		if (niDP) (*niDP) = found;
 		return OP_AlreadyExists;
 	}
@@ -41,7 +42,8 @@ IBOp IBNameInfoFindType(IBNameInfo* ni, char* name)
 {
 	IBNameInfo* pair=0;
 	int idx=0;
-	while (pair = IBVectorIterNext(&ni->members, &idx)) {
+	while (pair = IBVectorIterNext(&ni->members, &idx))
+	{
 		if (!strcmp(pair->name, name))
 			return pair->type;
 	}

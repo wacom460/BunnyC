@@ -25,8 +25,10 @@ void TaskFindWorkingObj(IBTask* t, IBOp type, IBObj** outDP)
 	IBObj* o = 0;
 	int idx = 0;
 	IBassert(t);
-	while (o = IBVectorIterNext(&t->working, &idx)) {
-		if (o->type == type) {
+	while (o = IBVectorIterNext(&t->working, &idx))
+	{
+		if (o->type == type)
+		{
 			if (outDP) (*outDP) = o;
 			return;
 		}

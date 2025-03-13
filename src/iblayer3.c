@@ -1317,7 +1317,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		IBLayer3FindType(ibc, eo->name, &ti);
 		IBASSERT0(ti);
 		ti->Enum.isFlags = eo->enumO.flags;
-		IBStrAppendFmt(&t->code.header, "enum E%s {\n", eo->name);
+		IBStrAppendFmt(&t->code.header, "enum E%s\n{\n", eo->name);
 		IBStrAppendFmt(&t->code.footer, "};\n\n", eo->name);
 		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx))
 		{
@@ -1365,7 +1365,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		IBStrInit(&fo);
 		IBCodeBlockFinish(&st->code, &fo);
 		IBStrAppendCh(&cb->header, '\t', tabCount - 2);
-		IBStrAppendFmt(&cb->header, "case %s: {\n", fo.start);
+		IBStrAppendFmt(&cb->header, "case %s:\n{\n", fo.start);
 		if(to->table.fallthru == false)
 		{
 			IBStrAppendCh(&cb->footer, '\t', tabCount - 1);
@@ -1386,7 +1386,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		IBStrInit(&fo);
 		IBCodeBlockFinish(&st->code, &fo);
 		IBStrAppendCh(&cb->header, '\t', tabCount - 1);
-		IBStrAppendFmt(&cb->header, "switch (%s) {\n", fo.start);
+		IBStrAppendFmt(&cb->header, "switch (%s)\n{\n", fo.start);
 		IBStrAppendCh(&cb->footer, '\t', tabCount - 1);
 		IBStrAppendFmt(&cb->footer, "}\n");
 		IBLayer3PopCodeBlock(ibc, true, &cb);
@@ -1865,7 +1865,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 				IBLayer3FindType(ibc, o->name, &ti);
 				IBASSERT0(ti);
 
-				IBStrAppendFmt(&header, "struct S%s {\n", o->name);
+				IBStrAppendFmt(&header, "struct S%s\n{\n", o->name);
 				IBStrAppendFmt(&footer, "};\n\n", o->name);
 
 				break;
@@ -2050,7 +2050,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 			//DbgFmt("[@func]", "");
 			IBStr cbOut;
 			IBCodeBlock* cb;
-			IBStrAppendCStr(&cFuncArgsEnd, ") {\n");
+			IBStrAppendCStr(&cFuncArgsEnd, ")\n{\n");
 			IBStrInit(&cbOut);
 			cb = IBLayer3CodeBlocksTop(ibc);
 			IBCodeBlockFinish(cb, &cbOut);
@@ -2605,7 +2605,8 @@ void IBLayer3StrPayload(IBLayer3* ibc)
 	IBPopColor();
 	DbgPuts("\n");
 top:
-	switch(ibc->Pfx) {
+	switch(ibc->Pfx)
+	{
 	/* . PFXDOT */ case OP_Dot:
 	{
 		switch(t->type)

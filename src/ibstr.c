@@ -33,7 +33,8 @@ void IBStrClear(IBStr* str)
 	str->start = NULL;
 	str->start = malloc(1);
 	IBASSERT0(str->start);
-	if (str->start) {
+	if (str->start)
+	{
 		*(str->start) = '\0';
 		str->end = str->start;
 	}
@@ -96,7 +97,8 @@ char* IBStrAppendCStr(IBStr* str, char* with)
 	len = IBStrLen(str);
 	IBREALLOC(ra, str->start, len + withLen + 1);
 	IBASSERT0(ra);
-	if (ra) {
+	if (ra)
+	{
 		str->start = (char*)ra;
 		memcpy(str->start + len, with, withLen);
 		*(str->start + len + withLen) = '\0';
@@ -129,7 +131,8 @@ char* IBStrAppend(IBStr* str, IBStr* with)
 	len = IBStrLen(str);
 	IBREALLOC(ra, str->start, len + withLen + 1);
 	IBASSERT0(ra);
-	if (ra) {
+	if (ra)
+	{
 		str->start = (char*)ra;
 		memcpy(str->start + len, with->start, withLen);
 		*(str->start + len + withLen) = '\0';
@@ -145,7 +148,8 @@ int IBStrStripFront(IBStr* str, char ch)
 	int in = 0;
 	char* rep = NULL;
 	char ch2 = '\0';
-	while (true) {
+	while (true)
+	{
 		ch2 = str->start[in];
 		if (ch2 == ch) in++;
 		else break;
@@ -156,7 +160,8 @@ int IBStrStripFront(IBStr* str, char ch)
 	str->start = rep;
 	str->end = str->start + (slen - in);
 	IBASSERT0(str->end);
-	if (str->end) {
+	if (str->end)
+	{
 		char ec =
 			*(str->end);
 		IBASSERT0(ec == '\0');
@@ -171,7 +176,8 @@ void IBStrSplitBy(IBStr* str, char splitByCh, IBVector* toVec)
 	IBStr* cur = 0;
 	for(long long i = 0; i < len; ++i)
 	{
-		if(!cur) {
+		if(!cur)
+		{
 			IBVectorPush(toVec, &cur);
 			IBStrInit(cur);
 		}
@@ -182,7 +188,8 @@ void IBStrSplitBy(IBStr* str, char splitByCh, IBVector* toVec)
 		{
 			cur = 0;
 		}
-		else {
+		else
+		{
 			IBStrAppendCh(cur, ch, 1);
 			//DbgFmt("%c\n", ch);
 		}
@@ -192,22 +199,64 @@ void IBStrSplitBy(IBStr* str, char splitByCh, IBVector* toVec)
 void Val2Str(char* dest, int destSz, IBVal v, IBOp type)
 {
 
-	switch (type) {
+	switch (type)
+	{
 	case OP_Number:
 	case OP_Value:
-	case OP_u8: { snprintf(dest, destSz, "%u", v.u8);  break; }
-	case OP_c8: { snprintf(dest, destSz, "%c", v.c8);  break; }
-	case OP_i16: { snprintf(dest, destSz, "%d", v.i16); break; }
-	case OP_u16: { snprintf(dest, destSz, "%u", v.u16); break; }
-	case OP_i32: { snprintf(dest, destSz, "%d", v.i32); break; }
-	case OP_i64: { snprintf(dest, destSz, "%lld", v.i64); break; }
-	case OP_u32: { snprintf(dest, destSz, "%u", v.u32); break; }
-	case OP_u64: { snprintf(dest, destSz, "%llu", v.u64); break; }
+	case OP_u8:
+	{
+		snprintf(dest, destSz, "%u", v.u8);
+		break;
+	}
+	case OP_c8:
+	{
+		snprintf(dest, destSz, "%c", v.c8);
+		break;
+	}
+	case OP_i16:
+	{
+		snprintf(dest, destSz, "%d", v.i16);
+		break;
+	}
+	case OP_u16:
+	{
+		snprintf(dest, destSz, "%u", v.u16);
+		break;
+	}
+	case OP_i32:
+	{
+		snprintf(dest, destSz, "%d", v.i32);
+		break;
+	}
+	case OP_i64:
+	{
+		snprintf(dest, destSz, "%lld", v.i64);
+		break;
+	}
+	case OP_u32:
+	{
+		snprintf(dest, destSz, "%u", v.u32);
+		break;
+	}
+	case OP_u64:
+	{
+		snprintf(dest, destSz, "%llu", v.u64);
+		break;
+	}
 	case OP_Float:
-	case OP_f32: { snprintf(dest, destSz, "%f", v.f32); break; }
+	case OP_f32:
+	{
+		snprintf(dest, destSz, "%f", v.f32);
+		break;
+	}
 	case OP_Double:
-	case OP_d64: { snprintf(dest, destSz, "%f", v.d64); break; }
-	case OP_Bool: {
+	case OP_d64:
+	{
+		snprintf(dest, destSz, "%f", v.d64);
+		break;
+	}
+	case OP_Bool:
+	{
 		snprintf(dest, destSz, "%s", v.boolean > 0 ? "1" : "0");
 		break;
 	}
@@ -246,13 +295,27 @@ IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str)
 	IBassert(str);
 	sl = strlen(str);
 	if (!sl) return OP_EmptyStr;
-	for (i = 0; i < sl; i++) {
+	for (i = 0; i < sl; i++)
+	{
 		char c = str[i];
-		switch (c) {
-		case '.': { periods++; break; }
-		IBCASE_0THRU9 { numbers++; break; }
+		switch (c)
+		{
+		case '.':
+		{
+			periods++;
+			break;
+		}
+		IBCASE_0THRU9
+		{
+			numbers++;
+			break;
+		}
 		IBCASE_aTHRUz
-		IBCASE_ATHRUZ { letters++; break; }
+		IBCASE_ATHRUZ
+		{
+			letters++;
+			break;
+		}
 		}
 	}
 	lc = str[sl - 1];
@@ -271,12 +334,15 @@ void IBOverwriteStr(char** str, char* with)
 {
 	IBassert(str);
 	IBassert(with);
-	if (!with) {
-		if (*str)free(*str);
+	if (!with)
+	{
+		if (*str)
+			free(*str);
 		*str = NULL;
 		return;
 	}
-	if (*str) free(*str);
+	if (*str) 
+		free(*str);
 	*str = strdup(with);
 	IBassert(*str);
 }

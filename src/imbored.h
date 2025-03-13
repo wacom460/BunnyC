@@ -36,9 +36,10 @@ case OP_IfBlockWantCode:   \
 case OP_FuncWantCode:
 
 #define IBCASE_UNIMPLEMENTED \
-default: {                               \
+default: \
+{ \
 	Err(OP_Error, "Unimplemented case"); \
-	break;                               \
+	break; \
 }
 
 #define IBCASE_UNIMP_A default: { \
@@ -88,29 +89,34 @@ case 'W': case 'X': case 'Y': case 'Z':
 	nptr = realloc(ptr,sz);\
 	IBREALLOCWARNING
 
-#define IBASSERT0(x) { \
-	if(!(x)) { \
+#define IBASSERT0(x) \
+{ \
+	if(!(x)) \
+	{ \
 		printf("[%d]Assertion failed!!! %s\n", __LINE__, #x); \
 		DB; \
 	} \
 }
 
-#define IBASSERT(x, errMsg){\
-	if(!(x)) {\
-		PLINE;\
-		IBPushColor(IBFgRED);\
+#define IBASSERT(x, errMsg) \
+{ \
+	if(!(x)) \
+	{ \
+		PLINE; \
+		IBPushColor(IBFgRED); \
 		printf("Assertion failed!!! -> %s\n%s", \
-			errMsg, #x);\
-		IBPopColor();\
-		DB;\
-	}\
+			errMsg, #x); \
+		IBPopColor(); \
+		DB; \
+	} \
 }
 
 #define IBassert(x) IBASSERT(x, "")
 
 #ifdef IBDEBUGPRINTS
-#define DbgFmt(x, ...){\
-	printf(x, __VA_ARGS__);\
+#define DbgFmt(x, ...) \
+{ \
+	printf(x, __VA_ARGS__); \
 }
 #define DbgPuts(x) printf("%s",x);
 #else
@@ -135,7 +141,8 @@ case 'W': case 'X': case 'Y': case 'Z':
 #define IBDOutNum "k"
 #define IBDOutKey "g"
 
-typedef enum IBDictDataType {
+typedef enum IBDictDataType
+{
 	IBDictDataType_Unknown = 0,
 	IBDictDataType_RootKey,
 	IBDictDataType_VoidPtr,
@@ -148,26 +155,31 @@ typedef enum IBDictDataType {
 #define IBDICTKEY_MAXDATASIZE 256
 #define IBDICTKEY_KEYSIZE 16
 
-typedef struct IBDictKey {
+typedef struct IBDictKey
+{
 	IBOp DataTypeIdentifier;
 	IBDictDataType type;
 	IBVector children;
-	union key {
+	union key
+	{
 		//char* str;
 		int num;
 		char data[IBDICTKEY_KEYSIZE];
 	} key;
-	union val {
+	union val
+	{
 		char data[IBDICTKEY_MAXDATASIZE];
 		int num;
 	} val;
 } IBDictKey;
 
-typedef struct IBDictKeyDef {
+typedef struct IBDictKeyDef
+{
 	IBOp DataTypeIdentifier;
 	IBDictDataType type;
 	IBDictKey* key;
-	union {
+	union
+	{
 		char* str;
 		int num;
 	};
@@ -377,15 +389,17 @@ typedef struct IBObj {
 } IBObj;
 
 void _IBObjSetType(IBObj* obj, IBOp type);
-#define IBObjSetType(obj, type){\
-	PLINE;\
-	_IBObjSetType(obj, type);\
+#define IBObjSetType(obj, type) \
+{ \
+	PLINE; \
+	_IBObjSetType(obj, type); \
 }
 void IBObjSetMod(IBObj* obj, IBOp mod);
 void _IBObjSetName(IBObj* obj, char* name);
-#define IBObjSetName(obj, name){\
-	PLINE;\
-	_IBObjSetName(obj,name);\
+#define IBObjSetName(obj, name) \
+{ \
+	PLINE; \
+	_IBObjSetName(obj,name); \
 }
 void IBObjSetStr(IBObj* obj, char* Str);
 void IBObjCopy(IBObj* dst, IBObj* src);
@@ -502,7 +516,8 @@ typedef struct IBLayer3 {
 	char Str[IBLayer3STR_MAX];
 } IBLayer3;
 
-#define Err(code, msg) { \
+#define Err(code, msg) \
+{ \
 	int l = ibc->InputStr ? ibc->LineIS : ibc->Line; \
 	int c = ibc->InputStr ? ibc->ColumnIS : ibc->Column; \
 	IBPushColor(IBFgRED); \
@@ -515,7 +530,8 @@ typedef struct IBLayer3 {
 	DB; \
 }
 
-#define ErrF(code, fmt, ...) { \
+#define ErrF(code, fmt, ...) \
+{ \
 	char str[512]; \
 	sprintf_s(str, sizeof(str), fmt, __VA_ARGS__); \
 	Err(code, str); \
@@ -546,47 +562,55 @@ IBObj* IBLayer3FindWorkingObjRev(IBLayer3* ibc, IBOp type);
 IBObj* IBLayer3FindWorkingObjUnderIndex(IBLayer3* ibc, int index, IBOp type);
 IBCodeBlock* IBLayer3CodeBlocksTop(IBLayer3* ibc);
 void _IBLayer3PushCodeBlock(IBLayer3* ibc, IBCodeBlock** cbDP);
-#define IBLayer3PushCodeBlock(ibc, cbDP){\
-	PLINE;\
-	_IBLayer3PushCodeBlock(ibc, cbDP);\
+#define IBLayer3PushCodeBlock(ibc, cbDP) \
+{ \
+	PLINE; \
+	_IBLayer3PushCodeBlock(ibc, cbDP); \
 }
 void _IBLayer3PopCodeBlock(IBLayer3* ibc,
 	bool copyToParent, IBCodeBlock** cbDP);
-#define IBLayer3PopCodeBlock(ibc, copyToParent, cbDP){\
-	PLINE;\
-	_IBLayer3PopCodeBlock(ibc, copyToParent, cbDP);\
+#define IBLayer3PopCodeBlock(ibc, copyToParent, cbDP) \
+{ \
+	PLINE; \
+	_IBLayer3PopCodeBlock(ibc, copyToParent, cbDP); \
 }
 void _IBLayer3PushTask(IBLayer3* ibc, IBOp taskOP,
 	IBExpects** exectsDP, IBTask** taskDP);
-#define IBLayer3PushTask(ibc, taskOP, exectsDP, taskDP){\
-	PLINE;\
-	_IBLayer3PushTask(ibc, taskOP, exectsDP, taskDP);\
+#define IBLayer3PushTask(ibc, taskOP, exectsDP, taskDP) \
+{ \
+	PLINE; \
+	_IBLayer3PushTask(ibc, taskOP, exectsDP, taskDP); \
 }
 void _IBLayer3PopTask(IBLayer3* ibc, IBTask** taskDP, bool popToParent);
-#define IBLayer3PopTask(ibc, taskDP, popToParent){\
-	PLINE;\
-	_IBLayer3PopTask(ibc, taskDP, popToParent);\
+#define IBLayer3PopTask(ibc, taskDP, popToParent) \
+{ \
+	PLINE; \
+	_IBLayer3PopTask(ibc, taskDP, popToParent); \
 }
 void _IBLayer3PushObj(IBLayer3* ibc, IBObj** o);
-#define IBLayer3PushObj(ibc, objDP){\
-	PLINE;\
-	_IBLayer3PushObj(ibc, objDP);\
+#define IBLayer3PushObj(ibc, objDP) \
+{ \
+	PLINE; \
+	_IBLayer3PushObj(ibc, objDP); \
 }
 #define GetObjCount (ibc->ObjStack.elemCount)
 void _IBLayer3PopObj(IBLayer3* ibc, bool pushToWorking, IBObj** objDP);
-#define IBLayer3PopObj(ibc, p2w, objDP){\
-	PLINE;\
-	_IBLayer3PopObj(ibc, p2w, objDP);\
+#define IBLayer3PopObj(ibc, p2w, objDP) \
+{ \
+	PLINE; \
+	_IBLayer3PopObj(ibc, p2w, objDP); \
 }
 void _IBLayer3Push(IBLayer3* ibc, IBOp mode, bool strAllowSpace);
-#define IBLayer3Push(ibc, mode, strAllowSpace){\
-	PLINE;\
-	_IBLayer3Push(ibc, mode, strAllowSpace);\
+#define IBLayer3Push(ibc, mode, strAllowSpace) \
+{ \
+	PLINE; \
+	_IBLayer3Push(ibc, mode, strAllowSpace); \
 }
 void _IBLayer3Pop(IBLayer3* ibc);
-#define IBLayer3Pop(ibc){\
-	PLINE;\
-	_IBLayer3Pop(ibc);\
+#define IBLayer3Pop(ibc) \
+{ \
+	PLINE; \
+	_IBLayer3Pop(ibc); \
 }
 
 void IBStrSplitBy(IBStr* str, char ch, IBVector* toVec);
@@ -606,9 +630,10 @@ void IBLayer3Tick(IBLayer3* ibc, FILE* f);
 void IBLayer3InputChar(IBLayer3* ibc, char ch);
 void IBLayer3InputStr(IBLayer3* ibc, char* str);
 void _IBLayer3FinishTask(IBLayer3* ibc);
-#define IBLayer3FinishTask(ibc){\
-	PLINE;\
-	_IBLayer3FinishTask(ibc);\
+#define IBLayer3FinishTask(ibc) \
+{ \
+	PLINE; \
+	_IBLayer3FinishTask(ibc); \
 }
 IBVal IBLayer3StrToVal(IBLayer3* ibc, char* str, IBOp expectedType);
 char* IBLayer3GetCPrintfFmtForType(IBLayer3* ibc, IBOp type);
@@ -616,16 +641,18 @@ void IBLayer3Prefix(IBLayer3* ibc);
 void IBLayer3Str(IBLayer3* ibc);
 void IBLayer3StrPayload(IBLayer3* ibc);
 void IBLayer3ExplainErr(IBLayer3* ibc, IBOp code);
-#define SetObjType(obj, tt){\
+#define SetObjType(obj, tt) \
+{ \
 	PLINE; \
 	DbgFmt(" SetObjType: %s(%d) -> %s(%d)\n", \
-		IBGetOpName(obj->type), (int)obj->type, \
-		IBGetOpName(tt), (int)tt); \
+		IBGetOpName(obj->type), (int) obj->type, \
+		IBGetOpName(tt), (int) tt); \
 	obj->type=tt; \
 }
-#define PopExpects(){\
-	PLINE;\
-	IBLayer3PopExpects(ibc);\
+#define PopExpects() \
+{ \
+	PLINE; \
+	IBLayer3PopExpects(ibc); \
 }
 IBTask* IBLayer3GetTask(IBLayer3* ibc);
 IBOp IBLayer3GetMode(IBLayer3* ibc);
@@ -636,17 +663,19 @@ IBVector* IBTaskGetExpNameOPsTop(IBTask* t);
 IBOp IBStrToBool(IBLayer3* ibc, char* str);
 IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str);
 
-#define SetTaskType(task, tt){\
-	IBassert(task);\
-	PLINE;\
+#define SetTaskType(task, tt) \
+{ \
+	IBassert(task); \
+	PLINE; \
 	DbgFmt(" SetTaskType: %s(%d) -> %s(%d)\n", \
 		IBGetOpName(task->type), \
 		(int)task->type, \
-		IBGetOpName(tt), (int)tt);\
-	task->type = tt;\
+		IBGetOpName(tt), (int) tt); \
+	task->type = tt; \
 }
 
-typedef struct IBOpNamePair {
+typedef struct IBOpNamePair
+{
 	char name[IBOP_NAME_LEN];
 	IBOp op;
 } IBOpNamePair;
@@ -658,8 +687,10 @@ IBOp IBGetOpFromNameList(char* name, IBOp list);
 IBOp IBOPFromPfxCh(char ch);
 void IBOverwriteStr(char** str, char* with);
 
-struct IBVecData {
-	union {
+struct IBVecData
+{
+	union
+	{
 		IBObj obj;
 		IBStr str;
 		IBTask task;

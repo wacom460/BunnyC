@@ -57,17 +57,18 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 	IB_ASSERTMAGICP(vec);
 	IBASSERT0(vec->elemSize);
 	IBASSERT0(vec->elemDataType)
-		if (vec->elemCount + 1 > vec->slotCount) {
-			void* ra = 0;
-			vec->slotCount++;
-			vec->dataSize = vec->elemSize * vec->slotCount;
-			//DbgFmt("vec->dataSize: %d\n", vec->dataSize);
-			IBASSERT0(vec->data);
-			IBREALLOC(ra, vec->data, vec->dataSize);
-			IBASSERT0(ra);
-			if (ra) vec->data = ra;
-			vec->reallocCount++;
-		}
+	if (vec->elemCount + 1 > vec->slotCount)
+	{
+		void* ra = 0;
+		vec->slotCount++;
+		vec->dataSize = vec->elemSize * vec->slotCount;
+		//DbgFmt("vec->dataSize: %d\n", vec->dataSize);
+		IBASSERT0(vec->data);
+		IBREALLOC(ra, vec->data, vec->dataSize);
+		IBASSERT0(ra);
+		if (ra) vec->data = ra;
+		vec->reallocCount++;
+	}
 	topPtr = (struct IBVecData*)((char*)vec->data + (vec->elemSize * vec->elemCount));
 	memset(topPtr, 0, vec->elemSize);
 	int pil = ClampInt(vec->elemCount, 0, IBVEC_PUSHINFO_MAX - 1);
@@ -130,7 +131,8 @@ void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*))
 	if (!vec->doNotShrink) vec->slotCount = vec->elemCount;
 	if (vec->slotCount < 1)vec->slotCount = 1;
 	vec->dataSize = vec->elemSize * vec->slotCount;
-	if (!vec->doNotShrink && vec->elemCount) {
+	if (!vec->doNotShrink && vec->elemCount)
+	{
 		IBASSERT0(vec->data);
 		IBREALLOC(ra, vec->data, vec->dataSize);
 		IBASSERT0(ra);
@@ -148,14 +150,16 @@ void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*))
 	vec->elemCount--;
 	if (!vec->doNotShrink) vec->slotCount = vec->elemCount;
 	if (vec->slotCount < 1)vec->slotCount = 1;
-	if (vec->elemCount > 1) {
+	if (vec->elemCount > 1)
+	{
 		size_t rns = ((vec->dataSize * vec->elemCount) - vec->dataSize);
 		newSize = vec->doNotShrink ? (vec->dataSize)
 			: rns;
 		IBASSERT0(newSize >= vec->dataSize);
 		ra = malloc(newSize);
 		IBASSERT0(ra);
-		if (ra) {
+		if (ra)
+		{
 			memcpy(ra, IBVectorGet(vec, 1), rns);
 			free(vec->data);
 			vec->data = ra;
@@ -172,7 +176,8 @@ void IBVectorFreeSimple(IBVector* vec)
 void _IBVectorReinitPushInfo(IBVector* vec)
 {
 	/*IBASSERT0(vec->slotCount <= IBVEC_PUSHINFO_MAX);*/
-	for (int i = 0;i < IBVEC_PUSHINFO_MAX;i++) {
+	for (int i = 0; i < IBVEC_PUSHINFO_MAX; i++)
+	{
 		vec->PushInfo[i].ptr =
 			i < vec->elemCount ? IBVectorGet(vec, i) : 0;
 	}
