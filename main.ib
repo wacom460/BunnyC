@@ -10,5 +10,6 @@ _
 
 blk $main -> i32
 	entity $e
-	!e.init
+	$e.id <- 10
+	"%%" $e.id
 _ 0

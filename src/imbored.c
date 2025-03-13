@@ -7,9 +7,11 @@
 #ifdef IBDEBUGPRINTS
 void _PrintLine(char* f, int l)
 {
-	if (f) {
+	if (f)
+	{
 		char* rf = f;
-		for(size_t i = strlen(f); i >= 0; i--) {
+		for(size_t i = strlen(f); i >= 0; i--)
+		{
 			char c = f[i];
 			if (c == '\\' || c == '/') break;
 			rf = f + i;
@@ -30,13 +32,14 @@ void _PrintLine(char* f, int l)
 #endif
 
 #define X(a) {#a, OP_##a},
-IBOpNamePair opNamesAR[] = {
+IBOpNamePair opNamesAR[] =
+{
 	_IB_OPS_
 };
 #undef X
-/*#define OP(op) {#op, OP_##op},
-#undef OP*/
-IBOpNamePair PairNameOps[] = {
+
+IBOpNamePair PairNameOps[] =
+{
 	{"null", OP_Null},{IBFALSESTR, OP_False},{IB_TRUESTR, OP_True},
 	{"blk", OP_Func},{"%", OP_VarType},
 	{"return", OP_Return},{"ext", OP_Imaginary},
@@ -58,13 +61,17 @@ IBOpNamePair PairNameOps[] = {
 	{"arguments",OP_RunArguments},{"include", OP_CInclude},
 	{"!", OP_Exclaim},{"methods", OP_Methods},{"=", OP_Equals}
 };
-IBOpNamePair PairDataTypeOPs[] = {
+
+IBOpNamePair PairDataTypeOPs[] =
+{
 	{"i8", OP_i8},{"i16", OP_i16},{"i32", OP_i32},{"i64", OP_i64},
 	{"u8", OP_u8},{"u16", OP_u16},{"u32", OP_u32},{"u64", OP_u64},
 	{"f32", OP_f32},{"d64", OP_d64},{"bool", OP_Bool},{"c8", OP_c8},
 	{"nts", OP_String},{"void", OP_Void},
 };
-IBOpNamePair pfxNames[] = {
+
+IBOpNamePair pfxNames[] =
+{
 	{"NULL", OP_Null},{"Value(=)", OP_Value},{"Op(@)", OP_Op},
 	{"Name($)", OP_Name},
 	{"VarType(%)", OP_VarType},{"Pointer(&)", OP_Pointer},
@@ -86,7 +93,9 @@ IBOpNamePair pfxNames[] = {
 	{"Letter_azAZ", OP_Letter_azAZ},{"SingleQuote(\')", OP_SingleQuote},
 	{"Or(|)",OP_Or},
 };
-IBOpNamePair cEquivelents[] = {
+
+IBOpNamePair cEquivelents[] =
+{
 	{"void", OP_Void},{"return", OP_Return},
 	{"int", OP_i32},{"unsigned int", OP_u32},{"char", OP_Bool},
 	{"long long", OP_i64},{"unsigned long long", OP_u64},
@@ -107,7 +116,9 @@ IBOpNamePair cEquivelents[] = {
 	{"*", OP_Deref},{"&", OP_Ref},{"**", OP_DoubleDeref},
 	{"***", OP_TrippleDeref},{"char*", OP_String},{"|",OP_Or},
 };
-IBOpNamePair dbgAssertsNP[] = {
+
+IBOpNamePair dbgAssertsNP[] =
+{
 	{"taskType", OP_TaskType},
 	{"taskStack", OP_TaskStack},
 	{"notEmpty", OP_NotEmpty}
@@ -123,8 +134,15 @@ char* SysLibCodeStr =
 "ext blk $strcat c8^ $str1 c8^ $str2 -> c8^" LE
 ;
 
-CLAMP_FUNC(int, ClampInt) { CLAMP_IMP }
-CLAMP_FUNC(long long int, ClampSizeT) { CLAMP_IMP }
+CLAMP_FUNC(int, ClampInt)
+{
+	CLAMP_IMP
+}
+
+CLAMP_FUNC(long long int, ClampSizeT)
+{
+	CLAMP_IMP
+}
 
 IBVector g_ColorStack;
 
@@ -135,7 +153,8 @@ char* IBGetCEqu(IBOp op)
 	IBassert(op != OP_Unknown);
 	if (op == OP_None)return "";
 	sz = sizeof(cEquivelents) / sizeof(cEquivelents[0]);
-	for (i = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++)
+	{
 		if (op == cEquivelents[i].op) return cEquivelents[i].name;
 	}
 	return "[GetCEqu UNKNOWN!!!!]";
@@ -146,7 +165,8 @@ char* IBGetOpName(IBOp op)
 	int sz;
 	int i;
 	sz=sizeof(opNamesAR) / sizeof(opNamesAR[0]);
-	for (i = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++)
+	{
 		if (op == opNamesAR[i].op) return opNamesAR[i].name;
 	}
 	IBassert(0);
@@ -158,16 +178,16 @@ char* IBGetPfxName(IBOp op)
 	int sz;
 	int i;
 	sz=sizeof(pfxNames) / sizeof(pfxNames[0]);
-	for (i = 0; i < sz; i++) {
+	for (i = 0; i < sz; i++)
+	{
 		if (op == pfxNames[i].op) return pfxNames[i].name;
 	}
 	//IBassert(0);
 	return "?";
 }
 
-IBOp IBGetOpFromNameList(char* name, IBOp list)
-{
-#define IBListM(_OP, _PAIRS) case _OP: { \
+#define IBListM(_OP, _PAIRS) case _OP: \
+{ \
 	int sz; \
 	int i; \
 	sz = sizeof(_PAIRS) / sizeof(_PAIRS[0]); \
@@ -175,7 +195,11 @@ IBOp IBGetOpFromNameList(char* name, IBOp list)
 		if (!strcmp(_PAIRS[i].name, name)) return _PAIRS[i].op; \
 	break; \
 }
-	switch (list) {
+
+IBOp IBGetOpFromNameList(char* name, IBOp list)
+{
+	switch (list)
+	{
 		IBListM(OP_Op, opNamesAR)
 		IBListM(OP_DataTypes, PairDataTypeOPs)
 		IBListM(OP_NameOps, PairNameOps)
@@ -187,7 +211,8 @@ IBOp IBGetOpFromNameList(char* name, IBOp list)
 
 IBOp IBOPFromPfxCh(char ch)
 {
-	switch (ch) {
+	switch (ch)
+	{
 	IBCASE_aTHRUz
 	IBCASE_ATHRUZ return OP_Letter_azAZ;
 	case '|': return OP_Or;

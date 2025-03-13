@@ -171,7 +171,7 @@ void IBVectorFreeSimple(IBVector* vec)
 
 void _IBVectorReinitPushInfo(IBVector* vec)
 {
-	/*IBASSERT0(vec->slotCount<=IBVEC_PUSHINFO_MAX);*/
+	/*IBASSERT0(vec->slotCount <= IBVEC_PUSHINFO_MAX);*/
 	for (int i = 0;i < IBVEC_PUSHINFO_MAX;i++) {
 		vec->PushInfo[i].ptr =
 			i < vec->elemCount ? IBVectorGet(vec, i) : 0;

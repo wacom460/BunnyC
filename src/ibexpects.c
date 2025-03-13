@@ -16,37 +16,45 @@ void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...)
 	exp->lineNumInited = LINENUM;
 	//DbgFmt("Expect: { ","");
 	va_start(args, fmt);
-	for (i = 0; i < strlen(fmt); i++) {
+	for (i = 0; i < strlen(fmt); i++)
+	{
 		char ch = fmt[i];
-		switch (ch) {
-		case '0': {
+		switch (ch)
+		{
+		case '0':
+		{
 			exp->life = va_arg(args, int);
 			//DbgFmt("Life:%d ", exp->life);
 			break;
 		}
-		case '1': {
+		case '1':
+		{
 			exp->pfxErr = va_arg(args, char*);
 			//DbgFmt("PfxErr:%s ", exp->pfxErr);
 			break;
 		}
-		case '2': {
+		case '2':
+		{
 			exp->nameOpErr = va_arg(args, char*);
 			//DbgFmt("NameOpErr:%s ", exp->nameOpErr);
 			break;
 		}
-		case 'P': {
+		case 'P':
+		{
 			pfx = va_arg(args, IBOp);
 			IBVectorCopyPushOp(&exp->pfxs, pfx);
 			//DbgFmt("Pfx:%s(%d) ", IBGetPfxName(pfx), (int)pfx);
 			break;
 		}
-		case 'N': {
+		case 'N':
+		{
 			nameOp = va_arg(args, IBOp);
 			IBVectorCopyPushOp(&exp->nameOps, nameOp);
 			//DbgFmt("NameOP:%s(%d) ", IBGetOpName(nameOp), (int)nameOp);
 			break;
 		}
-		case 'e': {
+		case 'e':
+		{
 			IBVectorCopyPushOp(&exp->pfxs, OP_Value);
 			IBVectorCopyPushOp(&exp->pfxs, OP_Name);
 			IBVectorCopyPushOp(&exp->pfxs, OP_Add);
@@ -55,7 +63,8 @@ void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...)
 			IBVectorCopyPushOp(&exp->pfxs, OP_Multiply);
 			break;
 		}
-		case 'c': {
+		case 'c':
+		{
 			//PLINE;
 			//DbgFmt("CodeBlockMacro ", "");
 			IBVectorCopyPushOp(&exp->pfxs, OP_Op);
@@ -93,12 +102,12 @@ void IBExpectsPrint(IBExpects* ap)
 	IBPopColor();
 #endif
 	printf("Prefix { ");
-	while (oi = (IBOp*)IBVectorIterNext(&ap->pfxs, &idx))
+	while (oi = (IBOp*) IBVectorIterNext(&ap->pfxs, &idx))
 		printf("%s(%d) ", IBGetPfxName(*oi), (int)*oi);
 	printf("}\nNameOP { ");
 	idx = 0;
 	oi = NULL;
-	while (oi = (IBOp*)IBVectorIterNext(&ap->nameOps, &idx))
+	while (oi = (IBOp*) IBVectorIterNext(&ap->nameOps, &idx))
 		printf("@%s(%d) ", IBGetOpName(*oi), (int)*oi);
 	printf("}\n");
 }

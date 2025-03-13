@@ -102,11 +102,11 @@ void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count);
 struct IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
 
-#define IBDBGFILELINEPARAMS	,char*file,int ln
-#define IBDBGFPL2 ,file,ln
-#define IBDBGFLPI1 ,__FILE__,__LINE__
+#define IBDBGFILELINEPARAMS	, char* file, int ln
+#define IBDBGFPL2 , file, ln
+#define IBDBGFLPI1 , __FILE__, __LINE__
 
-#define IBVectorIterNext(vec,idx) _IBVectorIterNext(vec,idx,__LINE__)
+#define IBVectorIterNext(vec, idx) _IBVectorIterNext(vec, idx, __LINE__)
 void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS);
 #define IBVectorPush(vec, dataDP) { \
 	/*int c=(vec)->elemCount - 1;*/ \
@@ -118,13 +118,13 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 	IBPopColor();\*/ \
 }
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS);
-#define IBVectorCopyPush(vec,elem) \
-	_IBVectorCopyPush(vec,elem IBDBGFLPI1)
+#define IBVectorCopyPush(vec, elem) \
+	_IBVectorCopyPush(vec, elem IBDBGFLPI1)
 void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS);
 #define IBVectorCopyPushBool(vec,val) \
-	_IBVectorCopyPushBool(vec,val IBDBGFLPI1)
+	_IBVectorCopyPushBool(vec, val IBDBGFLPI1)
 void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS);
-#define IBVectorCopyPushOp(vec,val) \
+#define IBVectorCopyPushOp(vec, val) \
 	_IBVectorCopyPushOp(vec,val IBDBGFLPI1)
 struct IBVecData* IBVectorTop(IBVector* vec);
 struct IBVecData* IBVectorFront(IBVector* vec);
