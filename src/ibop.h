@@ -1,230 +1,231 @@
 #pragma once
 
 #define _IB_OPS_ \
-X(Null) \
-X(False) \
-X(True) \
-X(OK) \
-X(AlreadyExists) \
-X(Unknown) \
-X(NotSet) \
-X(Any) \
-X(Use) \
-X(Call) \
-X(Case) \
-X(Output) \
-X(CallWantArgs) \
-X(Enum) \
-X(Flags) \
-X(Method)\
-X(Func) \
-X(FuncHasName) \
-X(FuncNeedName) \
-X(FuncNeedsRetValType) \
-X(FuncArgsVarNeedsName) \
-X(FuncArgNameless) \
-X(FuncArgComplete) \
-X(FuncSigComplete) \
-X(FuncNeedRetVal) \
-X(FuncArg) \
-X(CompletedFunction) \
-X(VarNeedName) \
-X(VarWantValue) \
-X(VarNeedExpr) \
-X(VarComplete) \
-X(BlockReturnNeedValue) \
-X(ArgNeedValue) \
-X(Ref) \
-X(Deref) \
-X(DoubleDeref) \
-X(TrippleDeref) \
-X(Arg) \
-X(Op) \
-X(Value) \
-X(Return) \
-X(NoChange) \
-X(Struct) \
-X(StructVar)\
-X(VarType) \
-X(LineEnd) \
-X(EmptyLine) \
-X(Imaginary) \
-X(Void) \
-X(Colon) \
-X(Dot) \
-X(Add) \
-X(Subtract) \
-X(Multiply) \
-X(Divide) \
-X(AddEq) \
-X(SubEq) \
-X(MultEq) \
-X(DivEq) \
-X(Equals) \
-X(NotEquals) \
-X(LessThan) \
-X(GreaterThan) \
-X(LessThanOrEquals) \
-X(GreaterThanOrEquals) \
-X(CPrintfHaveFmtStr) \
-X(BracketOpen) \
-X(BracketClose) \
-X(ParenthesisOpen) \
-X(ParenthesisClose) \
-X(CurlyBraceOpen) \
-X(CurlyBraceClose) \
-X(Custom) \
-X(TaskStackEmpty) \
-X(RootTask) \
-X(StructWantName) \
-X(StructWantContent) \
-X(StructWantRepr) \
-X(Placeholder) \
-X(StructInit) \
-X(NameOps) \
-X(Obj) \
-X(Bool) \
-X(Task) \
-X(IBColor) \
-X(Repr) \
-X(Table) \
-X(IfNeedLVal) \
-X(IfNeedMidOP) \
-X(IfNeedRVal) \
-X(IfFinished) \
-X(IBCodeBlock) \
-X(StructInitNeedName) \
-X(Exclaim) \
-X(Caret) \
-X(Underscore) \
-X(YouCantUseThatHere) \
-X(TableNeedExpr) \
-X(TableCaseNeedExpr) \
-X(TableWantCase) \
-X(CaseWantCode) \
-X(EnumVal)\
-X(EnumNeedName) \
-X(EnumWantContent) \
-X(IfBlockWantCode) \
-X(BlockWantCode) \
-X(LoopBlockWantCode) \
-X(FuncWantCode) \
-X(SpaceChar) \
-X(Comma) \
-X(CommaSpace) \
-X(Name) \
-X(As) \
-X(ExprToName) \
-X(String) \
-X(TableCase) \
-X(CPrintfFmtStr) \
-X(Char) \
-X(If) \
-X(Else) \
-X(For) \
-X(Loop) \
-X(Block) \
-X(Fall) \
-X(Number) \
-X(c8) \
-X(CString) \
-X(u8) \
-X(u16) \
-X(u32) \
-X(u64) \
-X(i8) \
-X(i16) \
-X(i32) \
-X(i64) \
-X(f32) \
-X(d64) \
-X(Float) \
-X(Double) \
-X(Pointer) \
-X(Break) \
-X(DoublePointer) \
-X(TripplePointer) \
-X(IBLayer3Flags) \
-X(NeedExpression) \
-X(dbgBreak) \
-X(dbgAssert) \
-X(dbgAssertWantArgs) \
-X(CallFunc) \
-X(TaskType) \
-X(TaskStack) \
-X(NotEmpty) \
-X(TabChar) \
-X(NeedName) \
-X(UseNeedStr) \
-X(UseStrSysLib) \
-X(NameInfoDB) \
-X(NameInfo) \
-X(Expects) \
-X(CodeBlockCallFunc) \
-X(FuncPtr) \
-X(ElseIf) \
-X(EmptyStr) \
-X(BuildingIf) \
-X(Builtin) \
-X(IBTypeInfo)\
-X(SubtaskArgs) \
-X(FloatingPoint) \
-X(Modulo) \
-X(Int) \
-X(NotFound) \
-X(Error) \
-X(ErrUnexpectedNextPfx) \
-X(ErrExpectedVariablePfx) \
-X(ErrNoTask) \
-X(ErrUnexpectedOp) \
-X(ErrQuadriplePointersNOT_ALLOWED) \
-X(ErrUnknownOpStr) \
-X(ErrProtectedSlot) \
-X(ErrUnknownPfx) \
-X(ErrUnexpectedNameOP) \
-X(ErrDirtyTaskStack) \
-X(TCC_Error) \
-X(ModePrefixPass) \
-X(ModeStrPass) \
-X(ModeArrayIndexExpr) \
-X(ActOnName) \
-X(ActOnNameEquals) \
-X(RootObj) \
-X(DBObj) \
-X(None) \
-X(PfxlessValue) \
-X(IBDictKeyDef) \
-X(EnumName) \
-X(IBDictKey) \
-X(IBVector) \
-X(Letter_azAZ) \
-X(DataTypes) \
-X(IBExpression) \
-X(ForNeedStartValName) \
-X(ForNeedStartInitVal) \
-X(ForNeedMiddleExpr) \
-X(ForNeedEndExpr) \
-X(NotAllowed) \
-X(IBIdeFile) \
-X(IBIdeLineInfo) \
-X(RunArguments) \
-X(RunArgsNeedArgsStr) \
-X(CInclude) \
-X(CIncNeedFilePath) \
-X(IBStr) \
-X(SingleQuote) \
-X(ModeCCompTimeMacroPaste) \
-X(Methods) \
-X(MethodsNeedName) \
-X(MethodsWantContent) \
-/* | */X(Or) \
-/* || */X(OrOr) \
-/* & */X(And) \
-/* && */X(AndAnd) \
-X(CallMethod) \
-X(CallMethodNeedName) \
+	X(Null) \
+	X(False) \
+	X(True) \
+	X(OK) \
+	X(AlreadyExists) \
+	X(Unknown) \
+	X(NotSet) \
+	X(Any) \
+	X(Use) \
+	X(Call) \
+	X(Case) \
+	X(Output) \
+	X(CallWantArgs) \
+	X(Enum) \
+	X(Flags) \
+	X(Method)\
+	X(Func) \
+	X(FuncHasName) \
+	X(FuncNeedName) \
+	X(FuncNeedsRetValType) \
+	X(FuncArgsVarNeedsName) \
+	X(FuncArgNameless) \
+	X(FuncArgComplete) \
+	X(FuncSigComplete) \
+	X(FuncNeedRetVal) \
+	X(FuncArg) \
+	X(CompletedFunction) \
+	X(VarNeedName) \
+	X(VarWantValue) \
+	X(VarNeedExpr) \
+	X(VarComplete) \
+	X(BlockReturnNeedValue) \
+	X(ArgNeedValue) \
+	X(Ref) \
+	X(Deref) \
+	X(DoubleDeref) \
+	X(TrippleDeref) \
+	X(Arg) \
+	X(Op) \
+	X(Value) \
+	X(Return) \
+	X(NoChange) \
+	X(Struct) \
+	X(StructVar)\
+	X(VarType) \
+	X(LineEnd) \
+	X(EmptyLine) \
+	X(Imaginary) \
+	X(Void) \
+	X(Colon) \
+	X(Dot) \
+	X(Add) \
+	X(Subtract) \
+	X(Multiply) \
+	X(Divide) \
+	X(AddEq) \
+	X(SubEq) \
+	X(MultEq) \
+	X(DivEq) \
+	X(Equals) \
+	X(NotEquals) \
+	X(LessThan) \
+	X(GreaterThan) \
+	X(LessThanOrEquals) \
+	X(GreaterThanOrEquals) \
+	X(CPrintfHaveFmtStr) \
+	X(BracketOpen) \
+	X(BracketClose) \
+	X(ParenthesisOpen) \
+	X(ParenthesisClose) \
+	X(CurlyBraceOpen) \
+	X(CurlyBraceClose) \
+	X(Custom) \
+	X(TaskStackEmpty) \
+	X(RootTask) \
+	X(StructWantName) \
+	X(StructWantContent) \
+	X(StructWantRepr) \
+	X(Placeholder) \
+	X(StructInit) \
+	X(NameOps) \
+	X(Obj) \
+	X(Bool) \
+	X(Task) \
+	X(IBColor) \
+	X(Repr) \
+	X(Table) \
+	X(IfNeedLVal) \
+	X(IfNeedMidOP) \
+	X(IfNeedRVal) \
+	X(IfFinished) \
+	X(IBCodeBlock) \
+	X(StructInitNeedName) \
+	X(Exclaim) \
+	X(Caret) \
+	X(Underscore) \
+	X(YouCantUseThatHere) \
+	X(TableNeedExpr) \
+	X(TableCaseNeedExpr) \
+	X(TableWantCase) \
+	X(CaseWantCode) \
+	X(EnumVal)\
+	X(EnumNeedName) \
+	X(EnumWantContent) \
+	X(IfBlockWantCode) \
+	X(BlockWantCode) \
+	X(LoopBlockWantCode) \
+	X(FuncWantCode) \
+	X(SpaceChar) \
+	X(Comma) \
+	X(CommaSpace) \
+	X(Name) \
+	X(As) \
+	X(ExprToName) \
+	X(String) \
+	X(TableCase) \
+	X(CPrintfFmtStr) \
+	X(Char) \
+	X(If) \
+	X(Else) \
+	X(For) \
+	X(Loop) \
+	X(Block) \
+	X(Fall) \
+	X(Number) \
+	X(c8) \
+	X(CString) \
+	X(u8) \
+	X(u16) \
+	X(u32) \
+	X(u64) \
+	X(i8) \
+	X(i16) \
+	X(i32) \
+	X(i64) \
+	X(f32) \
+	X(d64) \
+	X(Float) \
+	X(Double) \
+	X(Pointer) \
+	X(Break) \
+	X(DoublePointer) \
+	X(TripplePointer) \
+	X(IBLayer3Flags) \
+	X(NeedExpression) \
+	X(dbgBreak) \
+	X(dbgAssert) \
+	X(dbgAssertWantArgs) \
+	X(CallFunc) \
+	X(TaskType) \
+	X(TaskStack) \
+	X(NotEmpty) \
+	X(TabChar) \
+	X(NeedName) \
+	X(UseNeedStr) \
+	X(UseStrSysLib) \
+	X(NameInfoDB) \
+	X(NameInfo) \
+	X(Expects) \
+	X(CodeBlockCallFunc) \
+	X(FuncPtr) \
+	X(ElseIf) \
+	X(EmptyStr) \
+	X(BuildingIf) \
+	X(Builtin) \
+	X(IBTypeInfo)\
+	X(SubtaskArgs) \
+	X(FloatingPoint) \
+	X(Modulo) \
+	X(Int) \
+	X(NotFound) \
+	X(Error) \
+	X(ErrUnexpectedNextPfx) \
+	X(ErrExpectedVariablePfx) \
+	X(ErrNoTask) \
+	X(ErrUnexpectedOp) \
+	X(ErrQuadriplePointersNOT_ALLOWED) \
+	X(ErrUnknownOpStr) \
+	X(ErrProtectedSlot) \
+	X(ErrUnknownPfx) \
+	X(ErrUnexpectedNameOP) \
+	X(ErrDirtyTaskStack) \
+	X(TCC_Error) \
+	X(ModePrefixPass) \
+	X(ModeStrPass) \
+	X(ModeArrayIndexExpr) \
+	X(ActOnName) \
+	X(ActOnNameEquals) \
+	X(RootObj) \
+	X(DBObj) \
+	X(None) \
+	X(PfxlessValue) \
+	X(IBDictKeyDef) \
+	X(EnumName) \
+	X(IBDictKey) \
+	X(IBVector) \
+	X(Letter_azAZ) \
+	X(DataTypes) \
+	X(IBExpression) \
+	X(ForNeedStartValName) \
+	X(ForNeedStartInitVal) \
+	X(ForNeedMiddleExpr) \
+	X(ForNeedEndExpr) \
+	X(NotAllowed) \
+	X(IBIdeFile) \
+	X(IBIdeLineInfo) \
+	X(RunArguments) \
+	X(RunArgsNeedArgsStr) \
+	X(CInclude) \
+	X(CIncNeedFilePath) \
+	X(IBStr) \
+	X(SingleQuote) \
+	X(ModeCCompTimeMacroPaste) \
+	X(Methods) \
+	X(MethodsNeedName) \
+	X(MethodsWantContent) \
+	X(Or) \
+	X(OrOr) \
+	X(And) \
+	X(AndAnd) \
+	X(CallMethod) \
+	X(CallMethodNeedName) \
 
 #define X(x) OP_##x,
+
 #ifdef __TINYC__
 enum
 {
@@ -237,4 +238,5 @@ typedef enum IBOp
 	_IB_OPS_
 } IBOp;
 #endif
+
 #undef X

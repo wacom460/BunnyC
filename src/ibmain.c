@@ -53,15 +53,11 @@ void IBcompFrontend(int argc, char** argv, int* rv)
 
 int main(int argc, char** argv)
 {
-	//IBDictTest();
 	int rv = 1;
 	IBVectorInit(&g_ColorStack, sizeof(IBColor), OP_IBColor, 512);
 	g_ColorStack.doNotShrink=1;
 	IBPushColor(IBFgWHITE);
-
 	IBcompFrontend(argc, argv, &rv);
-
 	IBVectorFreeSimple(&g_ColorStack);
-
 	return rv;
 }

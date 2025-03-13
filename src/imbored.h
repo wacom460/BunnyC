@@ -121,7 +121,8 @@ void _PrintLine(char* f, int l);
 		} \
 	}
 
-#define IBassert(x) IBASSERT(x, "")
+#define IBassert(x) \
+	IBASSERT(x, "")
 
 #ifdef IBDEBUGPRINTS
 #define DbgFmt(x, ...) \

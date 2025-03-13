@@ -18,7 +18,8 @@
 
 #include "ibop.h"
 
-#define STRUCT_DATA_TYPE_IDENT IBOp DataTypeIdentifier
+#define STRUCT_DATA_TYPE_IDENT \
+	IBOp DataTypeIdentifier
 
 #define LE "\n"
 
@@ -118,12 +119,13 @@ typedef struct IBVector
 void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count);
 struct IBVecData* IBVectorGet(IBVector* vec, int idx);
 void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum);
+#define IBVectorIterNext(vec, idx) \
+	_IBVectorIterNext(vec, idx, __LINE__)
 
 #define IBDBGFILELINEPARAMS	, char* file, int ln
 #define IBDBGFPL2 , file, ln
 #define IBDBGFLPI1 , __FILE__, __LINE__
 
-#define IBVectorIterNext(vec, idx) _IBVectorIterNext(vec, idx, __LINE__)
 void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS);
 #define IBVectorPush(vec, dataDP) \
 { \
@@ -135,6 +137,7 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 	DbgFmt("[%d] -> [%d]\n", c, (vec)->elemCount - 1); \
 	IBPopColor(); \*/ \
 }
+
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS);
 #define IBVectorCopyPush(vec, elem) \
 	_IBVectorCopyPush(vec, elem IBDBGFLPI1)
