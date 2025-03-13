@@ -435,6 +435,24 @@ typedef struct IBLayer3
 	char Str[IBLayer3STR_MAX];
 } IBLayer3;
 
+void IBLayer3PFX_DOT(IBLayer3* ibc);
+void IBLayer3PFX_SINGLEQUOTE(IBLayer3* ibc);
+void IBLayer3PFX_azAZ(IBLayer3* ibc);
+void IBLayer3PFX_UNDERSCORE(IBLayer3* ibc);
+void IBLayer3PFX_ADD(IBLayer3* ibc);
+void IBLayer3PFX_MULTIPLY(IBLayer3* ibc);
+void IBLayer3PFX_DIVIDE(IBLayer3* ibc);
+void IBLayer3PFX_SUBTRACT(IBLayer3* ibc);
+void IBLayer3PFX_OR(IBLayer3* ibc);
+void IBLayer3PFX_EXCLAIM(IBLayer3* ibc);
+void IBLayer3PFX_STRING(IBLayer3* ibc);
+void IBLayer3PFX_VARTYPE(IBLayer3* ibc);
+void IBLayer3PFX_NAME(IBLayer3* ibc);
+void IBLayer3PFX_OP(IBLayer3* ibc);
+void IBLayer3PFX_VALUE(IBLayer3* ibc);
+void IBLayer3PFX_LESSTHAN(IBLayer3* ibc);
+void IBLayer3PFX_GREATERTHAN(IBLayer3* ibc);
+
 #define Err(code, msg) \
 { \
 	int l = ibc->InputStr ? ibc->LineIS : ibc->Line; \
