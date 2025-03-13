@@ -1,33 +1,45 @@
 #ifndef IBCOMMON_H_
 #define IBCOMMON_H_
-#include "ibop.h"
-
-#define LE "\n"
-
-#define IBMAGIC (1011933)
-#define IB_ASSERTMAGICP(o) \
-	IBassert((o)->initMagic == IBMAGIC)
-#define IB_ASSERTMAGIC(o) \
-	IBassert((o).initMagic == IBMAGIC)
-#define IB_DEFMAGIC \
-	unsigned int initMagic
-#define IB_SETMAGICP(o) \
-	(o)->initMagic = IBMAGIC
-#define IB_SETMAGIC(o) \
-	(o).initMagic = IBMAGIC
-#define IB_FILE_EXT "ib"
 
 #ifndef bool
 #define bool char
 #endif
+
 #ifndef true
 #define true 1
 #endif
+
 #ifndef false
 #define false 0
 #endif
+
 #define IB_TRUESTR "true"
 #define IBFALSESTR "false"
+
+#include "ibop.h"
+
+#define STRUCT_DATA_TYPE_IDENT IBOp DataTypeIdentifier
+
+#define LE "\n"
+
+#define IBMAGIC (1011933)
+
+#define IB_ASSERTMAGICP(o) \
+	IBassert((o)->initMagic == IBMAGIC)
+
+#define IB_ASSERTMAGIC(o) \
+	IBassert((o).initMagic == IBMAGIC)
+
+#define IB_DEFMAGIC \
+	unsigned int initMagic
+
+#define IB_SETMAGICP(o) \
+	(o)->initMagic = IBMAGIC
+
+#define IB_SETMAGIC(o) \
+	(o).initMagic = IBMAGIC
+
+#define IB_FILE_EXT "ib"
 
 #ifdef __TINYC__
 int memcpy_s(void* dest, long long destsz, void* src, long long count);
@@ -37,12 +49,13 @@ long long strnlen(char* s, long long maxlen);
 #if defined(__TINYC__) || defined(__GNUC__)
 #define __debugbreak() exit(-1)
 #endif
+
 #define DB __debugbreak();
 
-#define CLAMP_IMP\
+#define CLAMP_IMP \
 	return val < min ? min : val > max ? max : val;
 
-#define CLAMP_FUNC(type, name)\
+#define CLAMP_FUNC(type, name) \
 	type name(type val, type min, type max)
 
 CLAMP_FUNC(int, ClampInt);
@@ -50,10 +63,11 @@ CLAMP_FUNC(long long int, ClampSizeT);
 
 typedef struct IBStr
 {
-	IBOp DataTypeIdentifier;
+	STRUCT_DATA_TYPE_IDENT;
 	char* start;
 	char* end; /*ptr of null terminator '\0'*/
 } IBStr;
+
 void IBStrInit(IBStr* str);
 void IBStrInitWithCStr(IBStr* str, char* cstr);
 
@@ -86,7 +100,7 @@ typedef struct IBVecPushInfo
 
 typedef struct IBVector
 {
-	IBOp DataTypeIdentifier;
+	STRUCT_DATA_TYPE_IDENT;
 	IBOp elemDataType;//elem data type
 	long long int elemSize;
 	int elemCount;
@@ -124,16 +138,21 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS);
 #define IBVectorCopyPush(vec, elem) \
 	_IBVectorCopyPush(vec, elem IBDBGFLPI1)
+
 void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS);
-#define IBVectorCopyPushBool(vec,val) \
+#define IBVectorCopyPushBool(vec, val) \
 	_IBVectorCopyPushBool(vec, val IBDBGFLPI1)
+
 void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS);
 #define IBVectorCopyPushOp(vec, val) \
 	_IBVectorCopyPushOp(vec,val IBDBGFLPI1)
+
 struct IBVecData* IBVectorTop(IBVector* vec);
 struct IBVecData* IBVectorFront(IBVector* vec);
+
 #define IBVectorPop(vec, freeFunc) \
 	_IBVectorPop((vec), (void(*)(void*))(freeFunc))
+
 #define IBVectorClear(vec, freeFunc) \
 { \
 	while((vec)->elemCount) \
@@ -144,10 +163,13 @@ struct IBVecData* IBVectorFront(IBVector* vec);
 
 void _IBVectorPop(IBVector* vec, void(*freeFunc)(void*));
 void _IBVectorPopFront(IBVector* vec, void(*freeFunc)(void*));
-#define IBVectorPopFront(vec,freeFunc)\
-	_IBVectorPopFront(vec,(void(*)(void*))(freeFunc))
+
+#define IBVectorPopFront(vec, freeFunc) \
+	_IBVectorPopFront(vec, (void(*)(void*))(freeFunc))
+
 void IBVectorFreeSimple(IBVector* vec);
 void _IBVectorReinitPushInfo(IBVector* vec);
+
 #define IBVectorFree(vec, freeFunc) \
 { \
 	int i; \

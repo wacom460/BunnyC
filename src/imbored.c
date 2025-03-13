@@ -1,9 +1,5 @@
 #include "imbored.h"
 
-#ifdef _WIN32
-#define atoll _atoi64
-#endif
-
 #ifdef IBDEBUGPRINTS
 void _PrintLine(char* f, int l)
 {
@@ -42,26 +38,60 @@ IBOpNamePair opNamesAR[] =
 
 IBOpNamePair PairNameOps[] =
 {
-	{"null", OP_Null},{IBFALSESTR, OP_False},{IB_TRUESTR, OP_True},
-	{"blk", OP_Func},{"%", OP_VarType},
-	{"return", OP_Return},{"ext", OP_Imaginary},
-	{"if", OP_If},{"else", OP_Else},{"use", OP_Use},
-	{"build", OP_Build},
-	{"eq", OP_Equals},{"neq", OP_NotEquals},{"lt", OP_LessThan},
-	{"gt", OP_GreaterThan},{"lteq", OP_LessThanOrEquals},
-	{"gteq", OP_GreaterThanOrEquals},{",", OP_Comma},
-	{"for", OP_For},{"loop", OP_Loop},{"i64", OP_i64},{"f32", OP_f32},
-	{"d64", OP_d64},{"void", OP_Void},{"c8", OP_c8},
-	{"u8", OP_u8},{"u16", OP_u16},{"u32", OP_u32},{"u64", OP_u64},
-	{"i8", OP_i8},{"i16", OP_i16},{"bool", OP_Bool},
-	{"i32", OP_i32},{"use",OP_Use},{"sys", OP_UseStrSysLib},
-	{"struct", OP_Struct},{"repr", OP_Repr},{"elif", OP_ElseIf},
-	{"", OP_EmptyStr},{"table", OP_Table},{"-", OP_Subtract},
-	{"case", OP_Case},{"fall", OP_Fall},{"break", OP_Break},
-	{"as", OP_As},{">", OP_GreaterThan},{"output", OP_Output},
-	{"enum", OP_Enum},{"flags", OP_Flags},{"nts", OP_String},
-	{"arguments",OP_RunArguments},{"include", OP_CInclude},
-	{"!", OP_Exclaim},{"methods", OP_Methods},{"=", OP_Equals}
+	{ "null", OP_Null },
+	{ IBFALSESTR, OP_False },
+	{ IB_TRUESTR, OP_True },
+	{ "blk", OP_Func },
+	{ "%", OP_VarType },
+	{ "return", OP_Return },
+	{ "ext", OP_Imaginary },
+	{ "if", OP_If },
+	{ "else", OP_Else },
+	{ "use", OP_Use },
+	{ "eq", OP_Equals },
+	{ "neq", OP_NotEquals },
+	{ "lt", OP_LessThan },
+	{ "gt", OP_GreaterThan },
+	{ "lteq", OP_LessThanOrEquals },
+	{ "gteq", OP_GreaterThanOrEquals },
+	{ ",", OP_Comma },
+	{ "for", OP_For },
+	{ "loop", OP_Loop },
+	{ "i64", OP_i64 },
+	{ "f32", OP_f32 },
+	{ "d64", OP_d64 },
+	{ "void", OP_Void },
+	{ "c8", OP_c8 },
+	{ "u8", OP_u8 },
+	{ "u16", OP_u16 },
+	{ "u32", OP_u32 },
+	{ "u64", OP_u64 },
+	{ "i8", OP_i8 },
+	{ "i16", OP_i16 },
+	{ "bool", OP_Bool },
+	{ "i32", OP_i32 },
+	{ "use",OP_Use },
+	{ "sys", OP_UseStrSysLib },
+	{ "struct", OP_Struct },
+	{ "repr", OP_Repr },
+	{ "elif", OP_ElseIf },
+	{ "", OP_EmptyStr },
+	{ "table", OP_Table },
+	{ "-", OP_Subtract },
+	{ "case", OP_Case },
+	{ "fall", OP_Fall },
+	{ "break", OP_Break },
+	{ "as", OP_As },
+	{ ">", OP_GreaterThan },
+	{ "output", OP_Output },
+	{ "enum", OP_Enum },
+	{ "flags", OP_Flags },
+	{ "nts", OP_String },
+	{ "arguments",OP_RunArguments },
+	{ "include", OP_CInclude },
+	{ "!", OP_Exclaim },
+	{ "methods", OP_Methods },
+	{ "=", OP_Equals }
 };
 
 IBOpNamePair PairDataTypeOPs[] =

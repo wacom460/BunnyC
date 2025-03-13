@@ -1,5 +1,7 @@
 #pragma once
 
+#define IBDEBUGPRINTS
+
 #include "ibcommon.h"
 #include "ibcolor.h"
 
@@ -7,8 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-
-#define IBDEBUGPRINTS
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -36,17 +36,18 @@ void _PrintLine(char* f, int l);
 	case OP_FuncWantCode:
 
 #define IBCASE_UNIMPLEMENTED \
-default: \
-{ \
-	Err(OP_Error, "Unimplemented case"); \
-	break; \
-}
+	default: \
+	{ \
+		Err(OP_Error, "Unimplemented case"); \
+		break; \
+	}
 
-#define IBCASE_UNIMP_A default: \
-{ \
-	DB; \
-	break; \
-}
+#define IBCASE_UNIMP_A \
+	default: \
+	{ \
+		DB; \
+		break; \
+	}
 
 #define IB_STARTS_WITH_SELFDOT(o) \
 	((strnlen((o), 5) >= 5) && (!strncmp((o),"self.", 5)))
@@ -99,35 +100,36 @@ default: \
 	IBREALLOCWARNING
 
 #define IBASSERT0(x) \
-{ \
-	if(!(x)) \
 	{ \
-		printf("[%d]Assertion failed!!! %s\n", __LINE__, #x); \
-		DB; \
-	} \
-}
+		if(!(x)) \
+		{ \
+			printf("[%d]Assertion failed!!! %s\n", __LINE__, #x); \
+			DB; \
+		} \
+	}
 
 #define IBASSERT(x, errMsg) \
-{ \
-	if(!(x)) \
 	{ \
-		PLINE; \
-		IBPushColor(IBFgRED); \
-		printf("Assertion failed!!! -> %s\n%s", \
-			errMsg, #x); \
-		IBPopColor(); \
-		DB; \
-	} \
-}
+		if(!(x)) \
+		{ \
+			PLINE; \
+			IBPushColor(IBFgRED); \
+			printf("Assertion failed!!! -> %s\n%s", \
+				errMsg, #x); \
+			IBPopColor(); \
+			DB; \
+		} \
+	}
 
 #define IBassert(x) IBASSERT(x, "")
 
 #ifdef IBDEBUGPRINTS
 #define DbgFmt(x, ...) \
-{ \
-	printf(x, __VA_ARGS__); \
-}
-#define DbgPuts(x) printf("%s",x);
+	{ \
+		printf(x, __VA_ARGS__); \
+	}
+#define DbgPuts(x) \
+	printf("%s",x);
 #else
 #define DbgFmt(x, ...)
 #define DbgPuts(x)
@@ -163,7 +165,7 @@ typedef union IBVal
 
 typedef struct IBTypeInfo
 {
-	IBOp DataTypeIdentifier;
+	STRUCT_DATA_TYPE_IDENT;
 	//IBOp infoType; //OP_Builtin,OP_Custom
 	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
 	struct IBTypeInfo* memberVarType;
@@ -200,7 +202,7 @@ void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP);
 
 typedef struct IBNameInfo
 {
-	IBOp DataTypeIdentifier;
+	STRUCT_DATA_TYPE_IDENT;
 	IBOp type;
 	IBTypeInfo*ti;
 	IBOp cast;
@@ -212,13 +214,14 @@ void IBNameInfoInit(IBNameInfo* info);
 void IBNameInfoFree(IBNameInfo* info);
 IBOp IBNameInfoAddMember(struct IBLayer3* ibc, IBNameInfo* ni, char* name, IBOp type, IBNameInfo** niDP);
 IBOp IBNameInfoFindType(IBNameInfo* ni, char* name);
+
 IBNameInfo* _IBNameInfoFindMember(IBNameInfo* ni, char* name, int lineNum);
 #define IBNameInfoFindMember(ni, name) \
 	_IBNameInfoFindMember(ni, name, __LINE__)
 
 typedef struct IBCodeBlock
 {
-	IBOp DataTypeIdentifier;
+	STRUCT_DATA_TYPE_IDENT;
 	IBStr header;
 	IBStr variables;
 	IBStr varsInit;
@@ -238,7 +241,7 @@ char* IBGetOpName(IBOp op);
 
 typedef struct IBObj
 {
-	IBOp DataTypeIdentifier;
+	STRUCT_DATA_TYPE_IDENT;
 	IBOp type;
 	IBOp modifier;
 	IBOp valType;
@@ -324,16 +327,15 @@ void Val2Str(char* dest, int destSz, IBVal v, IBOp type);
 
 typedef struct IBExpects
 {	
-	IBOp DataTypeIdentifier;
-	IBVector pfxs;/*IBOp P */
-	IBVector nameOps;/*IBOp N */
+	STRUCT_DATA_TYPE_IDENT;
+	IBVector pfxs; /* IBOp P */
+	IBVector nameOps; /* IBOp N */
 	char* pfxErr;
 	char* nameOpErr;
 	int life;
 	int lineNumInited;
 } IBExpects;
 
-void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 /*special fmt chars :
 * 'P': pfx
 * 'N': nameOP
@@ -345,8 +347,10 @@ void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 * 'c': code block macro (adds OP_Op, OP_If, OP_VarType... etc)
 * 'e': expression macro
 */
+void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 #define IBExpectsInit(exp, fmt, ...) \
 	_IBExpectsInit(__LINE__, exp, fmt, __VA_ARGS__);
+
 void IBExpectsPrint(IBExpects* exp);
 void IBExpectsFree(IBExpects* exp);
 
@@ -357,7 +361,7 @@ typedef struct IBTaskNeedExpression
 
 typedef struct IBTask
 {
-	IBOp DataTypeIdentifier;
+	STRUCT_DATA_TYPE_IDENT;
 	IBOp type;
 	IBCodeBlock code;
 	IBVector expStack; /*IBExpects*/
@@ -368,7 +372,7 @@ typedef struct IBTask
 
 void TaskInit(IBTask* t, IBOp type);
 void TaskFree(IBTask* t);
-void TaskFindWorkingObj(IBTask*t,IBOp type, IBObj**outDP);
+void TaskFindWorkingObj(IBTask* t, IBOp type, IBObj** outDP);
 
 typedef struct IBExpression
 {
@@ -453,8 +457,8 @@ typedef struct IBLayer3
 
 void IBLayer3Init(IBLayer3* ibc);
 void IBLayer3Free(IBLayer3* ibc);
-void IBLayer3RegisterCustomType(IBLayer3* ibc,char* name, 
-	IBOp type,/*OP_Enum,OP_Struct,OP_FuncPtr*/
+void IBLayer3RegisterCustomType(IBLayer3* ibc, char* name, 
+	IBOp type,/* OP_Enum, OP_Struct, OP_FuncPtr */
 	IBTypeInfo** outDP);
 void IBLayer3FindType(IBLayer3* ibc, char* name, IBTypeInfo** outDP);
 void IBLayer3CompileTCC(IBLayer3* ibc);
@@ -465,7 +469,7 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln);
 #define IBLayer3SearchNameInfo(ibc, name) \
 	_IBLayer3SearchNameInfo(ibc, name, __LINE__)
 
-IBObj* IBLayer3FindStackObjRev(IBLayer3*ibc,IBOp type);
+IBObj* IBLayer3FindStackObjRev(IBLayer3* ibc,IBOp type);
 IBObj* IBLayer3FindStackObjUnderTop(IBLayer3* ibc, IBOp type);
 IBObj* IBLayer3FindStackObjUnderIndex(IBLayer3* ibc, int index, IBOp type);
 IBTask* IBLayer3FindTaskUnderIndex(IBLayer3* ibc, int index, IBOp type, int limit);
@@ -569,7 +573,7 @@ void IBLayer3ExplainErr(IBLayer3* ibc, IBOp code);
 	DbgFmt(" SetObjType: %s(%d) -> %s(%d)\n", \
 		IBGetOpName(obj->type), (int) obj->type, \
 		IBGetOpName(tt), (int) tt); \
-	obj->type=tt; \
+	obj->type = tt; \
 }
 #define PopExpects() \
 { \
@@ -623,5 +627,6 @@ struct IBVecData
 		IBTypeInfo typeInfo;
 		IBVector vec;
 		IBCodeBlock codeBlock;
+		IBExpression expression;
 	};
 };

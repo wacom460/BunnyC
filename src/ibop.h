@@ -10,7 +10,6 @@ X(Unknown) \
 X(NotSet) \
 X(Any) \
 X(Use) \
-X(Build) \
 X(Call) \
 X(Case) \
 X(Output) \

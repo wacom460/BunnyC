@@ -2,6 +2,10 @@ struct $entity
 	i32 $id
 _
 
+enum $a
+	$c
+_
+
 methods $entity
 	blk $init
 		$self.id <- 0
