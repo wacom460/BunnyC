@@ -42,7 +42,8 @@ default: \
 	break; \
 }
 
-#define IBCASE_UNIMP_A default: { \
+#define IBCASE_UNIMP_A default: \
+{ \
 	DB; \
 	break; \
 }
@@ -194,13 +195,6 @@ IBDictKey* IBDictKeyFindChild(IBDictKey* key, IBDictKeyDef def);
 //childDepth must be ptr to an int set to 0
 void IBDictKeyPrint(IBDictKey* key, int* childDepth);
 
-//typedef struct IBDictionary {
-//	IBDictKey rootKey;
-//} IBDictionary;
-//void IBDictionaryInit(IBDictionary* dict);
-//void IBDictionaryFree(IBDictionary* dict);
-//IBDictKey* IBDictFind(IBDictionary* dict, IBVector* keyStack);
-
 /*
 * IBDictManip fmt charOPs:
 *
@@ -249,7 +243,8 @@ extern IBVector g_ColorStack; /*IBColor*/
 char* StrConcat(char* dest, int count, char* src);
 char StrStartsWith(char* str, char* with);
 
-typedef union IBVal {
+typedef union IBVal
+{
 	bool boolean;
 	unsigned char u8;
 	unsigned short u16;
@@ -264,27 +259,33 @@ typedef union IBVal {
 	double d64;
 } IBVal;
 
-typedef struct IBTypeInfo {
+typedef struct IBTypeInfo
+{
 	IBOp DataTypeIdentifier;
 	//IBOp infoType; //OP_Builtin,OP_Custom
 	IBOp type;//OP_Enum,OP_Struct,OP_StructVar,OP_Func,OP_i32,OP_c8 etc..
 	struct IBTypeInfo* memberVarType;
 	IBStr name;
 	IBVector members;//IBTypeInfo
-	struct {
+	struct
+	{
 		char isFlags;
 	} Enum;
-	struct {
+	struct
+	{
 		int val;
 	} EnumValue;
-	struct {
+	struct
+	{
 		int flags;
 		char placeholder;
 	} Struct;
-	struct {
+	struct
+	{
 		IBOp type;
 	} StructVar;
-	struct {
+	struct
+	{
 		char isMethod;/*methods are sub functions of types*/
 		//todo: store func args info
 	} Function;
@@ -295,7 +296,8 @@ void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name);
 void IBTypeInfoFree(IBTypeInfo* ti);
 void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP);
 
-typedef struct IBNameInfo {
+typedef struct IBNameInfo
+{
 	IBOp DataTypeIdentifier;
 	IBOp type;
 	IBTypeInfo*ti;
@@ -312,7 +314,8 @@ IBNameInfo* _IBNameInfoFindMember(IBNameInfo* ni, char* name, int lineNum);
 #define IBNameInfoFindMember(ni, name) \
 	_IBNameInfoFindMember(ni, name, __LINE__)
 
-typedef struct IBCodeBlock {
+typedef struct IBCodeBlock
+{
 	IBOp DataTypeIdentifier;
 	IBStr header;
 	IBStr variables;
@@ -331,7 +334,8 @@ void IBCodeBlockFree(IBCodeBlock* block);
 
 char* IBGetOpName(IBOp op);
 
-typedef struct IBObj {
+typedef struct IBObj
+{
 	IBOp DataTypeIdentifier;
 	IBOp type;
 	IBOp modifier;
@@ -339,7 +343,8 @@ typedef struct IBObj {
 	char* name;
 	char* str;
 	IBVal val;
-	struct _IBFuncObj {
+	struct _IBFuncObj
+	{
 		IBOp retTYPE;
 		IBOp retValType;
 		IBOp retValVarcast;
@@ -349,7 +354,8 @@ typedef struct IBObj {
 		IBVal retVal;
 		struct IBTask* thingTask;//stupid
 	} func;
-	struct _IBIfObj {
+	struct _IBIfObj
+	{
 		IBOp lvTYPE;
 		//IBOp lvDataType;
 		IBOp lvMod;
@@ -362,12 +368,14 @@ typedef struct IBObj {
 		char* lvName;
 		char* rvName;
 	} ifO;
-	struct _IBArgObj {
+	struct _IBArgObj
+	{
 		IBOp type;
 		IBOp mod;
 		IBVector arrIndexExprs;//IBStr
 	} arg;
-	struct _IBVarObj {
+	struct _IBVarObj
+	{
 		IBOp type;
 		IBTypeInfo*ti;
 		IBOp mod;
@@ -375,15 +383,18 @@ typedef struct IBObj {
 		IBVal val;
 		char* valStrLiteral;
 	} var;
-	struct _IBForObj {
+	struct _IBForObj
+	{
 		char* startName;
 		IBVal start, end;
 		IBVal step;
 	} forO;
-	struct _IBEnumObj {
+	struct _IBEnumObj
+	{
 		bool flags;
 	} enumO;
-	struct _IBTableObj {
+	struct _IBTableObj
+	{
 		bool fallthru;
 	} table;
 } IBObj;
@@ -408,7 +419,8 @@ void ObjInit(IBObj* o);
 void ObjFree(IBObj* o);
 void Val2Str(char* dest, int destSz, IBVal v, IBOp type);
 
-typedef struct IBExpects {	
+typedef struct IBExpects
+{	
 	IBOp DataTypeIdentifier;
 	IBVector pfxs;/*IBOp P */
 	IBVector nameOps;/*IBOp N */
@@ -435,11 +447,13 @@ void _IBExpectsInit(int LINENUM, IBExpects* exp, char* fmt, ...);
 void IBExpectsPrint(IBExpects* exp);
 void IBExpectsFree(IBExpects* exp);
 
-typedef struct IBTaskNeedExpression {
+typedef struct IBTaskNeedExpression
+{
 	IBOp finalVartype;
 } IBTaskNeedExpression;
 
-typedef struct IBTask {
+typedef struct IBTask
+{
 	IBOp DataTypeIdentifier;
 	IBOp type;
 	IBCodeBlock code;
@@ -453,11 +467,13 @@ void TaskInit(IBTask* t, IBOp type);
 void TaskFree(IBTask* t);
 void TaskFindWorkingObj(IBTask*t,IBOp type, IBObj**outDP);
 
-typedef struct IBExpression {
+typedef struct IBExpression
+{
 	IBCodeBlock cb;
 } IBExpression;
 
-typedef struct IBLayer3 {
+typedef struct IBLayer3
+{
 	IBOp Pfx;
 	IBOp Pointer;
 	IBOp NameOp;

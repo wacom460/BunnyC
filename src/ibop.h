@@ -227,9 +227,15 @@ X(CallMethodNeedName) \
 
 #define X(x) OP_##x,
 #ifdef __TINYC__
-enum { _IB_OPS_ };
+enum
+{
+	_IB_OPS_
+};
 typedef short IBOp;
 #else
-typedef enum IBOp { _IB_OPS_ } IBOp;
+typedef enum IBOp
+{ 
+	_IB_OPS_
+} IBOp;
 #endif
 #undef X
