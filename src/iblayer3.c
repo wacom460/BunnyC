@@ -34,17 +34,16 @@ IBNameInfo* _IBLayer3SearchNameInfo(IBLayer3* ibc, char* name, int ln)
 	IBassert(name[0]);
 	//DbgFmt("[%d]"__FUNCTION__"(,%s)\n", ln, name);
 	idx = ibc->CodeBlockStack.elemCount - 1;
-	while(idx >= 0) {
+	while(true) {
 		IBCodeBlock* cb = (IBCodeBlock*) IBVectorGet(&ibc->CodeBlockStack, idx);
 		IBassert(cb);
 		IB_ASSERTMAGICP(&cb->localVariables.members);
 		ni = IBNameInfoFindMember(&cb->localVariables, name);
+		if(!ni) ni = IBLayer3TryFindNameInfoInStructVar(ibc, &cb->localVariables);
 		if(ni) return ni;
-		else ni = IBLayer3TryFindNameInfoInStructVar(ibc, &cb->localVariables);
-		idx--;
+		if(idx == 0) break;
+		else idx--;
 	}
-	ni = IBNameInfoFindMember(&ibc->GlobalVariables, name);
-	if(!ni) ni = IBLayer3TryFindNameInfoInStructVar(ibc, &ibc->GlobalVariables);
 	return ni;
 }
 
@@ -153,7 +152,6 @@ void IBLayer3Init(IBLayer3* ibc)
 	ibc->Pointer = OP_NotSet;
 	ibc->Privacy = OP_Public;
 	ibc->CommentMode = OP_NotSet;
-	IBNameInfoInit(&ibc->GlobalVariables);
 	IBStrInit(&ibc->CurSpace);
 	IBVectorInit(&ibc->ObjStack, sizeof(IBObj), OP_Obj, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&ibc->ModeStack, sizeof(IBOp), OP_Op, IBVEC_DEFAULT_SLOTCOUNT);
@@ -263,7 +261,6 @@ void IBLayer3Free(IBLayer3* ibc)
 		ibc->SpaceNameStr = NULL;
 	}*/
 	IBStrFree(&rootCbFinal);
-	IBNameInfoFree(&ibc->GlobalVariables);
 	IBStrFree(&ibc->CurSpace);
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
@@ -1252,9 +1249,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		if(!eo || !eo->name || *eo->name == '\0')
 			Err(OP_Error, "enum needs a name");
 		IBLayer3FindType(ibc, eo->name, &ti);
-		IBASSERT0(!ti);
-		if(ti) ErrF(OP_AlreadyExists, "type %s already exists", eo->name);
-		IBLayer3RegisterCustomType(ibc, eo->name, OP_Enum, &ti);
+		IBASSERT0(ti);
 		ti->Enum.isFlags = eo->enumO.flags;
 		IBStrAppendFmt(&t->code.header, "enum E%s {\n", eo->name);
 		IBStrAppendFmt(&t->code.footer, "};\n\n", eo->name);
@@ -1284,6 +1279,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		}
 		if(!oneFound) Err(OP_Error, "need at least one case in enum");
 		IBCodeBlockFinish(&t->code, &ibc->CHeader_Structs);
+		ibc->DefiningEnumTypeInfo = 0;
 		break;
 	}
 	case OP_CaseWantCode: {
@@ -1441,7 +1437,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 				onOp = false;
 				break;
 			}
-						 IBCASE_UNIMPLEMENTED
+			IBCASE_UNIMPLEMENTED
 			}
 		}
 		if(onOp) Err(OP_Error, "missing op rval in expression");
@@ -2465,6 +2461,7 @@ top:
 						IBLayer3FindType(ibc, ibc->_methodsStructName, &ti);
 						if(ti) {
 							type = ti->type;
+							IBASSERT0(ti->members.elemCount);
 							IBTypeInfoFindMember(ti, rn, &st);
 						}
 					}
@@ -2474,6 +2471,7 @@ top:
 						if(ni && ni->ti) {
 							ti = ni->ti;
 							type = ti->type;
+							IBASSERT0(ti->members.elemCount);
 							IBTypeInfoFindMember(ti, ibc->Str, &st);
 						}
 					}
@@ -2838,17 +2836,30 @@ top:
 			IBLayer3PushObj(ibc, &o);
 			IBObjSetType(o, OP_EnumName);
 			IBObjSetName(o, ibc->Str);
+			IBASSERT0(ibc->DefiningEnumTypeInfo);
+			IBTypeInfo*nti=0;
+			IBVectorPush(&ibc->DefiningEnumTypeInfo->members, &nti);
+			IBASSERT0(nti);
+			IBTypeInfoInit(nti, OP_EnumName, o->name);
 			IBLayer3PopObj(ibc, true, &o);
 			break;
 		}
 		case OP_EnumNeedName: {
-			IBExpects* exp;
+			IBExpects* exp=0;
+			IBTypeInfo* eti=0;
 			SetTaskType(t, OP_EnumWantContent);
 			IBLayer3ReplaceExpects(ibc, &exp);
 			IBExpectsInit(exp, "PP", OP_Name, OP_Underscore);
 			IBassert(o->type == OP_Enum);
 			IBObjSetName(o, ibc->Str);
-			IBLayer3PopObj(ibc, true, &o);
+			IBLayer3FindType(ibc, o->name, &eti);
+			IBASSERT0(!eti);
+			if(eti) 
+				ErrF(OP_AlreadyExists, "type %s already exists", o->name);
+			IBLayer3RegisterCustomType(ibc, o->name, OP_Enum, &eti);
+			IBASSERT0(eti);
+			ibc->DefiningEnumTypeInfo = eti;
+			IBLayer3PopObj(ibc, true, &o);			
 			break;
 		}
 		case OP_NeedExpression: {
@@ -3076,33 +3087,24 @@ top:
 				IBObjSetName(o, ibc->Str);
 				IBTypeInfo* ti = o->var.ti;
 				IBOp realType = o->var.type == OP_Unknown && ti ? ti->type : o->var.type;
-				IBOp parentTaskType = OP_Unknown;
-				if(tParent) 
-					parentTaskType = tParent->type;
 				rc = IBNameInfoAddMember(ibc,
-					parentTaskType ?
-					&ibc->GlobalVariables : &cb->localVariables,
+					&cb->localVariables,
 					ibc->Str, realType, &ni);
 				ni->type = realType;
 				ni->ti = ti;
-				switch(parentTaskType)
+
+				IBTypeInfo* mvTi = 0;
+				int mvIdx = 0;
+				while(mvTi = IBVectorIterNext(&ti->members, &mvIdx))
 				{
-				IBCASE_BLOCKWANTCODE
-				{
-					IBTypeInfo* mvTi = 0;
-					int mvIdx = 0;
-					while(mvTi = IBVectorIterNext(&ti->members, &mvIdx))
-					{
-						IBNameInfo* mvNi = 0;
-						IBNameInfoAddMember(ibc, ni, mvTi->name.start, mvTi->StructVar.type, &mvNi);
-						mvNi->ti = mvTi;
-					}
-					break;
+					IBNameInfo* mvNi = 0;
+					IBNameInfoAddMember(ibc, ni, mvTi->name.start, mvTi->StructVar.type, &mvNi);
+					mvNi->ti = mvTi;
 				}
-				}
-				/*if(rc == OP_AlreadyExists)
+
+				if(rc == OP_AlreadyExists)
 					Err(OP_Error, "name already in use");
-				IBassert(rc == OP_OK);*/
+				IBassert(rc == OP_OK);
 				SetObjType(o, OP_VarWantValue);
 				SetTaskType(t, OP_VarWantValue);
 				IBLayer3ReplaceExpects(ibc, &exp);

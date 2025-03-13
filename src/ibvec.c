@@ -8,7 +8,7 @@ void IBVectorInit(IBVector* vec, int elemSize, IBOp type, int count)
 	vec->DataTypeIdentifier = OP_IBVector;
 	vec->initMagic = IBMAGIC;
 	vec->elemSize = elemSize;
-	vec->type = type;
+	vec->elemDataType = type;
 	vec->elemCount = 0;
 	vec->initialSlotCount = count;
 	vec->doNotShrink = count > 1;
@@ -56,7 +56,7 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
 	IBASSERT0(vec->elemSize);
-	IBASSERT0(vec->type)
+	IBASSERT0(vec->elemDataType)
 		if (vec->elemCount + 1 > vec->slotCount) {
 			void* ra = 0;
 			vec->slotCount++;

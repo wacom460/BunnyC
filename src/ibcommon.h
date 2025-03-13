@@ -84,7 +84,7 @@ typedef struct IBVecPushInfo {
 
 typedef struct IBVector {
 	IBOp DataTypeIdentifier;
-	IBOp type;
+	IBOp elemDataType;//elem data type
 	long long int elemSize;
 	int elemCount;
 	int slotCount;

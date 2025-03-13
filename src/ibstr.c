@@ -166,7 +166,7 @@ int IBStrStripFront(IBStr* str, char ch)
 
 void IBStrSplitBy(IBStr* str, char splitByCh, IBVector* toVec)
 {
-	if(!str || !str->start || !str->end || !toVec || toVec->type != OP_IBStr) return;
+	if(!str || !str->start || !str->end || !toVec || toVec->elemDataType != OP_IBStr) return;
 	long long len = IBStrLen(str);
 	IBStr* cur = 0;
 	for(long long i = 0; i < len; ++i)

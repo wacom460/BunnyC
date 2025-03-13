@@ -481,7 +481,7 @@ typedef struct IBLayer3 {
 	IBVector StrReadPtrsStack; /*bool*/
 	IBVector CodeBlockStack; /*IBCodeBlock*/
 	IBVector ExpressionStack; /*IBExpression*/
-	IBNameInfo GlobalVariables;
+	//IBNameInfo GlobalVariables;
 
 	char* InputStr;
 	IBStr CurSpace;
@@ -489,6 +489,7 @@ typedef struct IBLayer3 {
 	char LastCh;
 	char DefiningStruct;
 	IBTypeInfo* DefiningStructTypeInfo;
+	IBTypeInfo* DefiningEnumTypeInfo;
 	char DefiningMethods;
 
 	//[DOT PATH]

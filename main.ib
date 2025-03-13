@@ -1,22 +1,3 @@
-enum $EntType
-	$person
-	$bullet
+enum $e
+	$a
 _
-
-flags $traits
-	$flammable
-	$destructable
-_
-
-struct $entity
-	i32 $id
-	EntType $type
-	traits $traits
-_
-
-blk $main -> i32
-	entity $e
-	$e.id <- 10
-	$e.type <- .person
-	"%%" $e.id
-_ 0
