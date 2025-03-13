@@ -23,23 +23,26 @@
     <None Include="..\run.bat" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ibcodeblock.c" />
-    <ClCompile Include="..\src\ibexpects.c" />
-    <ClCompile Include="..\src\iblayer3.c" />
-    <ClCompile Include="..\src\ibmain.c" />
-    <ClCompile Include="..\src\ibnameinfo.c" />
-    <ClCompile Include="..\src\ibobj.c" />
-    <ClCompile Include="..\src\ibstr.c" />
-    <ClCompile Include="..\src\ibtask.c" />
-    <ClCompile Include="..\src\ibtypeinfo.c" />
-    <ClCompile Include="..\src\ibvec.c" />
+    <ClCompile Include="..\src\codeblock.c" />
+    <ClCompile Include="..\src\expects.c" />
+    <ClCompile Include="..\src\finishtask.c" />
     <ClCompile Include="..\src\imbored.c" />
+    <ClCompile Include="..\src\layer3.c" />
+    <ClCompile Include="..\src\layer3init.c" />
+    <ClCompile Include="..\src\main.c" />
+    <ClCompile Include="..\src\nameinfo.c" />
+    <ClCompile Include="..\src\obj.c" />
+    <ClCompile Include="..\src\payload.c" />
+    <ClCompile Include="..\src\str.c" />
+    <ClCompile Include="..\src\task.c" />
+    <ClCompile Include="..\src\typeinfo.c" />
+    <ClCompile Include="..\src\vec.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\ibcolor.h" />
-    <ClInclude Include="..\src\ibcommon.h" />
-    <ClInclude Include="..\src\ibop.h" />
+    <ClInclude Include="..\src\color.h" />
+    <ClInclude Include="..\src\common.h" />
     <ClInclude Include="..\src\imbored.h" />
+    <ClInclude Include="..\src\op.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

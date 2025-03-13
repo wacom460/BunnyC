@@ -15,7 +15,7 @@
 #define IB_TRUESTR "true"
 #define IBFALSESTR "false"
 
-#include "ibop.h"
+#include "op.h"
 
 #define STRUCT_DATA_TYPE_IDENT \
 	IBOp DataTypeIdentifier

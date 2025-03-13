@@ -1,24 +1,12 @@
 struct $entity
-	i32 $id
-_
-
-enum $a
-	$c
 _
 
 methods $entity
 	blk $init
-		$self.id <- 0
 	_
 _
 
 blk $main -> i32
 	entity $e
-	$e.id <- 10
-	"%%" $e.id
-	table $e.id
-	_
-	loop
-		"hey\n"
-	_
+	!e.init
 _ 0

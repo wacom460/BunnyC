@@ -2,8 +2,8 @@
 
 #define IBDEBUGPRINTS
 
-#include "ibcommon.h"
-#include "ibcolor.h"
+#include "common.h"
+#include "color.h"
 
 #include <libtcc.h>
 #include <stdio.h>
@@ -136,7 +136,7 @@ void _PrintLine(char* f, int l);
 #define DbgPuts(x)
 #endif
 
-#include "ibop.h"
+#include "op.h"
 
 #define CASE_VALTYPES \
 	case OP_u8: case OP_i8: case OP_c8: case OP_u16: \

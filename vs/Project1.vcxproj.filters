@@ -10,51 +10,60 @@
     <None Include="..\main.ib" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ibcodeblock.c">
+    <ClCompile Include="..\src\layer3.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ibexpects.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\iblayer3.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ibmain.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ibnameinfo.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ibobj.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ibstr.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ibtask.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ibtypeinfo.c">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ibvec.c">
+    <ClCompile Include="..\src\payload.c">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\imbored.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\str.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vec.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\expects.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\obj.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\nameinfo.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\task.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\main.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\codeblock.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\typeinfo.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\layer3init.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\finishtask.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\ibcolor.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\ibcommon.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\ibop.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\imbored.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\op.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\color.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
