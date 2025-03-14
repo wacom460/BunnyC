@@ -61,17 +61,6 @@ void IBLayer3PFX_STRING(IBLayer3* ibc)
 		}
 		break;
 	}
-	case OP_dbgAssertWantArgs:
-	{
-		switch(IBGetOpFromNameList(ibc->Str, OP_dbgAssert))
-		{
-		case OP_TaskType:
-		{
-			break;
-		}
-		}
-		break;
-	}
 	case OP_CPrintfHaveFmtStr:
 	{
 		IBObj* o;

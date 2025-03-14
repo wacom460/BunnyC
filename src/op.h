@@ -146,9 +146,6 @@
 	X(TripplePointer) \
 	X(IBLayer3Flags) \
 	X(NeedExpression) \
-	X(dbgBreak) \
-	X(dbgAssert) \
-	X(dbgAssertWantArgs) \
 	X(CallFunc) \
 	X(TaskType) \
 	X(TaskStack) \

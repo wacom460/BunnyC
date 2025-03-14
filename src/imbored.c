@@ -200,13 +200,6 @@ IBOpNamePair cEquivelents[] =
 	{ "|",OP_Or },
 };
 
-IBOpNamePair dbgAssertsNP[] =
-{
-	{ "taskType", OP_TaskType },
-	{ "taskStack", OP_TaskStack },
-	{ "notEmpty", OP_NotEmpty },
-};
-
 char* SysLibCodeStr =
 "space $sys" LE
 "pub" LE
@@ -286,7 +279,6 @@ IBOp IBGetOpFromNameList(char* name, IBOp list)
 		IBListM(OP_Op, opNamesAR)
 		IBListM(OP_DataTypes, PairDataTypeOPs)
 		IBListM(OP_NameOps, PairNameOps)
-		IBListM(OP_dbgAssert, dbgAssertsNP)
 	}
 	return OP_Unknown;
 #undef IBListM

@@ -127,13 +127,6 @@ void IBLayer3PFX_OP(IBLayer3* ibc)
 		}
 		break;
 	}
-	case OP_dbgAssert:
-	{
-		IBExpects* ap;
-		IBLayer3PushTask(ibc, OP_dbgAssertWantArgs, &ap, NULL);
-		IBExpectsInit(ap, "1P", "expected string", OP_String);
-		break;
-	}
 	case OP_Fall:
 	{
 		switch(t->type)
@@ -190,10 +183,6 @@ void IBLayer3PFX_OP(IBLayer3* ibc)
 		}
 		IBCASE_UNIMPLEMENTED
 		}
-		break;
-	}
-	case OP_dbgBreak:
-	{
 		break;
 	}
 	case OP_Imaginary:
