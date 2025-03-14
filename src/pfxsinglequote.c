@@ -1,6 +1,5 @@
 #include "imbored.h"
 
-
 void IBLayer3PFX_SINGLEQUOTE(IBLayer3* ibc)
 {
 	IBTask* t = IBLayer3GetTask(ibc);
