@@ -200,15 +200,12 @@
 	X(ForNeedMiddleExpr) \
 	X(ForNeedEndExpr) \
 	X(NotAllowed) \
-	X(IBIdeFile) \
-	X(IBIdeLineInfo) \
 	X(RunArguments) \
 	X(RunArgsNeedArgsStr) \
 	X(CInclude) \
 	X(CIncNeedFilePath) \
 	X(IBStr) \
 	X(SingleQuote) \
-	X(ModeCCompTimeMacroPaste) \
 	X(Methods) \
 	X(MethodsNeedName) \
 	X(MethodsWantContent) \

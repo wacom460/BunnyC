@@ -138,7 +138,6 @@ top:
 	/* / PFXDIVIDE */ case OP_Divide:
 	/* - PFXSUBTRACT */ case OP_Subtract:
 	{
-		//bool fall = true;
 		switch(ibc->NameOp)
 		{
 		case OP_EmptyStr:
@@ -151,8 +150,6 @@ top:
 				{
 				case OP_Exclaim:
 				{
-					//fall = false;
-					IBLayer3Push(ibc, OP_ModeCCompTimeMacroPaste, true);
 					break;
 				}
 				IBCASE_UNIMPLEMENTED
@@ -174,7 +171,6 @@ top:
 		case OP_GreaterThan:
 		{
 			IBExpects* exp;
-			//fall = false;
 			SetObjType(o, OP_FuncNeedsRetValType);
 			IBLayer3PushExpects(ibc, &exp);
 			IBExpectsInit(exp, "P", OP_VarType);
@@ -182,7 +178,6 @@ top:
 		}
 		IBCASE_UNIMPLEMENTED
 		}
-		//if (!fall) break;
 		break;
 	}
 	/* | PFXOR */ case OP_Or:
