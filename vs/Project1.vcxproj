@@ -32,7 +32,7 @@
     <ClCompile Include="..\src\main.c" />
     <ClCompile Include="..\src\nameinfo.c" />
     <ClCompile Include="..\src\obj.c" />
-    <ClCompile Include="..\src\payload.c" />
+    <ClCompile Include="..\src\strpayload.c" />
     <ClCompile Include="..\src\pfxdot.c" />
     <ClCompile Include="..\src\pfxexclaim.c" />
     <ClCompile Include="..\src\pfxgreaterthan.c" />

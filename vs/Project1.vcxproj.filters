@@ -13,7 +13,7 @@
     <ClCompile Include="..\src\layer3.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\payload.c">
+    <ClCompile Include="..\src\strpayload.c">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\imbored.c">
