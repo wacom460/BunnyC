@@ -10,7 +10,7 @@ IBNameInfo* IBLayer3TryFindNameInfoInStructVar(IBLayer3* ibc, IBNameInfo* ni)
 {
 	if(ibc->DotPathVec.elemCount >= 2)
 	{
-		IBStr* first = (IBStr*)IBVectorGet(&ibc->DotPathVec, 0);
+		IBStr* first = (IBStr*) IBVectorGet(&ibc->DotPathVec, 0);
 		IBNameInfo* sni = IBNameInfoFindMember(ni, first->start);
 		if(sni && sni->ti && sni->ti->members.elemCount)
 		{
@@ -254,8 +254,7 @@ void IBLayer3Done(IBLayer3* ibc)
 	}
 	case OP_StructWantContent:
 	{
-		IBObj* o;
-		o = IBLayer3GetObj(ibc);
+		IBObj* o = IBLayer3GetObj(ibc);
 		IBassert(o->type == OP_Struct);
 		IBLayer3PopObj(ibc, true, &o);
 		IBassert(o->type == OP_NotSet);
@@ -266,8 +265,7 @@ void IBLayer3Done(IBLayer3* ibc)
 	}
 	case OP_MethodsWantContent:
 	{
-		IBObj* o;
-		o = IBLayer3GetObj(ibc);
+		IBObj* o = IBLayer3GetObj(ibc);
 		IBassert(o->type == OP_Methods);
 		IBLayer3PopObj(ibc, true, NULL);
 		IBLayer3FinishTask(ibc);
@@ -937,7 +935,6 @@ void IBLayer3InputChar(IBLayer3* ibc, char ch)
 
 		ibc->Imaginary = false;
 		ibc->Pfx = OP_Null;
-		ibc->DotPathOn = false;
 		break;
 	}
 	}
@@ -1087,6 +1084,8 @@ void IBLayer3Prefix(IBLayer3* ibc)
 	t = IBLayer3GetTask(ibc);
 	IBassert(t);
 	expTop = IBTaskGetExpTop(t);
+	
+	ibc->DotPathOn = false;
 
 	ibc->Pfx = IBOPFromPfxCh(ibc->Ch);
 	if(ibc->Pfx == OP_SpaceChar

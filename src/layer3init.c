@@ -2,12 +2,6 @@
 
 void IBLayer3Init(IBLayer3* ibc)
 {
-	IBObj* o = 0;
-	IBExpects* exp = 0;
-	IBCodeBlock* cb = 0;
-	IBTypeInfo* boolti = 0, * u8ti = 0, * i8ti = 0, * c8ti = 0, * u16ti = 0,
-		* i16ti = 0, * u32ti = 0, * i32ti = 0, * f32ti = 0,
-		* u64ti = 0, * i64ti = 0, * d64ti = 0, * stringti = 0;
 	memset(ibc, 0, sizeof * ibc);
 
 	IBVectorInit(&ibc->DotPathVec, sizeof(IBStr),
@@ -15,34 +9,58 @@ void IBLayer3Init(IBLayer3* ibc)
 
 	IBVectorInit(&ibc->TypeRegistry,
 		sizeof(IBTypeInfo), OP_IBTypeInfo, 32);
+		
+	IBTypeInfo* boolti = 0;
 	IBVectorPush(&ibc->TypeRegistry, &boolti);
-	IBVectorPush(&ibc->TypeRegistry, &u8ti);
-	IBVectorPush(&ibc->TypeRegistry, &i8ti);
-	IBVectorPush(&ibc->TypeRegistry, &c8ti);
-	IBVectorPush(&ibc->TypeRegistry, &u16ti);
-	IBVectorPush(&ibc->TypeRegistry, &i16ti);
-	IBVectorPush(&ibc->TypeRegistry, &u32ti);
-	IBVectorPush(&ibc->TypeRegistry, &i32ti);
-	IBVectorPush(&ibc->TypeRegistry, &f32ti);
-	IBVectorPush(&ibc->TypeRegistry, &u64ti);
-	IBVectorPush(&ibc->TypeRegistry, &i64ti);
-	IBVectorPush(&ibc->TypeRegistry, &d64ti);
-	IBVectorPush(&ibc->TypeRegistry, &stringti);
 	IBTypeInfoInit(boolti, OP_Bool, "bool");
+	
+	IBTypeInfo* u8ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &u8ti);
 	IBTypeInfoInit(u8ti, OP_u8, "u8");
+	
+	IBTypeInfo* i8ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &i8ti);
 	IBTypeInfoInit(i8ti, OP_i8, "i8");
+	
+	IBTypeInfo* c8ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &c8ti);
 	IBTypeInfoInit(c8ti, OP_c8, "c8");
+	
+	IBTypeInfo* u16ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &u16ti);
 	IBTypeInfoInit(u16ti, OP_u16, "u16");
+	
+	IBTypeInfo* i16ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &i16ti);
 	IBTypeInfoInit(i16ti, OP_i16, "i16");
+	
+	IBTypeInfo* u32ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &u32ti);
 	IBTypeInfoInit(u32ti, OP_u32, "u32");
+	
+	IBTypeInfo* i32ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &i32ti);
 	IBTypeInfoInit(i32ti, OP_i32, "i32");
+	
+	IBTypeInfo* f32ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &f32ti);
 	IBTypeInfoInit(f32ti, OP_f32, "f32");
+	
+	IBTypeInfo* u64ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &u64ti);
 	IBTypeInfoInit(u64ti, OP_u64, "u64");
+	
+	IBTypeInfo* i64ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &i64ti);
 	IBTypeInfoInit(i64ti, OP_i64, "i64");
+	
+	IBTypeInfo* d64ti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &d64ti);
 	IBTypeInfoInit(d64ti, OP_d64, "d64");
+	
+	IBTypeInfo* stringti = 0;
+	IBVectorPush(&ibc->TypeRegistry, &stringti);
 	IBTypeInfoInit(stringti, OP_String, "nts");
-	//getchar();
-	//IBLayer3RegisterCustomType(ibc,"ct",OP_Enum,NULL);
 
 	ibc->Running = true;
 	ibc->Line = 1;
@@ -69,11 +87,14 @@ void IBLayer3Init(IBLayer3* ibc)
 		sizeof(IBCodeBlock), OP_IBCodeBlock, IBVEC_DEFAULT_SLOTCOUNT);
 	IBVectorInit(&ibc->ExpressionStack,
 		sizeof(IBExpression), OP_IBExpression, IBVEC_DEFAULT_SLOTCOUNT);
+	IBCodeBlock* cb = 0;
 	IBVectorPush(&ibc->CodeBlockStack, &cb);
 	IBCodeBlockInit(cb);
 	IBVectorCopyPushBool(&ibc->StrReadPtrsStack, false);
 	IBLayer3Push(ibc, OP_ModePrefixPass, false);
+	IBObj* o = 0;
 	IBLayer3PushObj(ibc, &o);
+	IBExpects* exp = 0;
 	IBLayer3PushTask(ibc, OP_RootTask, &exp, NULL);
 	IBExpectsInit(exp, "PPPNNNNNNNNN",
 		OP_Op, OP_VarType, OP_Subtract, OP_Use, OP_Imaginary, OP_Func,
@@ -84,26 +105,22 @@ void IBLayer3Init(IBLayer3* ibc)
 
 void IBLayer3Free(IBLayer3* ibc)
 {
-	IBTask* t;
-	IBObj* o;
-	IBCodeBlock* cb;
-	IBStr rootCbFinal;
-
 	IBassert(ibc);
+	IBStr rootCbFinal;
 	IBStrInit(&rootCbFinal);
 	if(ibc->InputStr)
 	{
 		IBLayer3InputStr(ibc, ibc->InputStr);
 		ibc->InputStr = NULL;
 	}
-	cb = (IBCodeBlock*) IBVectorTop(&ibc->CodeBlockStack);
-	o = IBLayer3GetObj(ibc);
+	IBCodeBlock* cb = (IBCodeBlock*) IBVectorTop(&ibc->CodeBlockStack);
+	IBObj* o = IBLayer3GetObj(ibc);
 	if(ibc->StringMode)
 		Err(OP_Error, "Reached end of file without closing string");
 	if(ibc->Str[0]) IBLayer3StrPayload(ibc);
 	if(cb->localVariables.members.elemCount)
 		Err(OP_Error, "root codeblock can't have variables in it!!!");
-	t = IBLayer3GetTask(ibc);
+	IBTask* t = IBLayer3GetTask(ibc);
 	if(ibc->TaskStack.elemCount)
 	{
 		switch(t->type)
@@ -175,7 +192,6 @@ void IBLayer3Free(IBLayer3* ibc)
 	IBVectorFreeSimple(&ibc->ExpressionStack);
 	IBVectorFreeSimple(&ibc->StrReadPtrsStack);
 	IBVectorFree(&ibc->TaskStack, TaskFree);
-	//IBNameInfoDBFree(&ibc->NameTypeCtx);
 	IBStrFree(&ibc->CHeader_Structs);
 	IBStrFree(&ibc->CHeader_Funcs);
 	IBStrFree(&ibc->FinalOutput);
@@ -187,7 +203,6 @@ void IBLayer3Free(IBLayer3* ibc)
 	IBStrFree(&ibc->CurrentLineStr);
 	IBVectorFree(&ibc->TypeRegistry, IBTypeInfoFree);
 	IBVectorFree(&ibc->DotPathVec, IBStrFree);
-	//IBStrFree(&ibc->ArrayIndexExprStr);
 	IBVectorFree(&ibc->ArrayIndexExprsVec, IBStrFree);
 	IBStrFree(&ibc->CCode);
 }

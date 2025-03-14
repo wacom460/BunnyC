@@ -215,8 +215,11 @@ extern char* SysLibCodeStr;
 
 #ifdef IBDEBUGPRINTS
 void _PrintLine(char* f, int l);
-#define PLINE _PrintLine(__FILE__, __LINE__)
-#define PLINE_FMT(fmt, ...) PLINE; printf(fmt, __VA_ARGS__)
+#define PLINE \
+	_PrintLine(__FILE__, __LINE__)
+#define PLINE_FMT(fmt, ...) \
+	PLINE; \
+	printf(fmt, __VA_ARGS__)
 #else
 #define PLINE
 #define PLINE_FMT
@@ -251,22 +254,72 @@ void _PrintLine(char* f, int l);
 #define IB_SELFDOTLESS_NTSP(o) ((o) + 5)
 
 #define IBCASE_0THRU9 \
-	case '0': case '1': case '2': case '3': \
-	case '4': case '5': case '6': case '7': case '8': case '9':
+	case '0': \
+	case '1': \
+	case '2': \
+	case '3': \
+	case '4': \
+	case '5': \
+	case '6': \
+	case '7': \
+	case '8': \
+	case '9':
 
 #define IBCASE_aTHRUz \
-	case 'a': case 'b': case 'c': case 'd': \
-	case 'e': case 'f': case 'g': case 'h': case 'i': case 'j': \
-	case 'k': case 'l': case 'm': case 'n': case 'o': case 'p': \
-	case 'q': case 'r': case 's': case 't': case 'u': case 'v': \
-	case 'w': case 'x': case 'y': case 'z':
+	case 'a': \
+	case 'b': \
+	case 'c': \
+	case 'd': \
+	case 'e': \
+	case 'f': \
+	case 'g': \
+	case 'h': \
+	case 'i': \
+	case 'j': \
+	case 'k': \
+	case 'l': \
+	case 'm': \
+	case 'n': \
+	case 'o': \
+	case 'p': \
+	case 'q': \
+	case 'r': \
+	case 's': \
+	case 't': \
+	case 'u': \
+	case 'v': \
+	case 'w': \
+	case 'x': \
+	case 'y': \
+	case 'z':
 
 #define IBCASE_ATHRUZ \
-	case 'A': case 'B': case 'C': case 'D': \
-	case 'E': case 'F': case 'G': case 'H': case 'I': case 'J': \
-	case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': \
-	case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': \
-	case 'W': case 'X': case 'Y': case 'Z':
+	case 'A': \
+	case 'B': \
+	case 'C': \
+	case 'D': \
+	case 'E': \
+	case 'F': \
+	case 'G': \
+	case 'H': \
+	case 'I': \
+	case 'J': \
+	case 'K': \
+	case 'L': \
+	case 'M': \
+	case 'N': \
+	case 'O': \
+	case 'P': \
+	case 'Q': \
+	case 'R': \
+	case 'S': \
+	case 'T': \
+	case 'U': \
+	case 'V': \
+	case 'W': \
+	case 'X': \
+	case 'Y': \
+	case 'Z':
 
 #define IBCASE_AaTHRUZz \
 	IBCASE_aTHRUz IBCASE_ATHRUZ
@@ -275,9 +328,17 @@ void _PrintLine(char* f, int l);
 	IBCASE_AaTHRUZz IBCASE_0THRU9
 
 #define IBCASE_NUMTYPES \
-	case OP_u8: case OP_c8: case OP_i8: \
-	case OP_u16: case OP_i16: case OP_u32: case OP_i32: \
-	case OP_f32: case OP_u64: case OP_i64: case OP_d64:
+	case OP_u8: \
+	case OP_c8: \
+	case OP_i8: \
+	case OP_u16: \
+	case OP_i16: \
+	case OP_u32: \
+	case OP_i32: \
+	case OP_f32: \
+	case OP_u64: \
+	case OP_i64: \
+	case OP_d64:
 
 #define IBOP_NAME_LEN 32
 #define IBLayer3STR_MAX 64
@@ -385,11 +446,14 @@ typedef struct IBTypeInfo
 	{
 		IBOp type;
 	} StructVar;
+	struct {
+		struct IBTypeInfo* returnTi;
+	} Func;//or Method
 	struct
 	{
-		char isMethod;/*methods are sub functions of types*/
-		//todo: store func args info
-	} Function;
+		struct IBTypeInfo* ti;
+		IBStr name;
+	} FuncArg;//or Method
 	IB_DEFMAGIC;
 } IBTypeInfo;
 
@@ -401,7 +465,7 @@ typedef struct IBNameInfo
 {
 	STRUCT_DATA_TYPE_IDENT;
 	IBOp type;
-	IBTypeInfo*ti;
+	IBTypeInfo* ti;
 	IBOp cast;
 	char* name;
 	IBVector members; //IBNameInfo
@@ -598,8 +662,8 @@ typedef struct IBLayer3
 	IBStr CurrentLineStr;
 	IBStr RunArguments;
 	//IBStr ArrayIndexExprStr;
-	IBVector ArrayIndexExprsVec;//IBStr
-	IBVector TypeRegistry;//IBTypeInfo
+	IBVector ArrayIndexExprsVec; //IBStr
+	IBVector TypeRegistry; //IBTypeInfo
 
 	IBVector ObjStack; /*IBObj*/
 	IBVector ModeStack; /*IBOp*/
@@ -619,7 +683,7 @@ typedef struct IBLayer3
 	char DotPathOn;
 	IBVector DotPathVec; //IBStr
 
-	char*_methodsStructName;
+	char* _methodsStructName;
 	//char DefiningEnum;
 	bool Imaginary;
 	bool Running;
@@ -775,6 +839,7 @@ void IBLayer3Prefix(IBLayer3* ibc);
 void IBLayer3Str(IBLayer3* ibc);
 void IBLayer3StrPayload(IBLayer3* ibc);
 void IBLayer3ExplainErr(IBLayer3* ibc, IBOp code);
+
 #define SetObjType(obj, tt) \
 { \
 	PLINE; \
@@ -783,11 +848,13 @@ void IBLayer3ExplainErr(IBLayer3* ibc, IBOp code);
 		IBGetOpName(tt), (int) tt); \
 	obj->type = tt; \
 }
+
 #define PopExpects() \
 { \
 	PLINE; \
 	IBLayer3PopExpects(ibc); \
 }
+
 IBTask* IBLayer3GetTask(IBLayer3* ibc);
 IBOp IBLayer3GetMode(IBLayer3* ibc);
 

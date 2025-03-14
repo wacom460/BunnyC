@@ -1,12 +1,15 @@
 struct $entity
+	i32 $id
 _
 
 methods $entity
-	blk $init
+	blk $init i32 $id
+		$self.id <- $id
 	_
 _
 
 blk $main -> i32
 	entity $e
-	!e.init
+	!e.init 20
+	"%%" $e.id
 _ 0

@@ -5,19 +5,21 @@ void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name)
 	IBASSERT0(ti);
 	memset(ti, 0, sizeof * ti);
 	ti->DataTypeIdentifier = OP_IBTypeInfo;
+	IB_SETMAGICP(ti);
 	IBStrInitWithCStr(&ti->name, name);
 	ti->type = type;
 	IBVectorInit(&ti->members, sizeof * ti,
 		OP_IBTypeInfo, IBVEC_DEFAULT_SLOTCOUNT);
-	IB_SETMAGICP(ti);
+	IBStrInit(&ti->FuncArg.name);
 }
 
 void IBTypeInfoFree(IBTypeInfo* ti)
 {
 	IBASSERT0(ti);
-	IB_ASSERTMAGICP(ti);
 	IBVectorFree(&ti->members, IBTypeInfoFree);
+	IBStrFree(&ti->FuncArg.name);
 	IBStrFree(&ti->name);
+	IB_ASSERTMAGICP(ti);
 }
 
 void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP)

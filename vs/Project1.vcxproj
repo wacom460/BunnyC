@@ -50,7 +50,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\color.h" />
-    <ClInclude Include="..\src\common.h" />
     <ClInclude Include="..\src\imbored.h" />
     <ClInclude Include="..\src\op.h" />
   </ItemGroup>
