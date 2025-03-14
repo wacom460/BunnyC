@@ -1169,10 +1169,14 @@ void IBLayer3Prefix(IBLayer3* ibc)
 	case OP_Name:
 	{
 		IBVectorCopyPushBool(&ibc->StrReadPtrsStack, true);
-		if(ibc->Pfx == OP_Name)
+		switch(ibc->Pfx)
+		{
+		case OP_Exclaim:
+		case OP_Name:
 		{
 			ibc->DotPathOn = true;		
 			IBVectorClear(&ibc->DotPathVec, IBStrFree);
+		}
 		}
 		/*getchar();*/
 		IBLayer3Push(ibc, OP_ModeStrPass, false);

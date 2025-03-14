@@ -10,7 +10,7 @@ void IBLayer3StrPayload(IBLayer3* ibc)
 	IBObj* o;
 	IBOp valType = IBJudgeTypeOfStrValue(ibc, ibc->Str);
 	strVal.i64 = 0;
-	if(ibc->DotPathOn && ibc->Pfx == OP_Name)
+	if(ibc->DotPathOn)
 	{
 		IBStr dpStr;
 		IBStrInitWithCStr(&dpStr, ibc->Str);

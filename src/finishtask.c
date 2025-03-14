@@ -430,7 +430,15 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		int idx = 0;
 		IBassert(o->type == OP_Call);
 		//IBStrAppendCh(&t->code.code, '\t', tabCount);
-		IBStrAppendFmt(&t->code.code, "%s", o->str);
+		
+		if(ibc->DotPathVec.elemCount)
+		{
+			DB;
+		}
+		else
+		{
+			IBStrAppendFmt(&t->code.code, "%s", o->str);
+		}
 		IBStrAppendCStr(&t->code.code, "(");
 		while(o = (IBObj*) IBVectorIterNext(wObjs, &idx))
 		{

@@ -212,12 +212,12 @@ char* SysLibCodeStr =
 
 CLAMP_FUNC(int, ClampInt)
 {
-	CLAMP_IMP
+	CLAMP_IMP;
 }
 
 CLAMP_FUNC(long long int, ClampSizeT)
 {
-	CLAMP_IMP
+	CLAMP_IMP;
 }
 
 IBVector g_ColorStack;

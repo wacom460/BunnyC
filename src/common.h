@@ -47,13 +47,13 @@ long long strnlen(char* s, long long maxlen);
 #endif
 
 #if defined(__TINYC__) || defined(__GNUC__)
-#define __debugbreak() exit(-1)
+#define __debugbreak() printf("### -> DEBUG BREAK <- ###\nPress enter to continue"); getchar()
 #endif
 
 #define DB __debugbreak();
 
 #define CLAMP_IMP \
-	return val < min ? min : val > max ? max : val;
+	return val < min ? min : val > max ? max : val
 
 #define CLAMP_FUNC(type, name) \
 	type name(type val, type min, type max)

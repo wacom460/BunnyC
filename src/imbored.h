@@ -22,8 +22,10 @@ extern char* SysLibCodeStr;
 #ifdef IBDEBUGPRINTS
 void _PrintLine(char* f, int l);
 #define PLINE _PrintLine(__FILE__, __LINE__)
+#define PLINE_FMT(fmt, ...) PLINE; printf(fmt, __VA_ARGS__)
 #else
 #define PLINE
+#define PLINE_FMT
 #endif
 
 #define IBRUN_MAXARGS 10
