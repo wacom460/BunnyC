@@ -243,14 +243,15 @@ void IBLayer3PFX_NAME(IBLayer3* ibc)
 	}
 	case OP_StructWantName:
 	{
-		IBObj* o;
+		IBObj* o = 0;
 		IBLayer3PushObj(ibc, &o);
 		IBassert(ibc->Str[0] != '\0');
 		IBObjSetName(o, ibc->Str);
-		IBTypeInfo*ti=0;
+		IBTypeInfo* ti = 0;
 		IBLayer3FindType(ibc, o->name, &ti);
 		IBASSERT0(!ti);
-		if(ti) ErrF(OP_AlreadyExists, "type %s already exists", o->name);
+		if(ti)
+			ErrF(OP_AlreadyExists, "type %s already exists", o->name);
 		IBLayer3RegisterCustomType(ibc, o->name, OP_Struct, &ti);
 		ibc->DefiningStructTypeInfo = ti;
 		IBObjSetType(o, OP_Struct);
@@ -260,9 +261,7 @@ void IBLayer3PFX_NAME(IBLayer3* ibc)
 	}
 	case OP_UseNeedStr:
 	{
-		IBOp lib;
-		lib = ibc->NameOp;
-		switch(lib)
+		switch(ibc->NameOp)
 		{
 		case OP_UseStrSysLib:
 		{

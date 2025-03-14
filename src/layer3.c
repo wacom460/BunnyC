@@ -289,16 +289,12 @@ void IBLayer3Done(IBLayer3* ibc)
 	case OP_FuncHasName:
 	case OP_FuncWantCode:
 	{
-		IBObj* o;
-		IBVector* wo;
-		int idx;
 		IBassert(t);
 		PLINE;
 		DbgPuts(" Finishing function\n");
-		idx = 0;
-		/*t = NULL;*/
-		o = NULL;
-		wo = &t->working;
+		int idx = 0;
+		IBObj* o = 0;
+		IBVector* wo = &t->working;
 		while(o = (IBObj*) IBVectorIterNext(wo, &idx))
 		{
 			/*TODO: could cache func obj index later*/

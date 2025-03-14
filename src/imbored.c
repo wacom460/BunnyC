@@ -84,7 +84,6 @@ IBOpNamePair PairNameOps[] =
 	{ "break", OP_Break },
 	{ "as", OP_As },
 	{ ">", OP_GreaterThan },
-	{ "output", OP_Output },
 	{ "enum", OP_Enum },
 	{ "flags", OP_Flags },
 	{ "nts", OP_String },

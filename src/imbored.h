@@ -609,7 +609,7 @@ IBOp IBJudgeTypeOfStrValue(IBLayer3* ibc, char* str);
 	PLINE; \
 	DbgFmt(" SetTaskType: %s(%d) -> %s(%d)\n", \
 		IBGetOpName(task->type), \
-		(int)task->type, \
+		(int) task->type, \
 		IBGetOpName(tt), (int) tt); \
 	task->type = tt; \
 }

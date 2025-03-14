@@ -8,11 +8,9 @@
 	X(AlreadyExists) \
 	X(Unknown) \
 	X(NotSet) \
-	X(Any) \
 	X(Use) \
 	X(Call) \
 	X(Case) \
-	X(Output) \
 	X(CallWantArgs) \
 	X(Enum) \
 	X(Flags) \
@@ -163,7 +161,7 @@
 	X(EmptyStr) \
 	X(BuildingIf) \
 	X(Builtin) \
-	X(IBTypeInfo)\
+	X(IBTypeInfo) \
 	X(SubtaskArgs) \
 	X(FloatingPoint) \
 	X(Modulo) \
