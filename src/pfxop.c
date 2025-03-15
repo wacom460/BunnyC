@@ -248,6 +248,16 @@ void IBLayer3PFX_OP(IBLayer3* ibc)
 		o->func.retValType = OP_Void;
 		o->func.retTypeMod = OP_NotSet;
 		IBLayer3PushCodeBlock(ibc, &cb);
+		if(ibc->DefiningMethods)
+		{
+			IBTypeInfo* seTi = 0;
+			IBLayer3FindType(ibc, ibc->_methodsStructName, &seTi);
+			IBassert(seTi);
+			IBNameInfo* selfNi = 0;
+			IBNameInfoAddMember(ibc, &cb->localVariables, "self", seTi->type, &selfNi);
+			IBassert(selfNi);
+			DB;
+		}
 		break;
 	}
 	case OP_Use:

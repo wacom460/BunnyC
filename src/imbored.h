@@ -429,6 +429,8 @@ typedef struct IBTypeInfo
 	struct IBTypeInfo* memberVarType;
 	IBStr name;
 	IBVector members;//IBTypeInfo
+	//FUCK IT
+	IBNameInfo nameInfo;
 	struct
 	{
 		char isFlags;

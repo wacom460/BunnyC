@@ -11,11 +11,13 @@ void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name)
 	IBVectorInit(&ti->members, sizeof * ti,
 		OP_IBTypeInfo, IBVEC_DEFAULT_SLOTCOUNT);
 	IBStrInit(&ti->FuncArg.name);
+	IBNameInfoInit(&ti->nameInfo);
 }
 
 void IBTypeInfoFree(IBTypeInfo* ti)
 {
 	IBASSERT0(ti);
+	IBNameInfoFree(&ti->nameInfo);
 	IBVectorFree(&ti->members, IBTypeInfoFree);
 	IBStrFree(&ti->FuncArg.name);
 	IBStrFree(&ti->name);
