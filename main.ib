@@ -1,20 +1,13 @@
-struct $v2f
-	f32 $x
-	f32 $y
+flags $entType
+	$human
 _
 
 struct $entity
-	v2f $pos
-	v2f $size
+	entType $type
 _
 
 methods $entity
 	blk $init
-		$self.pos.x <- -10
+		$self.type <- .human
 	_
 _
-
-blk $main -> i32
-	entity $e
-	!e.init
-_ 0
