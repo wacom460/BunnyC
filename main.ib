@@ -1,20 +1,20 @@
+struct $v2f
+	f32 $x
+	f32 $y
+_
+
 struct $entity
-	i32 $id
-	i32 $id2
+	v2f $pos
+	v2f $size
 _
 
 methods $entity
-	blk $init i32 $id
-		$self.id <- $id
-		$self.id2 <- 10
-		if $self.id == $self.id2
-			"hi\n"
-		_
+	blk $init
+		$self.pos.x <- -10
 	_
 _
 
 blk $main -> i32
 	entity $e
-	!e.init 10
-	"%%" $e.id
+	!e.init
 _ 0

@@ -95,7 +95,7 @@ char* IBStrAppendCStr(IBStr* str, char* with)
 	IBASSERT0(withLen > 0);
 	IBASSERT0(str->start);
 	len = IBStrLen(str);
-	IBREALLOC(ra, str->start, len + withLen + 1);
+	ra = realloc(str->start, len + withLen + 1);
 	IBASSERT0(ra);
 	if (ra)
 	{
@@ -129,7 +129,7 @@ char* IBStrAppend(IBStr* str, IBStr* with)
 	IBASSERT0(withLen > 0);
 	IBASSERT0(str->start);
 	len = IBStrLen(str);
-	IBREALLOC(ra, str->start, len + withLen + 1);
+	ra = realloc(str->start, len + withLen + 1);
 	IBASSERT0(ra);
 	if (ra)
 	{

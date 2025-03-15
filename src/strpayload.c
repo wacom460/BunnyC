@@ -176,6 +176,20 @@ top:
 			IBExpectsInit(exp, "P", OP_VarType);
 			break;
 		}
+		case OP_Unknown:
+		{
+			switch(valType)
+			{
+			case OP_Number:
+			{
+				ibc->Pfx = OP_Value;
+				strVal.i64 = -strVal.i64; //hax
+				goto top;
+			}
+			IBCASE_UNIMPLEMENTED
+			}
+			break;
+		}
 		IBCASE_UNIMPLEMENTED
 		}
 		break;

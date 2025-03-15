@@ -94,8 +94,8 @@ int IBStrStripFront(IBStr* str, char ch);
 
 struct IBVecData;
 
-#define IBVEC_PUSHINFO_MAX (32)
-#define IBVEC_DEFAULT_SLOTCOUNT 16
+#define IBVEC_PUSHINFO_MAX (64)
+#define IBVEC_DEFAULT_SLOTCOUNT 1
 
 typedef struct IBVecPushInfo
 {

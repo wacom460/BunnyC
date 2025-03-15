@@ -179,12 +179,13 @@ void IBLayer3Free(IBLayer3* ibc)
 #endif
 	IBPopColor();
 	IBLayer3CompileTCC(ibc);
-	IBPushColor(IBFgMAGENTA);
-	DbgPuts("-> Compilation complete. Press any key <-\n");
-	IBPopColor();
-#ifdef IBDEBUGPRINTS
-	getchar();
-#endif
+//	IBPushColor(IBFgMAGENTA);
+//	DbgPuts("-> Compilation complete. Press any key <-\n");
+//	IBPopColor();
+//#ifdef IBDEBUGPRINTS
+//	getchar();
+//#endif
+
 	IBStrFree(&rootCbFinal);
 	IBVectorFree(&ibc->CodeBlockStack, IBCodeBlockFree);
 	IBVectorFree(&ibc->ObjStack, ObjFree);
