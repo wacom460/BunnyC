@@ -1,11 +1,13 @@
 struct $entity
 	i32 $id
+	i32 $id2
 _
 
 methods $entity
 	blk $init i32 $id
 		$self.id <- $id
-		if $self.id == 13
+		$self.id2 <- 10
+		if $self.id == $self.id2
 			"hi\n"
 		_
 	_
@@ -13,6 +15,6 @@ _
 
 blk $main -> i32
 	entity $e
-	!e.init 13
+	!e.init 10
 	"%%" $e.id
 _ 0

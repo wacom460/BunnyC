@@ -565,7 +565,7 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		case OP_Name:
 			if(!strncmp(m->ifO.rvName, "self.", 5))
 			{
-				IBStrAppendFmt(&cb->header, "self->%s ", m->ifO.rvName + 5);
+				IBStrAppendFmt(&cb->header, "self->%s", m->ifO.rvName + 5);
 			}
 			else IBStrAppendFmt(&cb->header, "%s", m->ifO.rvName);
 			break;
