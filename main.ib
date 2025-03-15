@@ -1,23 +1,18 @@
-struct $v2i
-	i32 $x
-	i32 $y
-_
-
 struct $entity
-	v2i $pos
 	i32 $id
 _
 
 methods $entity
 	blk $init i32 $id
 		$self.id <- $id
-		$self.pos.x <- 0
-		$self.pos.y <- 0
+		if $self.id == 13
+			"hi\n"
+		_
 	_
 _
 
 blk $main -> i32
 	entity $e
-	!e.init 20
+	!e.init 13
 	"%%" $e.id
 _ 0

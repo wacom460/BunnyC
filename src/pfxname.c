@@ -223,7 +223,6 @@ void IBLayer3PFX_NAME(IBLayer3* ibc)
 		}
 		case OP_IfNeedRVal:
 		{
-			IBExpects* exp;
 			IBOverwriteStr(&o->ifO.rvName, ibc->Str);
 			IBNameInfo* ni = IBLayer3SearchNameInfo(ibc, o->ifO.rvName);
 			if(!ni)
@@ -234,6 +233,7 @@ void IBLayer3PFX_NAME(IBLayer3* ibc)
 			o->ifO.rvTYPE = OP_Name;
 			SetObjType(o, OP_IfFinished);
 			SetTaskType(t, OP_IfFinished);
+			IBExpects* exp = 0;
 			IBLayer3ReplaceExpects(ibc, &exp);
 			IBExpectsInit(exp, "P", OP_LineEnd);
 			break;
