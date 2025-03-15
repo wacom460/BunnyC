@@ -544,7 +544,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		switch(m->ifO.lvTYPE)
 		{
 		case OP_Name:
-			IBStrAppendFmt(&cb->header, "%s ", m->ifO.lvName);
+			if(!strncmp(m->ifO.lvName, "self.", 5))
+			{
+				IBStrAppendFmt(&cb->header, "self->%s ", m->ifO.lvName + 5);
+			}
+			else IBStrAppendFmt(&cb->header, "%s ", m->ifO.lvName);
 			break;
 		default:
 		{
@@ -559,7 +563,11 @@ void _IBLayer3FinishTask(IBLayer3* ibc)
 		switch(m->ifO.rvTYPE)
 		{
 		case OP_Name:
-			IBStrAppendFmt(&cb->header, "%s", m->ifO.rvName);
+			if(!strncmp(m->ifO.rvName, "self.", 5))
+			{
+				IBStrAppendFmt(&cb->header, "self->%s ", m->ifO.rvName + 5);
+			}
+			else IBStrAppendFmt(&cb->header, "%s", m->ifO.rvName);
 			break;
 		default:
 		{
