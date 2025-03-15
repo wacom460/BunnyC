@@ -421,6 +421,16 @@ typedef union IBVal
 	double d64;
 } IBVal;
 
+typedef struct IBNameInfo
+{
+	STRUCT_DATA_TYPE_IDENT;
+	IBOp type;
+	struct IBTypeInfo* ti;
+	IBOp cast;
+	char* name;
+	IBVector members; //IBNameInfo
+} IBNameInfo;
+
 typedef struct IBTypeInfo
 {
 	STRUCT_DATA_TYPE_IDENT;
@@ -462,16 +472,6 @@ typedef struct IBTypeInfo
 void IBTypeInfoInit(IBTypeInfo* ti, IBOp type, char* name);
 void IBTypeInfoFree(IBTypeInfo* ti);
 void IBTypeInfoFindMember(IBTypeInfo* ti, char* name, IBTypeInfo** outDP);
-
-typedef struct IBNameInfo
-{
-	STRUCT_DATA_TYPE_IDENT;
-	IBOp type;
-	IBTypeInfo* ti;
-	IBOp cast;
-	char* name;
-	IBVector members; //IBNameInfo
-} IBNameInfo;
 
 void IBNameInfoInit(IBNameInfo* info);
 void IBNameInfoFree(IBNameInfo* info);

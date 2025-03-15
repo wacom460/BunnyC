@@ -234,13 +234,12 @@ void IBLayer3PFX_OP(IBLayer3* ibc)
 	}
 	case OP_Func: //func1
 	{
-		IBExpects* ap;
-		IBObj* o;
-		IBTask* t;
-		t = IBLayer3GetTask(ibc);
+		IBTask* t = IBLayer3GetTask(ibc);
 		IBassert(t);
+		IBObj* o = 0;
 		IBLayer3PushObj(ibc, &o);
 		o->func.thingTask = t->type == OP_StructWantContent ? t : NULL;
+		IBExpects* ap = 0;
 		IBLayer3PushTask(ibc, OP_FuncNeedName, &ap, NULL);
 		IBExpectsInit(ap, "1P", "expected function name", OP_Name);
 		o->type = ibc->NameOp;
@@ -254,9 +253,19 @@ void IBLayer3PFX_OP(IBLayer3* ibc)
 			IBLayer3FindType(ibc, ibc->_methodsStructName, &seTi);
 			IBassert(seTi);
 			IBNameInfo* selfNi = 0;
-			IBNameInfoAddMember(ibc, &cb->localVariables, "self", seTi->type, &selfNi);
+			IBOp r = IBNameInfoAddMember(ibc, &cb->localVariables, "self", seTi->type, &selfNi);
+			IBassert(r == OP_OK);
 			IBassert(selfNi);
-			DB;
+			selfNi->ti = seTi;
+			IBTypeInfo* mvTi = 0;
+			int idx = 0;
+			while(mvTi = IBVectorIterNext(&seTi->members, &idx))
+			{
+				IBNameInfo* mvNi = 0;
+				IBOp mr = IBNameInfoAddMember(ibc, selfNi, mvTi->name.start, mvTi->type, &mvNi);
+				IBassert(mvNi);
+				mvNi->ti = mvTi;
+			}
 		}
 		break;
 	}
