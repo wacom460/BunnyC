@@ -50,7 +50,7 @@ void* _IBVectorIterNext(IBVector* vec, int* idx, int lineNum)
 	return (void*)((char*)vec->data + (vec->elemSize * ((*idx)++)));
 }
 
-void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
+void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP, IBDBGFILELINEPARAMS)
 {
 	struct IBVecData* topPtr;
 	IBASSERT0(vec);
@@ -79,28 +79,28 @@ void _IBVectorPush(IBVector* vec, struct IBVecData** dataDP IBDBGFILELINEPARAMS)
 	if (dataDP) *dataDP = topPtr;
 }
 
-void _IBVectorCopyPush(IBVector* vec, void* elem IBDBGFILELINEPARAMS)
+void _IBVectorCopyPush(IBVector* vec, void* elem, IBDBGFILELINEPARAMS)
 {
 	IBASSERT0(vec);
 	IB_ASSERTMAGICP(vec);
 	struct IBVecData* top;
-	_IBVectorPush(vec, &top IBDBGFPL2);//FIX
+	_IBVectorPush(vec, &top, IBDBGFPL2);//FIX
 	memcpy(top, elem, vec->elemSize);
 }
 
-void _IBVectorCopyPushBool(IBVector* vec, bool val IBDBGFILELINEPARAMS)
+void _IBVectorCopyPushBool(IBVector* vec, bool val, IBDBGFILELINEPARAMS)
 {
-	_IBVectorCopyPush(vec, &val IBDBGFPL2);
+	_IBVectorCopyPush(vec, &val, IBDBGFPL2);
 }
 
-void _IBVectorCopyPushOp(IBVector* vec, IBOp val IBDBGFILELINEPARAMS)
+void _IBVectorCopyPushOp(IBVector* vec, IBOp val, IBDBGFILELINEPARAMS)
 {
-	_IBVectorCopyPush(vec, &val IBDBGFPL2);
+	_IBVectorCopyPush(vec, &val, IBDBGFPL2);
 }
 
-void _IBVectorCopyPushIBColor(IBVector* vec, IBColor col IBDBGFILELINEPARAMS)
+void _IBVectorCopyPushIBColor(IBVector* vec, IBColor col, IBDBGFILELINEPARAMS)
 {
-	_IBVectorCopyPush(vec, &col IBDBGFPL2);
+	_IBVectorCopyPush(vec, &col, IBDBGFPL2);
 }
 
 struct IBVecData* IBVectorTop(IBVector* vec)
