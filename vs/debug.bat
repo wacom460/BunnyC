@@ -19,4 +19,5 @@ if not exist "%MSBUILD%" (
     exit /b 1
 )
 
+"%MSBUILD%" /p:Configuration=Debug
 "C:\Program Files\BeefLang\bin\BeefIDE.exe" -launch=x64\Debug\Build.exe -launchDir=..\ -- main.ib
