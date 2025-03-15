@@ -17,10 +17,14 @@ IBNameInfo* IBLayer3TryFindNameInfoInStructVar(IBLayer3* ibc, IBNameInfo* ni)
 			for(int i = 1; i < ibc->DotPathVec.elemCount; i++)
 			{
 				IBStr* ds = (IBStr*) IBVectorGet(&ibc->DotPathVec, i);
-				IBNameInfo* mvNi = (IBNameInfo*) IBVectorGet(&sni->members, i - 1);
-				if(!strcmp(ds->start, mvNi->name))
+				IBNameInfo* imni = 0;
+				int idx = 0;
+				while(imni = IBVectorIterNext(&sni->members, &idx))
 				{
-					return mvNi;
+					if(!strcmp(ds->start, imni->name))
+					{
+						return imni;
+					}
 				}
 			}
 		}
